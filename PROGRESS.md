@@ -12,7 +12,6 @@
 ## Next
 
 - M0 Prove reading (docs/SPEC.md, Milestones), then M1 Server core.
-- Enable GitHub Pages and publish the enclosure mockup at `https://sirmeili.github.io/filament-tracker/mockup/`. The README links there and the URL currently returns 404.
 
 ## Decisions
 
@@ -30,6 +29,6 @@ Spec gaps to settle before the affected work starts:
 - Enclosure: `nfc_skin` defaults to 1.2 mm in the SCAD model, but the spec requires 1 mm or less over the antenna.
 - Enclosure: the SCAD model describes a wall mount, but the spec places the scanner on a shelf.
 - The spec expects a repo `CLAUDE.md`, which does not exist yet.
-- `hardware/enclosure/mainfest.json` looks like a typo for `manifest.json`.
+- `hardware/enclosure/mainfest.json` looks like a typo for `manifest.json`. The README mockup link uses this spelling, so a rename must update it.
 
 See also the Open questions section of docs/SPEC.md.
