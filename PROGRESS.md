@@ -7,7 +7,7 @@
 
 ## In progress
 
-- `feature/readme`: awaiting user acceptance before push and PR.
+- `feature/readme`: accepted by the user; PR open, awaiting merge.
 
 ## Next
 
