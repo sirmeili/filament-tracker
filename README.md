@@ -6,7 +6,7 @@ It runs entirely on your LAN in Docker, with no Bambu cloud dependency.
 
 > **Status: pre-implementation.** This repo currently holds the spec and the enclosure design. The server and firmware described below have not been built yet. See [PROGRESS.md](PROGRESS.md) for current work.
 
-[![Filament scanner case](hardware/enclosure/preview.png)](https://sirmeili.github.io/3d-mockup-viewer/viewer.html?manifest=https://raw.githubusercontent.com/sirmeili/filament-tracker/main/hardware/enclosure/mainfest.json)
+[![Filament scanner case](hardware/enclosure/preview.png)](https://sirmeili.github.io/3d-mockup-viewer/openscad/viewer.html?manifest=https://raw.githubusercontent.com/sirmeili/filament-tracker/main/hardware/enclosure/mainfest.json)
 
 ## Goals
 
