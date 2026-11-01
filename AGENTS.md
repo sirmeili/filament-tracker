@@ -74,3 +74,27 @@ Upon user acceptance of a completed feature or step, you must commit your code, 
 * Acknowledge user approvals clearly before proceeding.
 
 * When encountering a blocker or ambiguity in the spec, halt execution and ask the user a clarifying question.
+
+## 8. Build Guardrails & Commands
+
+* **Single Instruction File:** This file holds the instructions for all AI agents in this repo, so do not create a separate agent-specific file such as `CLAUDE.md`.
+
+* **Work From the Spec:** Work only from `docs/SPEC.md`. Commit spec changes with the work they cover.
+
+* **Test Every Change:** Include tests and, where a change touches authentication, input handling or secrets, security tests.
+
+* **Protect Secrets and Tag Data:** Never commit secrets, `.env` files or tag dumps. Settings are listed in the Configuration table in `docs/SPEC.md`.
+
+* **Server Commands:** Run these from `server/` before requesting a review. CI runs the same checks on every PR.
+
+  * Install dependencies: `uv sync`
+
+  * Lint: `uv run ruff check .`
+
+  * Check formatting: `uv run ruff format --check .`
+
+  * Run tests with the 90% coverage gate: `uv run pytest`
+
+  * Run the server: `uv run uvicorn filament_tracker.main:create_app --factory --reload`
+
+  * Audit dependencies: `uv export --quiet --no-hashes --no-emit-project -o requirements-audit.txt`, then `uv run pip-audit --disable-pip --no-deps -r requirements-audit.txt`. The exported file is ignored by git.

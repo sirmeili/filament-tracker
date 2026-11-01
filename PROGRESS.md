@@ -16,10 +16,11 @@
 ## Next
 
 - Finish M0a: compare dumps from two rolls of the same product, retest a labeled box, and scan a refill if available. Dumps stay outside the repo.
-- Step 1 of the plan: repo `CLAUDE.md`, project skeleton, CI and coverage gate. Then M1 Server core.
+- M1 Server core, starting with the decoder and generated tags.
 
 ## Decisions
 
+- 2026-10-31: Keep all agent instructions and build commands in AGENTS.md, with no CLAUDE.md, so every tool follows one file.
 - 2026-10-31: Use uv for dependency locking because it is already installed and needs no extra lock tool.
 - 2026-10-31: Branches use the `feature/...` naming from AGENTS.md, because project rules win over the global `feat/...` convention.
 - 2026-10-31: Order the milestones as M0a, M1, M2, M5, M6, M3a, M0b, M3b, M4, because the hardware has not arrived and a phone can settle most of the reading risk first.
@@ -31,6 +32,7 @@
 
 ## Open questions
 
-- The spec expects a repo `CLAUDE.md`, which does not exist yet.
+- `fastapi.testclient` warns that using httpx with Starlette's test client is deprecated and suggests `httpx2`. Tests pass. Vet `httpx2` and get approval before switching.
+- `.env.example` was not added because agent permission settings block writing it. Settings are documented in the spec's Configuration table.
 
 See also the Open questions section of docs/SPEC.md.

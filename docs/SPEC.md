@@ -310,7 +310,7 @@ The server is fully testable without hardware. Firmware logic is unit tested on 
 
 Public and personal tag dumps contain UIDs and keys. They are used locally and never stored in the repo; CI uses generated tags only.
 
-A `CLAUDE.md` in the repo sets the build guardrails: work only from this spec, tests and security tests with every change, feature branches, and spec changes committed with the work they cover.
+`AGENTS.md` in the repo sets the build guardrails: work only from this spec, tests and security tests with every change, feature branches, and spec changes committed with the work they cover.
 
 ## Milestones
 
