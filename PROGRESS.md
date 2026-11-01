@@ -11,7 +11,7 @@
 
 ## In progress
 
-- `feature/bom`: bill of materials corrected, awaiting user acceptance before push and PR.
+- `feature/bom`: accepted by the user; PR open, awaiting merge.
 
 ## Next
 
@@ -33,7 +33,7 @@
 
 ## Open questions
 
-- Confirm on the real parts: JST connector sizes, the CN1 pinout, CC pull-downs on the USB-C breakout, two-supply protection on the CYD, and whether the CYD's 3.3 V supply can power the PN532.
+- The user will confirm on the real parts and report back: JST connector sizes, the CN1 pinout, CC pull-downs on the USB-C breakout, two-supply protection on the CYD, and whether the CYD's 3.3 V supply can power the PN532.
 - `fastapi.testclient` warns that using httpx with Starlette's test client is deprecated and suggests `httpx2`. Tests pass. Vet `httpx2` and get approval before switching.
 - `.env.example` was not added because agent permission settings block writing it. Settings are documented in the spec's Configuration table.
 
