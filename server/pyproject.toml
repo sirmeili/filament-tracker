@@ -1,0 +1,36 @@
+[project]
+name = "filament-tracker"
+version = "0.1.0"
+description = "Self-hosted server that tracks Bambu Lab filament spools from delivery to empty"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.162,<1",
+    "uvicorn>=0.54,<1",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28,<1",
+    "pip-audit>=2.10,<3",
+    "pytest>=9.2,<10",
+    "pytest-cov>=7.1,<8",
+    "ruff>=0.17,<0.18",
+]
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=filament_tracker --cov-branch --cov-report=term-missing --cov-fail-under=90"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]

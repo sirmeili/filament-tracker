@@ -1,0 +1,22 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Tag dumps and keys contain UIDs and keys, and never belong in the repo
+*.bin
+*.dic
+*.dump
+tag-dumps/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.ruff_cache/
+dist/
+requirements-audit.txt

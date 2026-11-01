@@ -4,9 +4,9 @@ A self-hosted system that tracks every Bambu Lab filament spool from delivery to
 
 It runs entirely on your LAN in Docker, with no Bambu cloud dependency.
 
-> **Status: pre-implementation.** This repo currently holds the spec and the enclosure design. The server and firmware described below have not been built yet, and most of the software is planned to be built before the scanner hardware arrives. See [PROGRESS.md](PROGRESS.md) for current work.
+> **Status: early development.** This repo currently holds the spec, the enclosure design and a server skeleton. The features described below have not been built yet, and most of the software is planned to be built before the scanner hardware arrives. See [PROGRESS.md](PROGRESS.md) for current work.
 
-[![Filament scanner case](hardware/enclosure/preview.png)](https://sirmeili.github.io/3d-mockup-viewer/openscad/viewer.html?manifest=https://raw.githubusercontent.com/sirmeili/filament-tracker/main/hardware/enclosure/mainfest.json)
+[![Filament scanner case](hardware/enclosure/preview.png)](https://sirmeili.github.io/3d-mockup-viewer/openscad/viewer.html?manifest=https://raw.githubusercontent.com/sirmeili/filament-tracker/main/hardware/enclosure/manifest.json)
 
 ## Goals
 
@@ -46,7 +46,7 @@ The scanner case is a parametric OpenSCAD model with the screen and buttons on t
 Select the image above to open the interactive 3D mockup. The source is in [hardware/enclosure/](hardware/enclosure/):
 
 - [filament-scanner-case.scad](hardware/enclosure/filament-scanner-case.scad): the OpenSCAD model
-- [mainfest.json](hardware/enclosure/mainfest.json): the part list and groups for the mockup viewer
+- [manifest.json](hardware/enclosure/manifest.json): the part list and groups for the mockup viewer
 - [preview.png](hardware/enclosure/preview.png): the rendered preview
 
 ## Roadmap
@@ -69,6 +69,8 @@ Select the image above to open the interactive 3D mockup. The source is in [hard
 ```text
 docs/SPEC.md         Full specification: the source of truth
 hardware/enclosure/  3D model of the scanner case
+server/              FastAPI server (currently a skeleton with a health check)
+.github/workflows/   CI: lint, tests, 90% coverage gate and dependency audit
 AGENTS.md            Rules for AI agents working in this repo
 PROGRESS.md          Current status, next steps and decisions
 ```
@@ -78,3 +80,14 @@ PROGRESS.md          Current status, next steps and decisions
 [docs/SPEC.md](docs/SPEC.md) covers workflows, hardware, firmware, the data model, the API, security, testing and open questions.
 
 Secrets such as the tag key-derivation constant, tokens and the printer access code are supplied as configuration and are never committed.
+
+## Development
+
+The server needs Python 3.12 and [uv](https://docs.astral.sh/uv/). From `server/`:
+
+```sh
+uv sync                # Install dependencies
+uv run pytest          # Run tests with the 90% coverage gate
+uv run ruff check .    # Lint
+uv run uvicorn filament_tracker.main:create_app --factory --reload
+```
