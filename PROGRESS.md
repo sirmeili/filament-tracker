@@ -11,7 +11,7 @@
 
 ## In progress
 
-- `feature/project-foundation`: draft PR #3 open with CI passing, awaiting user review.
+- `feature/project-foundation`: accepted by the user; PR #3 open, awaiting merge.
 
 ## Next
 
