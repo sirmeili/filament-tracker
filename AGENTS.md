@@ -39,7 +39,7 @@ Upon user acceptance of a completed feature or step, you must commit your code, 
 
 * **Test-Driven Execution:** You must write tests for your code.
 
-* **Code Coverage:** You must maintain **90% or higher** code coverage in your unit tests for every feature branch. If coverage falls below 90%, you must write additional tests before requesting a review.
+* **Code Coverage:** You must maintain **90% or higher** code coverage in your unit tests for every feature branch. If coverage falls below 90%, you must write additional tests before requesting a review. For firmware, this applies to logic that runs in PC tests; a named list of hardware drivers is excluded and covered by the manual checklist in `docs/SPEC.md`.
 
 * **Self-Correction:** Run tests autonomously. If tests fail, diagnose the failure, correct the code, and re-run the tests before presenting the work to the user.
 

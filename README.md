@@ -4,7 +4,7 @@ A self-hosted system that tracks every Bambu Lab filament spool from delivery to
 
 It runs entirely on your LAN in Docker, with no Bambu cloud dependency.
 
-> **Status: pre-implementation.** This repo currently holds the spec and the enclosure design. The server and firmware described below have not been built yet. See [PROGRESS.md](PROGRESS.md) for current work.
+> **Status: pre-implementation.** This repo currently holds the spec and the enclosure design. The server and firmware described below have not been built yet, and most of the software is planned to be built before the scanner hardware arrives. See [PROGRESS.md](PROGRESS.md) for current work.
 
 [![Filament scanner case](hardware/enclosure/preview.png)](https://sirmeili.github.io/3d-mockup-viewer/openscad/viewer.html?manifest=https://raw.githubusercontent.com/sirmeili/filament-tracker/main/hardware/enclosure/mainfest.json)
 
@@ -36,10 +36,12 @@ Each spool carries two tags with different UIDs but the same tray UID. The tray 
 | Printer link | Reads AMS trays read-only to detect opened spools and track remaining % | Local MQTT from the P1S |
 | Home Assistant | Inventory and low-stock entities, plus events for automations | MQTT discovery, REST API |
 | Scan simulator | Replays saved tag dumps so the server can be tested without hardware | Python |
+| Screen simulator | Runs the real scanner screens on a PC, with the keyboard as buttons | LVGL |
+| Fake printer | Replays AMS report messages over TLS so the printer link can be tested without a printer | MQTT |
 
 ## Enclosure
 
-The scanner case is a parametric OpenSCAD model with the screen and buttons on the front and a flat "tap here" zone over the PN532 antenna. It holds the CYD, the PN532, the button board, a speaker and a USB-C power input. It mounts by keyhole screws, magnets or Command strips.
+The scanner case is a parametric OpenSCAD model with the screen and buttons on the front and a flat "tap here" zone over the PN532 antenna. It holds the CYD, the PN532, the button board, a speaker and a USB-C power input. It is designed to mount on a wall by keyhole screws, magnets or Command strips, and can also sit on a shelf.
 
 Select the image above to open the interactive 3D mockup. The source is in [hardware/enclosure/](hardware/enclosure/):
 
@@ -51,13 +53,15 @@ Select the image above to open the interactive 3D mockup. The source is in [hard
 
 | Milestone | Scope |
 | --- | --- |
-| M0 Prove reading | Dump two rolls of the same product; confirm matching product fields and distinct tray UIDs; test reading through the shipping box |
+| M0a Prove reading, phone | Dump two rolls of the same product with an Android app; confirm matching product fields and distinct tray UIDs; try reading through the shipping box |
 | M1 Server core | Decoder, data model, event log, `/scans` API, scan simulator, tests |
 | M2 Web UI | Inventory, spools, spool detail, review, devices |
-| M3 Scanner firmware | Breadboard build, provisioning, scan flow, offline queue, OTA |
-| M4 Enclosure | Printed case, button labels, antenna placement, final wiring |
 | M5 Printer link | P1S MQTT ingest, automatic Opened, remaining %, likely-empty suggestions |
 | M6 Home Assistant | MQTT discovery entities, events, low-stock automation |
+| M3a Firmware without hardware | Scan flow, offline queue and dedupe logic with PC tests, screen simulator |
+| M0b Prove reading, PN532 | Repeat the read tests on the bench rig; measure reading through the lid and shipping box |
+| M3b Firmware on hardware | Breadboard build, real drivers, provisioning, OTA |
+| M4 Enclosure | Printed case, button labels, antenna placement, final wiring |
 | M7 Later | Future enhancements listed in the spec |
 
 ## Repository layout
