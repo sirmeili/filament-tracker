@@ -116,7 +116,7 @@ One ESP32 touchscreen board, one PN532 reader and three soft-key buttons under t
 - Reads a tag through a 1 mm printed lid and, if possible, through the shipping box (to be measured in milestone 0).
 - Screen and key labels readable at arm's length; touch targets at least 48 px tall.
 - Placement: wall-mounted by default, as the case is designed, or on a shelf, near where boxes are unpacked; a second unit can sit by the printer.
-- Bill of materials target: under $30 per unit, excluding the printed case.
+- Bill of materials target: under $30 per unit, excluding the printed case. The parts list is in `hardware/BOM.md`.
 
 ## Scanner firmware
 
@@ -339,7 +339,7 @@ Each milestone ends with something usable. Reading is proved first with a phone,
 
 - [ ] Does a tag read through the sealed shipping box with the PN532, and from which side? If not, New needs another trigger (box barcode, or scanning at first opening). A Pixel 9 Pro XL has read a tag through one box, contents not recorded, but a phone antenna is not a PN532.
 - [ ] Does the AMS tray UUID equal the tag's tray UID, and how does the AMS report non-Bambu spools? Check against the real P1S.
-- [ ] Buttons on the CYD prototype: resistor ladder on GPIO35, or a PCF8574 expander?
+- [x] Buttons on the CYD prototype: resistor ladder on GPIO35. The PCF8574 expander stays as the fallback.
 - [ ] Printer data source: direct MQTT from the server, or the ha-bambulab entities in Home Assistant?
 - [ ] Do Bambu refill packs carry the same tags, and how should a refill on a reused spool be tracked?
 - [ ] Project and repo name.
