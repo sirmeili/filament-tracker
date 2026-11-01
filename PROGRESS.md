@@ -9,7 +9,7 @@
 
 ## In progress
 
-- `feature/spec-updates`: awaiting user acceptance before push and PR.
+- `feature/spec-updates`: accepted by the user; PR open, awaiting merge.
 
 ## Next
 
