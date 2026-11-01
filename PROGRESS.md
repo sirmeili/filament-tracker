@@ -6,10 +6,12 @@
 - README.md added, and AGENTS.md now requires keeping it up to date.
 - M0a partly done: a Pixel 9 Pro XL running BambuTagScanner read filament tags, including through one box with contents not recorded.
 - Spec updated with the approved gap fixes, test tools and milestone order; `nfc_skin` set to 1.0 mm.
+- Enclosure manifest renamed to `manifest.json`.
+- Server skeleton with a health check, plus CI for lint, tests, the 90% coverage gate and a dependency audit.
 
 ## In progress
 
-- `feature/spec-updates`: accepted by the user; PR open, awaiting merge.
+- `feature/project-foundation`: building the project foundation.
 
 ## Next
 
@@ -18,6 +20,7 @@
 
 ## Decisions
 
+- 2026-10-31: Use uv for dependency locking because it is already installed and needs no extra lock tool.
 - 2026-10-31: Branches use the `feature/...` naming from AGENTS.md, because project rules win over the global `feat/...` convention.
 - 2026-10-31: Order the milestones as M0a, M1, M2, M5, M6, M3a, M0b, M3b, M4, because the hardware has not arrived and a phone can settle most of the reading risk first.
 - 2026-10-31: Use BambuTagScanner for M0a instead of writing an Android app. A static review found no signs of malware and no internet permission, but did not prove the APK matches its source.
