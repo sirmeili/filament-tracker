@@ -11,7 +11,7 @@
 
 ## In progress
 
-- `feature/project-foundation`: accepted by the user; PR #3 open, awaiting merge.
+- `feature/bom`: accepted by the user; PR open, awaiting merge.
 
 ## Next
 
@@ -20,6 +20,7 @@
 
 ## Decisions
 
+- 2026-10-31: Use the resistor ladder on GPIO35 for the buttons, because its voltages are well separated and it needs no extra chip. The PCF8574 stays as the fallback.
 - 2026-10-31: Keep all agent instructions and build commands in AGENTS.md, with no CLAUDE.md, so every tool follows one file.
 - 2026-10-31: Use uv for dependency locking because it is already installed and needs no extra lock tool.
 - 2026-10-31: Branches use the `feature/...` naming from AGENTS.md, because project rules win over the global `feat/...` convention.
@@ -32,6 +33,7 @@
 
 ## Open questions
 
+- The user will confirm on the real parts and report back: JST connector sizes, the CN1 pinout, CC pull-downs on the USB-C breakout, two-supply protection on the CYD, and whether the CYD's 3.3 V supply can power the PN532.
 - `fastapi.testclient` warns that using httpx with Starlette's test client is deprecated and suggests `httpx2`. Tests pass. Vet `httpx2` and get approval before switching.
 - `.env.example` was not added because agent permission settings block writing it. Settings are documented in the spec's Configuration table.
 
