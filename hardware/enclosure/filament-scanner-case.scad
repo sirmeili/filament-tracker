@@ -29,7 +29,7 @@ window_offset_x = 0; // [-6:0.1:6] shift if your panel's visible area is off-cen
 bezel_chamfer = 1.5; // [0:0.25:3]
 
 /* [NFC tap zone] */
-nfc_skin = 1.2;      // [0.8:0.2:1.6] plastic left over the PN532 antenna
+nfc_skin = 1.0;      // [0.8:0.2:1.6] plastic left over the PN532 antenna
 tap_ring_d = 34;     // [24:1:40]
 tap_ring_w = 1.6;    // [0.8:0.2:3]
 tap_ring_depth = 0.4;// [0.2:0.2:0.8] inlay depth (print in a second colour with the AMS)

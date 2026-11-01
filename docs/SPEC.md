@@ -81,10 +81,13 @@ Menu items:
 - Choosing Opened or Empty on an unknown spool creates it first (an implicit Received).
 - Either of the spool's two tags works; both resolve to the same spool.
 - Offline: if the lookup fails, the screen offers New, Opened and Empty with the product decoded from the raw tag, and the chosen event is queued. The server applies the same rules when it arrives.
+- Replay order: events are replayed by `occurred_at`, not by arrival, so a queued event takes its true place in the spool's history.
+- A queued Opened that still falls after the spool's Empty is applied: the spool becomes `open` and the event is flagged for review.
 
 **Automatic detection from the AMS**
 
 - The first time the P1S/AMS reports a tray UID the server has not seen opened, the spool moves to `open` with source `ams`. This covers spools opened and loaded without a scan.
+- A spool first seen through the AMS is assigned to an existing product if its AMS data matches exactly one. If it matches none or several, the server creates a provisional product. Either way the spool is flagged for review. A later scan of one of its tags wins: the spool moves to the tag's product, and a provisional product left with no spools is removed.
 - The AMS remaining % is stored on the spool and shown in the UI.
 - When the AMS reports 0% remaining, the server raises a "Likely empty" suggestion; it does not mark the spool empty on its own.
 
@@ -112,7 +115,7 @@ One ESP32 touchscreen board, one PN532 reader and three soft-key buttons under t
 
 - Reads a tag through a 1 mm printed lid and, if possible, through the shipping box (to be measured in milestone 0).
 - Screen and key labels readable at arm's length; touch targets at least 48 px tall.
-- Placement: on the shelf where boxes are unpacked; a second unit can sit by the printer.
+- Placement: wall-mounted by default, as the case is designed, or on a shelf, near where boxes are unpacked; a second unit can sit by the printer.
 - Bill of materials target: under $30 per unit, excluding the printed case.
 
 ## Scanner firmware
@@ -153,10 +156,14 @@ The firmware stays dumb: it reads the UID, derives the keys, dumps the raw block
 **Configuration**
 
 - First boot opens a Wi-Fi setup portal (Wi-Fi, server URL, device token).
-- The key-derivation constant is entered at provisioning or fetched once from the server after authentication; it is never in the source repo.
+- The key-derivation constant is entered at provisioning or fetched once from `GET /devices/provisioning` after authentication; it is never in the source repo.
 - OTA firmware updates over the LAN.
 
-A command-line **scan simulator** (Python) posts the same payload from saved tag dumps, so the server can be built and tested before the hardware exists.
+**Testing without hardware**
+
+- A command-line **scan simulator** (Python) posts the same payload from saved tag dumps, so the server can be built and tested before the hardware exists. It imports dumps exported from a phone and strips the sector trailers, which hold the keys.
+- A **screen simulator** runs the firmware's real LVGL screens on a PC at 320×240, with the keyboard as the three buttons and saved tag dumps as taps, against a real or test server.
+- Firmware logic reaches the reader, buttons, screen and storage through interfaces, so it can run in PC unit tests with fakes.
 
 ## Server: data model
 
@@ -185,13 +192,13 @@ The server is event-sourced: every scan, AMS observation and UI edit is an immut
 | `open` | `empty` | `empty` | Scanner, UI |
 | `sealed` | `empty` | `empty` | Scanner, UI (flagged for review) |
 | any | `revert` | previous state | Undo from scanner or UI |
-| `empty` | `opened` | `open` | UI only (correction) |
+| `empty` | `opened` | `open` | UI (correction); queued offline scan (flagged for review) |
 
 **Decoding**
 
 - A `decoder` module turns raw blocks into a typed record (material, variant, type, color, weight, diameter, temperatures, production date, tray UID).
 - Decoding is pure and versioned; if the decoder improves, a maintenance command re-decodes every stored tag.
-- Unknown or unreadable tags are stored by UID with state `unidentified` so nothing is lost.
+- Unknown or unreadable tags are stored in `tag` by UID with no spool and shown in Review as `unidentified`, so nothing is lost.
 
 ## Server: API
 
@@ -201,12 +208,13 @@ A versioned REST API under `/api/v1`, documented by FastAPI's generated OpenAPI 
 | --- | --- | --- | --- |
 | POST | `/scans` | Scanner | Submit a scan event; a lookup returns spool, product, state, allowed and suggested actions; an action returns the new state and a `feedback` code for the screen |
 | POST | `/devices/heartbeat` | Scanner | Online status, firmware version, queue length |
+| GET | `/devices/provisioning` | Scanner | Returns the key-derivation constant to an authenticated device |
 | GET | `/inventory` | UI, HA | Counts by product and state, low-stock flags |
 | GET | `/spools` | UI | List with filters: state, product, location |
 | GET | `/spools/{id}` | UI | Spool detail with tags and event timeline |
 | PATCH | `/spools/{id}` | UI | Edit location and notes |
 | POST | `/spools/{id}/events` | UI | Manual action (received, opened, empty) |
-| POST | `/events/{id}/revert` | UI, Scanner | Undo an event |
+| POST | `/events/{id}/revert` | UI, Scanner | Undo an event; a scanner can undo only events from its own device |
 | GET / PATCH | `/products`, `/products/{id}` | UI | Display names and low-stock thresholds |
 | GET / POST / DELETE | `/devices` | UI | Register a scanner and issue or revoke its token |
 | GET | `/health` | Docker, HA | Liveness and dependency status |
@@ -238,7 +246,9 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 - The server subscribes to the printer's local MQTT report (TLS, port 8883, LAN access code) for each configured printer.
 - From each AMS tray it reads the tray UID, filament type, color and remaining %.
 - A new tray UID triggers the automatic `opened` event (source `ams`); remaining % updates the spool in place, debounced to one write per change.
-- Read-only: the server never publishes commands to the printer.
+- Read-only, with one exception: the server may publish `pushall`, which requests full state, because P1 printers otherwise report only changes. It never publishes anything else to the printer.
+- `PRINTERS` may point at an MQTT proxy instead of the printer, to stay under the printer's connection limit. Any proxy is a separate project, not part of this system.
+- A **fake printer** replays recorded or documentation-based report messages over TLS, so this integration can be tested without a printer.
 - Alternative (see Open questions): read the same data from the ha-bambulab entities in Home Assistant instead of a second MQTT connection.
 
 **Home Assistant**
@@ -277,39 +287,45 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 **Security requirements**
 
 - Every endpoint except `/health` requires authentication.
-- Device tokens are stored hashed, scoped to `/scans` and `/devices/heartbeat`, and revocable.
+- Device tokens are stored hashed, revocable, and scoped to `/scans`, `/devices/heartbeat`, `/devices/provisioning` and `/events/{id}/revert` for events from that same device.
 - Input validation on all payloads (Pydantic); block arrays capped in size.
 - No tag UIDs or derived keys in logs above debug level, in line with the RFID guide's request not to publish UID/key pairs.
 - The printer access code and HA token never leave the server or appear in API responses.
 
 ## Testing
 
-The server is fully testable without hardware; the firmware gets a short manual checklist.
+The server is fully testable without hardware. Firmware logic is unit tested on a PC, and hardware behavior gets a short manual checklist.
 
 | Layer | What is tested | How |
 | --- | --- | --- |
-| Decoder | Every field from real dumps; two rolls of the same product yield the same product key | pytest against fixture dumps (own spools plus the public Bambu RFID library) |
+| Decoder | Every field; two rolls of the same product yield the same product key | pytest against generated tags in CI, plus own spools and the public Bambu RFID library locally |
 | State machine | Every transition in the table, out-of-order flags, undo | pytest, property tests for event replay |
 | API | Auth on every route, idempotent scans, validation errors | pytest with FastAPI TestClient |
 | Security | Unauthenticated access refused, revoked tokens refused, oversized payloads rejected | pytest security suite, run in CI |
-| AMS ingest | Recorded MQTT report messages produce the right events | Replay fixtures |
+| AMS ingest | Report messages produce the right events | Fake printer replaying recorded or documentation-based messages |
 | End to end | Scan simulator drives Received, Opened, Empty for a spool; HA entities update | Docker Compose test stack with a Mosquitto container |
-| Firmware | Read through lid and box, each soft key and touch target, menu navigation, timeout, offline queue, OTA | Manual checklist per release |
+| Firmware logic | Screen flow, tag parsing, offline queue, dedupe, button thresholds | PC unit tests with fakes; 90% coverage, excluding a named list of hardware drivers |
+| Firmware screens | Every screen and soft-key mapping | Screen simulator |
+| Firmware on hardware | Read through lid and box, each soft key and touch target, menu navigation, timeout, offline queue, OTA, plus the excluded drivers | Manual checklist per release |
+
+Public and personal tag dumps contain UIDs and keys. They are used locally and never stored in the repo; CI uses generated tags only.
 
 A `CLAUDE.md` in the repo sets the build guardrails: work only from this spec, tests and security tests with every change, feature branches, and spec changes committed with the work they cover.
 
 ## Milestones
 
-Each milestone ends with something usable, and the risky reading question is settled first.
+Each milestone ends with something usable. Reading is proved first with a phone, so the software can be built before the scanner hardware arrives; the PN532 proof follows when it does.
 
-1. **M0 Prove reading**: dump two rolls of the same product with an Android app or a PN532 bench rig; confirm matching product fields and distinct tray UIDs; measure whether a tag reads through the shipping box.
+1. **M0a Prove reading, phone**: dump two rolls of the same product with an Android app; confirm matching product fields and distinct tray UIDs; try reading through the shipping box.
 2. **M1 Server core**: decoder, data model, event log, `/scans` API, scan simulator, tests.
 3. **M2 Web UI**: inventory, spools, spool detail, review, devices.
-4. **M3 Scanner firmware**: breadboard build, provisioning, scan flow, offline queue, OTA.
-5. **M4 Enclosure**: printed case, button labels, antenna placement, final wiring.
-6. **M5 Printer link**: P1S MQTT ingest, automatic Opened, remaining %, likely-empty suggestions.
-7. **M6 Home Assistant**: MQTT discovery entities, events, low-stock automation.
-8. **M7 Later**: see Future enhancements.
+4. **M5 Printer link**: P1S MQTT ingest, automatic Opened, remaining %, likely-empty suggestions, built against the fake printer and checked against the real P1S.
+5. **M6 Home Assistant**: MQTT discovery entities, events, low-stock automation.
+6. **M3a Firmware without hardware**: scan flow, offline queue and dedupe logic with PC tests, screen simulator.
+7. **M0b Prove reading, PN532**: repeat the read tests on the bench rig and measure reading through the 1 mm lid and shipping box.
+8. **M3b Firmware on hardware**: breadboard build, real drivers, provisioning, OTA.
+9. **M4 Enclosure**: printed case, button labels, antenna placement, final wiring.
+10. **M7 Later**: see Future enhancements.
 
 ## Future enhancements
 
@@ -321,7 +337,8 @@ Each milestone ends with something usable, and the risky reading question is set
 
 ## Open questions
 
-- [ ] Does a tag read through the sealed shipping box, and from which side? If not, New needs another trigger (box barcode, or scanning at first opening).
+- [ ] Does a tag read through the sealed shipping box with the PN532, and from which side? If not, New needs another trigger (box barcode, or scanning at first opening). A Pixel 9 Pro XL has read a tag through one box, contents not recorded, but a phone antenna is not a PN532.
+- [ ] Does the AMS tray UUID equal the tag's tray UID, and how does the AMS report non-Bambu spools? Check against the real P1S.
 - [ ] Buttons on the CYD prototype: resistor ladder on GPIO35, or a PCF8574 expander?
 - [ ] Printer data source: direct MQTT from the server, or the ha-bambulab entities in Home Assistant?
 - [ ] Do Bambu refill packs carry the same tags, and how should a refill on a reused spool be tracked?
