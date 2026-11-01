@@ -29,6 +29,5 @@
 ## Open questions
 
 - The spec expects a repo `CLAUDE.md`, which does not exist yet.
-- `hardware/enclosure/mainfest.json` looks like a typo for `manifest.json`. The README mockup link uses this spelling, so a rename must update it.
 
 See also the Open questions section of docs/SPEC.md.

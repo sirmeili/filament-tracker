@@ -6,7 +6,7 @@ It runs entirely on your LAN in Docker, with no Bambu cloud dependency.
 
 > **Status: pre-implementation.** This repo currently holds the spec and the enclosure design. The server and firmware described below have not been built yet, and most of the software is planned to be built before the scanner hardware arrives. See [PROGRESS.md](PROGRESS.md) for current work.
 
-[![Filament scanner case](hardware/enclosure/preview.png)](https://sirmeili.github.io/3d-mockup-viewer/openscad/viewer.html?manifest=https://raw.githubusercontent.com/sirmeili/filament-tracker/main/hardware/enclosure/mainfest.json)
+[![Filament scanner case](hardware/enclosure/preview.png)](https://sirmeili.github.io/3d-mockup-viewer/openscad/viewer.html?manifest=https://raw.githubusercontent.com/sirmeili/filament-tracker/main/hardware/enclosure/manifest.json)
 
 ## Goals
 
@@ -46,7 +46,7 @@ The scanner case is a parametric OpenSCAD model with the screen and buttons on t
 Select the image above to open the interactive 3D mockup. The source is in [hardware/enclosure/](hardware/enclosure/):
 
 - [filament-scanner-case.scad](hardware/enclosure/filament-scanner-case.scad): the OpenSCAD model
-- [mainfest.json](hardware/enclosure/mainfest.json): the part list and groups for the mockup viewer
+- [manifest.json](hardware/enclosure/manifest.json): the part list and groups for the mockup viewer
 - [preview.png](hardware/enclosure/preview.png): the rendered preview
 
 ## Roadmap
