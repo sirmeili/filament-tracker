@@ -11,7 +11,7 @@
 
 ## In progress
 
-- `feature/project-foundation`: accepted by the user; PR #3 open, awaiting merge.
+- `feature/bom`: adding the scanner bill of materials.
 
 ## Next
 
