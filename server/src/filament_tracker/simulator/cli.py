@@ -97,6 +97,10 @@ def _scan(args: argparse.Namespace, transport: Transport) -> int:
 
     failures = 0
     for path in _expand(args.dumps):
+        if _is_pattern(path) and not path.exists():
+            print(f"{_label(path.name)}: no files match", file=sys.stderr)
+            failures += 1
+            continue
         try:
             dump = load_dump(path)
         except DumpError as exc:
@@ -123,11 +127,15 @@ def _label(name: str) -> str:
     return _UID_PREFIX.sub("********", name)
 
 
+def _is_pattern(path: Path) -> bool:
+    return any(ch in path.name for ch in "*?[")
+
+
 def _expand(paths: list[Path]) -> list[Path]:
     """Expand wildcards ourselves, because PowerShell passes them through unexpanded."""
     expanded: list[Path] = []
     for path in paths:
-        if any(ch in path.name for ch in "*?[") and not path.exists():
+        if _is_pattern(path) and not path.exists():
             expanded.extend(sorted(path.parent.glob(path.name)) or [path])
         else:
             expanded.append(path)
@@ -138,7 +146,10 @@ def _summary(name: str, body: dict[str, Any]) -> str:
     product = body.get("product") or {}
     actions = " / ".join(a or "-" for a in body.get("actions", []))
     note = " (manual placeholder)" if body.get("placeholder") else ""
+    spool = body.get("spool")
+    spool_label = f"spool {spool['id']}" if spool else "new spool"
     return (
         f"{name}: {body['feedback']} | {product.get('display_name', 'unknown product')} | "
-        f"{body['state']}{note} | keys: {actions} | suggested: {body.get('suggested') or '-'}"
+        f"{spool_label} | {body['state']}{note} | keys: {actions} | "
+        f"suggested: {body.get('suggested') or '-'}"
     )

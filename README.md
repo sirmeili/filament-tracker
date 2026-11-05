@@ -1,8 +1,8 @@
 # Filament Tracker
 
-A self-hosted system that tracks every Bambu Lab filament spool from delivery to empty, using the RFID tags already on the spools. Tap a spool on a small touchscreen scanner, confirm whether it is new, just opened or empty, and a central server keeps the inventory and feeds Home Assistant.
+A self-hosted system that tracks every Bambu Lab filament spool from delivery to empty, using the RFID tags already on the spools. Tap a spool on a small touchscreen scanner, confirm whether it is new, just opened or empty, and a central server keeps the inventory, feeds Home Assistant and serves a web app for a few users.
 
-It runs entirely on your LAN in Docker, with no Bambu cloud dependency.
+It runs in Docker with no Bambu cloud dependency. Scanners and integrations stay on your LAN; the web app, with personal accounts and Viewer, Editor and Admin roles, can be reached from the internet through your own HTTPS reverse proxy.
 
 > **Status: early development.** This repo currently holds the spec, the enclosure design and the server core (M1): the tag decoder, the database, the event log, the scanner API (`/scans`, device registration and undo) and a scan simulator. The features described below have not been built yet, and most of the software is planned to be built before the scanner hardware arrives. See [PROGRESS.md](PROGRESS.md) for current work.
 
@@ -32,7 +32,7 @@ Each spool carries two tags with different UIDs but the same tray UID. The tray 
 | --- | --- | --- |
 | Scanner | Reads tags, derives keys and posts raw tag data; shows the spool and takes the action | ESP32 "Cheap Yellow Display", PN532 reader, three soft-key buttons; PlatformIO, Arduino, LVGL |
 | Server | Decodes tags, stores every change as an immutable event, derives spool state and serves the API | Python 3.12, FastAPI, SQLAlchemy, SQLite, Alembic |
-| Web UI | Check stock, fix mistakes and manage products and devices | Jinja2, HTMX |
+| Web UI | Check stock, fix mistakes and manage products, devices and users | SvelteKit (TypeScript), built to static files served by the server |
 | Printer link | Reads AMS trays read-only to detect opened spools and track remaining % | Local MQTT from the P1S |
 | Home Assistant | Inventory and low-stock entities, plus events for automations | MQTT discovery, REST API |
 | Scan simulator | Replays saved tag dumps so the server can be tested without hardware | Python |
@@ -55,7 +55,7 @@ Select the image above to open the interactive 3D mockup. The source is in [hard
 | --- | --- |
 | M0a Prove reading, phone | Dump two rolls of the same product with an Android app; confirm matching product fields and distinct tray UIDs; try reading through the shipping box |
 | M1 Server core | Decoder, data model, event log, `/scans` API, scan simulator, tests |
-| M2 Web UI | Inventory, spools, spool detail, review, devices |
+| M2 Web UI | User accounts and roles, inventory, spools, spool detail, products, review, activity, devices, users, manual entry |
 | M5 Printer link | P1S MQTT ingest, automatic Opened, remaining %, likely-empty suggestions |
 | M6 Home Assistant | MQTT discovery entities, events, low-stock automation |
 | M3a Firmware without hardware | Scan flow, offline queue and dedupe logic with PC tests, screen simulator |

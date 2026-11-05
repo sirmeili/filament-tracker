@@ -17,17 +17,20 @@
 - M1 part 2, settings, tables and migrations, merged (PR #7).
 - M1 part 3, state machine, replay and event log, merged (PR #8).
 - M1 part 4, `/scans`, device registration, revert and auth, merged (PR #9).
+- M1 part 5, the `ft-sim` scan simulator, merged (PR #10). **M1 complete.**
+- Real BambuTagScanner dumps run through `ft-sim` against a local server: both Black PLA Basic refills recorded as sealed spools of one product.
+- M2 plan approved: seven branches (spec, users and auth, read API, write API, web foundation, stock pages, admin pages).
 - M1 plan approved: five branches merged in order (decoder, data model, event log, `/scans` API, scan simulator).
 
 ## In progress
 
-- `feature/scan-simulator` (M1, part 5 of 5): `ft-sim` command that imports BambuTagScanner exports (ZIP or `.bin`), strips sector trailers and posts scans; generates synthetic tag files; usage guide in `server/README.md`. Completes M1. Accepted by the user; PR open, awaiting merge.
+- `feature/m2-spec` (M2, part 1 of 7): spec for user accounts and roles, public access through an HTTPS reverse proxy with scanner routes LAN-only, the SvelteKit web app, review actions and the low-stock rule. `ft-sim` now says when a wildcard matches nothing and prints the spool number.
 
 ## Next
 
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
-- Run the real BambuTagScanner dumps through `ft-sim` against a local server (see `server/README.md`).
-- M2 Web UI: plan first, including manual entry (`POST /spools`, `POST /products`).
+- M2 part 2, `feature/users-auth`: users, sessions, roles, `ft-admin`, LAN-only bearer tokens, sign-in throttling, security headers.
+- M2 parts 3 to 7: read API, write API, SvelteKit foundation, stock pages, admin pages.
 
 ## Decisions
 
@@ -70,6 +73,13 @@
 
 - 2026-11-05: `ft-sim` uses only the standard library for HTTP, so the server needs no new runtime dependency. It expands wildcards itself because PowerShell does not, and masks the tag UID that BambuTagScanner puts at the start of its file names.
 - 2026-11-05: `ft-sim generate` writes a tag file instead of posting directly, so the same synthetic spool can be scanned through its whole life. `*.zip` is now ignored by git, alongside `*.bin`.
+
+- 2026-11-05: The web app gets personal accounts with Viewer, Editor and Admin roles; the first admin comes from the `ft-admin` command, never a default account. Passwords use Argon2id, at least 12 characters.
+- 2026-11-05: The web app may be public, but only behind the owner's HTTPS reverse proxy. Scanner routes, bearer tokens (device and admin) and the API docs are accepted only from `TRUSTED_NETWORKS`. This replaces the spec's "LAN-only, never exposed" rule.
+- 2026-11-05: The web UI is a SvelteKit single-page app (TypeScript), built to static files that FastAPI serves, instead of Jinja2 + HTMX. Production stays one Python process; Node.js is only needed to build and test. Styling is hand-written component CSS.
+- 2026-11-05: Browser sign-in uses a server-side session (cookie HttpOnly, Secure, SameSite=Strict, 30 days); state-changing cookie requests also need an `X-Requested-With: filament-tracker` header.
+- 2026-11-05: Review actions for a flagged event: Accept (correct), Undo (revert) or Open spool (fix by hand). Low stock means the sealed count is at or below the product's threshold; 0 turns it off.
+- 2026-11-05: `ADMIN_TOKEN` stays for machine access (Home Assistant, scripts) and is accepted only from the LAN; people use accounts.
 
 ## Open questions
 
