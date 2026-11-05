@@ -18,7 +18,7 @@
 
 ## In progress
 
-- `feature/data-model` (M1, part 2 of 5): settings, SQLite engine (WAL, foreign keys), all six spec tables with Alembic migrations, and migration on startup.
+- `feature/data-model` (M1, part 2 of 5): settings, SQLite engine (WAL, foreign keys), all six spec tables with Alembic migrations, and migration on startup. Accepted by the user; PR open, awaiting merge.
 
 ## Next
 
