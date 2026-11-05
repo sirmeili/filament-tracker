@@ -19,17 +19,17 @@
 - M1 part 4, `/scans`, device registration, revert and auth, merged (PR #9).
 - M1 part 5, the `ft-sim` scan simulator, merged (PR #10). **M1 complete.**
 - Real BambuTagScanner dumps run through `ft-sim` against a local server: both Black PLA Basic refills recorded as sealed spools (same product name; one product not yet confirmed with `--json`).
+- M2 part 1, the spec for accounts, public access and the SvelteKit app, merged (PR #11).
 - M2 plan approved: seven branches (spec, users and auth, read API, write API, web foundation, stock pages, admin pages).
 - M1 plan approved: five branches merged in order (decoder, data model, event log, `/scans` API, scan simulator).
 
 ## In progress
 
-- `feature/m2-spec` (M2, part 1 of 7): spec for user accounts and roles, public access through an HTTPS reverse proxy with scanner routes LAN-only, the SvelteKit web app, review actions and the low-stock rule. `ft-sim` now says when a wildcard matches nothing and prints the spool number. Accepted by the user; PR open, awaiting merge.
+- `feature/users-auth` (M2, part 2 of 7): started. `user` and `session` tables, `event.user_id` (migration), `Role`, settings `TRUSTED_NETWORKS`, `FORWARDED_ALLOW_IPS`, `SESSION_DAYS`, `COOKIE_SECURE`, and the client-address and LAN check behind a proxy. Next: sign-in, roles on routes, user management, `ft-admin`.
 
 ## Next
 
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
-- M2 part 2, `feature/users-auth`: users, sessions, roles, `ft-admin`, LAN-only bearer tokens, sign-in throttling, security headers.
 - M2 parts 3 to 7: read API, write API, SvelteKit foundation, stock pages, admin pages.
 
 ## Decisions
@@ -89,3 +89,4 @@
 - `.env.example` was not added because agent permission settings block writing it. Settings are documented in the spec's Configuration table.
 
 See also the Open questions section of docs/SPEC.md.
+

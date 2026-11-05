@@ -6,7 +6,7 @@ from filament_tracker.db.engine import create_db_engine
 from filament_tracker.db.migrate import downgrade, upgrade
 from filament_tracker.db.models import Base
 
-TABLES = {"product", "spool", "tag", "event", "device", "printer"}
+TABLES = {"product", "spool", "tag", "event", "device", "printer", "user", "session"}
 
 
 def test_upgrade_creates_every_table(engine: Engine) -> None:

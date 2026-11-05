@@ -21,7 +21,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from filament_tracker.db.types import UtcDateTime, str_enum, utcnow
-from filament_tracker.domain.enums import EventSource, EventType, SpoolState
+from filament_tracker.domain.enums import EventSource, EventType, Role, SpoolState
 
 # Stable constraint names, so Alembic can alter SQLite tables in batch mode.
 NAMING_CONVENTION = {
@@ -132,6 +132,7 @@ class Event(Base):
     type: Mapped[EventType] = mapped_column(str_enum(EventType, "event_type"))
     source: Mapped[EventSource] = mapped_column(str_enum(EventSource, "event_source"))
     device_id: Mapped[str | None] = mapped_column(ForeignKey("device.id"))
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"))
     occurred_at: Mapped[datetime]
     recorded_at: Mapped[datetime] = mapped_column(default=utcnow)
     flagged: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -141,6 +142,41 @@ class Event(Base):
     result_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
     spool: Mapped[Spool] = relationship(back_populates="events")
+
+
+class User(Base):
+    """A web app account. Usernames are stored in lower case, so they are unique
+    regardless of case. Only an Argon2id hash of the password is stored."""
+
+    __tablename__ = "user"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(String(32), unique=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    role: Mapped[Role] = mapped_column(str_enum(Role, "user_role"))
+    disabled_at: Mapped[datetime | None]
+    last_login_at: Mapped[datetime | None]
+    password_changed_at: Mapped[datetime] = mapped_column(default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+    sessions: Mapped[list["UserSession"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+
+
+class UserSession(Base):
+    """A signed-in browser. Only a hash of the cookie value is stored."""
+
+    __tablename__ = "session"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    expires_at: Mapped[datetime]
+    last_seen_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+    user: Mapped[User] = relationship(back_populates="sessions")
 
 
 class Printer(Base):

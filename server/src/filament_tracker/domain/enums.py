@@ -20,3 +20,18 @@ class EventSource(StrEnum):
     SCANNER = "scanner"
     UI = "ui"
     AMS = "ams"
+
+
+class Role(StrEnum):
+    """Web app roles. Each role can do everything the roles before it can."""
+
+    VIEWER = "viewer"
+    EDITOR = "editor"
+    ADMIN = "admin"
+
+    @property
+    def rank(self) -> int:
+        return list(Role).index(self)
+
+    def allows(self, needed: "Role") -> bool:
+        return self.rank >= needed.rank
