@@ -103,6 +103,8 @@ Upon user acceptance of a completed feature or step, you must commit your code, 
 
   * Check that the models and migrations match: `uv run alembic check`
 
+  * Create a web app account: `uv run ft-admin create-user <username> --role viewer|editor|admin` (the password is prompted). Reset one with `uv run ft-admin reset-password <username>`.
+
   * Scan simulator: `uv run ft-sim scan <dump.bin|export.zip> --action lookup|received|opened|empty` and `uv run ft-sim generate <out.bin>`. It needs `FT_TOKEN` (a registered device token); see `server/README.md`. Tag dumps never go in the repo.
 
   * Audit dependencies: `uv export --quiet --no-hashes --no-emit-project -o requirements-audit.txt`, then `uv run pip-audit --disable-pip --no-deps -r requirements-audit.txt`. The exported file is ignored by git.

@@ -1,7 +1,7 @@
 from collections.abc import Iterator
 
 import pytest
-from api_helpers import ADMIN_TOKEN, register
+from api_helpers import ADMIN_TOKEN, BASE_URL, LAN_CLIENT, register
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -17,7 +17,8 @@ def app(db_url: str) -> FastAPI:
 
 @pytest.fixture
 def client(app: FastAPI) -> Iterator[TestClient]:
-    with TestClient(app) as client:
+    """A browser or scanner on the LAN, over HTTPS (so Secure cookies are sent)."""
+    with TestClient(app, base_url=BASE_URL, client=LAN_CLIENT) as client:
         yield client
 
 

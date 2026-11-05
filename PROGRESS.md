@@ -25,7 +25,7 @@
 
 ## In progress
 
-- `feature/users-auth` (M2, part 2 of 7): started. `user` and `session` tables, `event.user_id` (migration), `Role`, settings `TRUSTED_NETWORKS`, `FORWARDED_ALLOW_IPS`, `SESSION_DAYS`, `COOKIE_SECURE`, and the client-address and LAN check behind a proxy. Next: sign-in, roles on routes, user management, `ft-admin`.
+- `feature/users-auth` (M2, part 2 of 7): `user` and `session` tables and `event.user_id` (migration); Argon2id passwords; sign-in, sign-out, current user and password change under `/auth`; Admin user management under `/users` (the last active Admin cannot be demoted or disabled); Viewer/Editor/Admin checks on every route; bearer tokens, scanner routes and API docs only from `TRUSTED_NETWORKS`, with `X-Forwarded-For` trusted only from `FORWARDED_ALLOW_IPS`; CSRF header on cookie writes; sign-in throttling; security headers; the `ft-admin` command. 406 tests, 99.7% coverage. Awaiting user review.
 
 ## Next
 
@@ -90,3 +90,8 @@
 
 See also the Open questions section of docs/SPEC.md.
 
+- 2026-11-05: A valid token or session on a route it may not use now gets 403 (it was 401); 401 means not signed in or an invalid token. Bearer tokens from outside `TRUSTED_NETWORKS` get 403.
+- 2026-11-05: `ADMIN_TOKEN` acts as an Admin (devices, users, undo) from the LAN. Undo is open to Editors, the admin token, and a scanner for its own events; a web undo records the user.
+- 2026-11-05: Added `COOKIE_SECURE` (default true) for signing in over plain HTTP during development, and `ft-admin reset-password` to recover a locked-out Admin. `/auth/logout` needs no session: without one it just clears the cookie.
+- 2026-11-05: Sign-in throttling is kept in memory (5 failures per username, 20 per address, in 15 minutes), which suits one server process; a restart clears it. Unknown usernames are checked against a dummy hash so timing does not reveal them.
+- 2026-11-05: The API docs get a looser Content Security Policy (they load Swagger UI and ReDoc from a CDN) and are served only to the LAN; everything else gets `default-src 'self'`.

@@ -11,7 +11,39 @@ $env:ADMIN_TOKEN = "choose-a-long-random-value"
 uv run uvicorn filament_tracker.main:create_app --factory
 ```
 
-The API is under `http://localhost:8000/api/v1`, with interactive docs at `http://localhost:8000/docs`.
+The API is under `http://localhost:8000/api/v1`, with interactive docs at `http://localhost:8000/docs`. The docs, the scanner routes and bearer tokens (device and admin) work only from the LAN (`TRUSTED_NETWORKS`, by default the private address ranges); from anywhere else they get 404 or 403.
+
+## Accounts
+
+The web app has no default account. Create the first Admin from `server/`; the password is prompted, at least 12 characters:
+
+```powershell
+uv run ft-admin create-user frank --role admin
+```
+
+Admins add more users through the API (`/api/v1/users`) and, later, the Users page. If every Admin is locked out, `uv run ft-admin reset-password <username>` sets a new password and signs that user out everywhere.
+
+To sign in from PowerShell (the browser app comes later in M2):
+
+```powershell
+$body = '{"username": "frank", "password": "your password"}'
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/v1/auth/login -SessionVariable web `
+    -Headers @{ "X-Requested-With" = "filament-tracker" } -ContentType application/json -Body $body
+Invoke-RestMethod -Uri http://localhost:8000/api/v1/auth/me -WebSession $web
+```
+
+The session cookie is marked Secure, so over plain HTTP set `$env:COOKIE_SECURE = "false"` before starting the server (development only). Requests that change something with the cookie must send the `X-Requested-With: filament-tracker` header. Five failed sign-ins for one username, or twenty from one address, within 15 minutes give HTTP 429.
+
+## Behind a reverse proxy
+
+To reach the web app from outside, put it behind an HTTPS reverse proxy and tell the server the proxy's address, so it trusts the proxy's `X-Forwarded-For` header and no one else's:
+
+```powershell
+$env:FORWARDED_ALLOW_IPS = "192.168.1.5"   # the proxy
+$env:TRUSTED_NETWORKS = "192.168.1.0/24"   # optional: narrow the LAN
+```
+
+uvicorn reads the same `FORWARDED_ALLOW_IPS` variable and applies the same rule, so it needs no extra options. Clients coming through the proxy from the internet can sign in and use the web app, but bearer tokens, scanner routes and the API docs are refused for them. Forward only the web app and `/api/v1` from the proxy anyway.
 
 ## Register a scanner
 

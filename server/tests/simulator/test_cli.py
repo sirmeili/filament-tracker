@@ -20,7 +20,7 @@ SERVER = "http://testserver"
 @pytest.fixture
 def client(db_url: str) -> Iterator[TestClient]:
     app = create_app(Settings(database_url=db_url, admin_token=ADMIN, _env_file=None))
-    with TestClient(app) as client:
+    with TestClient(app, client=("127.0.0.1", 50000)) as client:
         yield client
 
 
