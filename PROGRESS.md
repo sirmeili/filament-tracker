@@ -21,17 +21,18 @@
 - Real BambuTagScanner dumps run through `ft-sim` against a local server: both Black PLA Basic refills recorded as sealed spools (same product name; one product not yet confirmed with `--json`).
 - M2 part 1, the spec for accounts, public access and the SvelteKit app, merged (PR #11).
 - M2 part 2, user accounts, sessions, roles and LAN-only tokens, merged (PR #12).
+- M2 part 3, the read API for inventory, products, spools, activity and review, merged (PR #13).
 - M2 plan approved: seven branches (spec, users and auth, read API, write API, web foundation, stock pages, admin pages).
 - M1 plan approved: five branches merged in order (decoder, data model, event log, `/scans` API, scan simulator).
 
 ## In progress
 
-- `feature/read-api` (M2, part 3 of 7): `GET /inventory` (counts per product, low-stock flag, type filter, low-stock sort), `/products`, `/products/{id}`, `/spools` (state, product, location filters, search, paging), `/spools/{id}` (tags with decoded fields, timeline with scanner or user and undo state), `/events` (Activity, newest first, paged) and `/review` (flagged events not undone, unidentified tags). All need Viewer; scanners are refused. 463 tests, 99.8% coverage; the suite now runs in about a minute instead of two. Accepted by the user; PR open, awaiting merge.
+- `feature/write-api` (M2, part 4 of 7): `PATCH /spools/{id}` (location, notes) and `PATCH /spools` (bulk location, all or nothing); `POST /spools/{id}/events` (manual received, opened, empty, optionally backdated, never in the future); `POST /spools` (manual entry: placeholder plus `received`); `POST /products` (provisional) and `PATCH /products/{id}` (name, threshold); `POST /review/events/{id}/accept` and `POST /review/tags/{uid}/dismiss`, with a migration adding `event.reviewed_at`, `event.reviewed_by` and `tag.dismissed_at`; `POST /devices/{id}/rotate`. Web app events record the user. 533 tests, 99.8% coverage. Accepted by the user; PR open, awaiting merge.
 
 ## Next
 
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
-- M2 parts 4 to 7: write API (including review accept and dismiss, with `reviewed_at`), SvelteKit foundation, stock pages, admin pages.
+- M2 parts 5 to 7: SvelteKit foundation (sign-in, layout, served by FastAPI), stock pages, admin pages. Part 6 is the first one usable day to day.
 
 ## Decisions
 
@@ -100,3 +101,6 @@ See also the Open questions section of docs/SPEC.md.
 - 2026-11-05: Until review accept arrives in part 4, Review shows every flagged event that has not been undone. "Likely empty" is an empty list until the AMS work in M5.
 - 2026-11-05: Read responses never include a tag's raw blocks, only its decoded fields.
 - 2026-11-05: Tests copy one database migrated per run instead of migrating each test's database, and use cheap Argon2 parameters; one test still migrates an empty database. Production hashing is unchanged.
+- 2026-11-05: Location and notes edits change the spool row directly rather than writing events, because the event types are only the spool's state changes (received, opened, empty, revert). Confirmed by the user.
+- 2026-11-05: Rotating a revoked scanner's token re-enables it, since a revoked device ID cannot be registered again. Confirmed by the user.
+- 2026-11-05: Manual actions may be backdated but not more than 5 minutes into the future. Accepting a flagged event twice keeps the first review; only flagged events still in effect can be accepted. Only tags with no spool can be dismissed.

@@ -100,6 +100,8 @@ class Tag(Base):
     decoded_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     decoder_version: Mapped[int | None]
     first_seen_at: Mapped[datetime] = mapped_column(default=utcnow)
+    # Set when an unidentified tag is dismissed from Review.
+    dismissed_at: Mapped[datetime | None]
 
     spool: Mapped[Spool | None] = relationship(back_populates="tags")
 
@@ -136,6 +138,9 @@ class Event(Base):
     occurred_at: Mapped[datetime]
     recorded_at: Mapped[datetime] = mapped_column(default=utcnow)
     flagged: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Set when a person accepts a flagged event as correct (Review).
+    reviewed_at: Mapped[datetime | None]
+    reviewed_by: Mapped[int | None] = mapped_column(ForeignKey("user.id"))
     payload_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     reverted_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("event.id"))
     # The response sent for this event, returned again if the same event ID is retried.
@@ -143,7 +148,8 @@ class Event(Base):
 
     spool: Mapped[Spool] = relationship(back_populates="events")
     device: Mapped[Device | None] = relationship()
-    user: Mapped["User | None"] = relationship()
+    user: Mapped["User | None"] = relationship(foreign_keys=[user_id])
+    reviewer: Mapped["User | None"] = relationship(foreign_keys=[reviewed_by])
 
 
 class User(Base):

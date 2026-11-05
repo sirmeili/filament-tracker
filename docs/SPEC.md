@@ -186,7 +186,7 @@ The server is event-sourced: every scan, AMS observation and UI edit is an immut
 | --- | --- | --- |
 | `product` | id, material\_id, variant\_id, filament\_type, color\_rgba, display\_name, low\_stock\_threshold, provisional | One row per filament product (for example Black PLA Basic); created automatically from the first decoded tag; display name editable. Provisional products (from the AMS or manual entry) have no material or variant ID until a tag is scanned |
 | `spool` | id, tray\_uid (unique, null for a manual placeholder), product\_id, state, received\_at, opened\_at, emptied\_at, remaining\_pct, location, notes | One physical spool; state and timestamps derived from events. State is null (Unknown) when every event that set it has been undone |
-| `tag` | uid (unique), spool\_id, raw\_blocks, decoded\_json, first\_seen\_at | Each spool has up to two tags; raw dump kept for re-decoding |
+| `tag` | uid (unique), spool\_id, raw\_blocks, decoded\_json, first\_seen\_at, dismissed\_at | Each spool has up to two tags; raw dump kept for re-decoding. `dismissed_at` hides an `unidentified` tag from Review |
 | `event` | id (UUID from device or server), spool\_id, type, source, device\_id, user\_id, occurred\_at, flagged, reviewed\_at, reviewed\_by, payload\_json, reverted\_by | Append-only log; undo writes a new `revert` event. `user_id` records who acted in the web app |
 | `device` | id, name, token\_hash, revoked\_at, last\_seen\_at, fw\_version | Registered scanners |
 | `user` | id, username (unique, case-insensitive), password\_hash, role, disabled\_at, last\_login\_at | Web app accounts; see Users and roles |
@@ -237,7 +237,7 @@ A versioned REST API under `/api/v1`, documented by FastAPI's generated OpenAPI 
 | POST | `/review/tags/{uid}/dismiss` | Editor | Hide an `unidentified` tag from Review |
 | GET / POST / PATCH | `/products`, `/products/{id}` | Viewer (GET), Editor | Display names and low-stock thresholds; POST creates a provisional product for manual entry |
 | GET / POST / DELETE | `/devices`, `/devices/{id}` | Admin | Register a scanner and issue or revoke its token |
-| POST | `/devices/{id}/rotate` | Admin | Issue a new token, invalidating the old one |
+| POST | `/devices/{id}/rotate` | Admin | Issue a new token, invalidating the old one; also re-enables a revoked scanner |
 | GET / POST / PATCH | `/users`, `/users/{id}` | Admin | List and create users, change role, disable, reset password |
 | GET | `/health` | Docker, HA | Liveness and dependency status |
 
