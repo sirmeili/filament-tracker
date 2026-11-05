@@ -25,7 +25,7 @@
 
 ## In progress
 
-- `feature/users-auth` (M2, part 2 of 7): `user` and `session` tables and `event.user_id` (migration); Argon2id passwords; sign-in, sign-out, current user and password change under `/auth`; Admin user management under `/users` (the last active Admin cannot be demoted or disabled); Viewer/Editor/Admin checks on every route; bearer tokens, scanner routes and API docs only from `TRUSTED_NETWORKS`, with `X-Forwarded-For` trusted only from `FORWARDED_ALLOW_IPS`; CSRF header on cookie writes; sign-in throttling; security headers; the `ft-admin` command. 406 tests, 99.7% coverage. Awaiting user review.
+- `feature/users-auth` (M2, part 2 of 7): `user` and `session` tables and `event.user_id` (migration); Argon2id passwords; sign-in, sign-out, current user and password change under `/auth`; Admin user management under `/users` (the last active Admin cannot be demoted or disabled); Viewer/Editor/Admin checks on every route; bearer tokens, scanner routes and API docs only from `TRUSTED_NETWORKS`, with `X-Forwarded-For` trusted only from `FORWARDED_ALLOW_IPS`; CSRF header on cookie writes; sign-in throttling; security headers; the `ft-admin` command. 406 tests, 99.7% coverage. Accepted by the user; PR open, awaiting merge.
 
 ## Next
 
