@@ -237,7 +237,7 @@ A versioned REST API under `/api/v1`, documented by FastAPI's generated OpenAPI 
 | POST | `/review/tags/{uid}/dismiss` | Editor | Hide an `unidentified` tag from Review |
 | GET / POST / PATCH | `/products`, `/products/{id}` | Viewer (GET), Editor | Display names and low-stock thresholds; POST creates a provisional product for manual entry |
 | GET / POST / DELETE | `/devices`, `/devices/{id}` | Admin | Register a scanner and issue or revoke its token |
-| POST | `/devices/{id}/rotate` | Admin | Issue a new token, invalidating the old one |
+| POST | `/devices/{id}/rotate` | Admin | Issue a new token, invalidating the old one; also re-enables a revoked scanner |
 | GET / POST / PATCH | `/users`, `/users/{id}` | Admin | List and create users, change role, disable, reset password |
 | GET | `/health` | Docker, HA | Liveness and dependency status |
 
