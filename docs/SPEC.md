@@ -327,6 +327,7 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 | `FORWARDED_ALLOW_IPS` | `192.168.1.5` | Address of the reverse proxy whose `X-Forwarded-For` is trusted |
 | `SESSION_DAYS` | `30` | How long a web sign-in lasts |
 | `COOKIE_SECURE` | `true` | Set `false` only to sign in over plain HTTP on the LAN during development; production is HTTPS |
+| `WEB_DIR` | `/app/web` | The built web app; defaults to `web/build` in a source checkout |
 
 **Security requirements**
 

@@ -5,6 +5,7 @@ the milestone that first uses them.
 """
 
 from ipaddress import IPv4Network, IPv6Network, ip_network
+from pathlib import Path
 from typing import Annotated, Any
 
 from pydantic import Field, SecretStr, field_validator
@@ -28,6 +29,8 @@ class Settings(BaseSettings):
     session_days: int = Field(default=30, ge=1, le=365)
     # Only for local development over plain HTTP; production sits behind HTTPS.
     cookie_secure: bool = True
+    # The built web app. Unset: web/build in a source checkout, if it has been built.
+    web_dir: Path | None = None
 
     @field_validator("trusted_networks", "forwarded_allow_ips", mode="before")
     @classmethod
