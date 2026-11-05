@@ -1,0 +1,74 @@
+/*
+ * Design tokens from the approved web mockups (direction A, "Workshop").
+ * The mockup pages switch themes with a .light / .dark class on their root.
+ * The real app can map these to whatever it uses (a data attribute,
+ * prefers-color-scheme, or both).
+ *
+ * Fonts (Google Fonts): Space Grotesk 500/600/700 for headings and product names,
+ * Inter 400/500/600 for body text, JetBrains Mono 500/700 for numbers, IDs and dates.
+ */
+
+.light {
+  --bg: #f4f2ee; /* page background */
+  --surface: #ffffff; /* cards, header, tables */
+  --line: #ddd8cf; /* borders and dividers */
+  --text: #1c1b19;
+  --muted: #5e5a53; /* secondary text; 6.5:1 on --surface */
+  --accent: #b45309; /* primary buttons, active filter, Review badge */
+  --onaccent: #ffffff;
+  --chip: #ece8e1; /* neutral fills: hover, open-state chip, avatars */
+  --lowbg: #fdecd3; /* low stock, flagged, warnings */
+  --lowtext: #7c3500;
+  --okbg: #dcefe2; /* device online */
+  --oktext: #1f5c33;
+  --okdot: #2f8a4e;
+  --track: #e9e5de; /* % left bar: track */
+  --fill: #3f3b35; /* % left bar: fill */
+  --fillLow: #c2410c; /* % left bar: under the nearly-out cutoff */
+
+  /* Spool ring swatch: same treatment for every color */
+  --ringShadow: 0 1px 3px rgba(0, 0, 0, 0.22), 0 4px 12px rgba(0, 0, 0, 0.16);
+  --holeShadow: inset 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+
+.dark {
+  --bg: #121212;
+  --surface: #1c1c1b;
+  --line: #34322e;
+  --text: #f2efe9;
+  --muted: #a9a49b;
+  --accent: #f59e0b;
+  --onaccent: #1a1205;
+  --chip: #262523;
+  --lowbg: #3a2608;
+  --lowtext: #fbbf5c;
+  --okbg: #173322;
+  --oktext: #86d9a3;
+  --okdot: #4ade80;
+  --track: #2c2b28;
+  --fill: #d9d4cb;
+  --fillLow: #fb923c;
+
+  /* Gap in the surface color, a thin light rim, then a soft glow, outside and inside the ring.
+     The gap keeps the rim visible against any swatch color, including white and black. */
+  --ringShadow: 0 0 0 1.5px var(--surface), 0 0 0 2.5px rgba(255, 255, 255, 0.3),
+    0 0 10px 2px rgba(255, 255, 255, 0.1);
+  --holeShadow: inset 0 0 0 1.5px var(--surface), inset 0 0 0 2.5px rgba(255, 255, 255, 0.3),
+    inset 0 0 6px 1px rgba(255, 255, 255, 0.1);
+}
+
+/* Spool ring swatch: border = the tag's color, hole = page background. */
+.ring {
+  display: inline-block;
+  border-radius: 50%;
+  box-sizing: border-box;
+  background: var(--bg);
+  box-shadow: var(--ringShadow), var(--holeShadow);
+}
+
+/* Small rings in tables and lists: thinner lines in dark mode. */
+.dark .ring.sm {
+  box-shadow: 0 0 0 1px var(--surface), 0 0 0 1.75px rgba(255, 255, 255, 0.28),
+    0 0 6px 1px rgba(255, 255, 255, 0.08), inset 0 0 0 1px var(--surface),
+    inset 0 0 0 1.75px rgba(255, 255, 255, 0.28);
+}

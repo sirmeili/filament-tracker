@@ -23,17 +23,18 @@
 - M2 part 2, user accounts, sessions, roles and LAN-only tokens, merged (PR #12).
 - M2 part 3, the read API for inventory, products, spools, activity and review, merged (PR #13).
 - M2 part 4, the write API (edits, manual entry, review, token rotation), merged (PR #14).
+- M2 part 5, the SvelteKit web foundation (sign-in, layout, navigation by role, served by FastAPI), merged (PR #15).
 - M2 plan approved: seven branches (spec, users and auth, read API, write API, web foundation, stock pages, admin pages).
 - M1 plan approved: five branches merged in order (decoder, data model, event log, `/scans` API, scan simulator).
 
 ## In progress
 
-- `feature/web-foundation` (M2, part 5 of 7): SvelteKit 3 app in `web/` (TypeScript, static SPA): typed API client with the CSRF header, session store, sign-in page, layout with navigation by role, "No access" for pages above the role, session-ended handling, placeholder pages, base CSS (light and dark). The server serves `web/build` at `/` with an SPA fallback and a CSP that allows the app's inline bootstrap script by hash (`WEB_DIR` setting). CI gains a `web` job (type-check, Prettier, Vitest with 90% coverage, audit, build) and an `e2e` job (Playwright against the real server). Server: 551 tests, 99.8%; web: 83 tests, 99.6%; e2e: 6. Accepted by the user (including the `WEB_DIR` setting); PR open, awaiting merge.
+- `feature/web-mockups`: mockups for every M2 web page in the chosen style (direction A, "Workshop"), in `docs/mockups/web/`: ten page sources (`.dc.html`), `tokens.css` (light and dark tokens, spool ring treatment) and a README mapping each mockup to its route, with the design rules. The README lists eight things the mockups show that the spec does not cover yet; they wait for the user's approval. Docs only, no code or tests changed.
 
 ## Next
 
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
-- **Before M2 part 6:** the user wants to make UI mockups first, to build the pages from. Remind them, and wait for the mockups before starting part 6.
+- **Before M2 part 6:** the mockups are in `docs/mockups/web/`. Build parts 6 and 7 from them. First get the user's decision on the "Beyond the spec" list in its README (per-spool % left on Inventory and the `/inventory` change it needs, the 15% nearly-out cutoff, and the smaller additions), and update the spec for whatever is approved.
 - M2 parts 6 and 7: stock pages (the first part usable day to day), then admin pages.
 
 ## Decisions

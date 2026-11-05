@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sign in — Filament Tracker</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+.light{--bg:#F4F2EE;--surface:#FFFFFF;--line:#DDD8CF;--text:#1C1B19;--muted:#5E5A53;--accent:#B45309;--onaccent:#FFFFFF;--lowbg:#FDECD3;--lowtext:#7C3500;--chip:#ECE8E1}
+.dark{--bg:#121212;--surface:#1C1C1B;--line:#34322E;--text:#F2EFE9;--muted:#A9A49B;--accent:#F59E0B;--onaccent:#1A1205;--lowbg:#3A2608;--lowtext:#FBBF5C;--chip:#262523}
+.iconbtn{width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--text);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.btn{font:inherit;font-size:15px;font-weight:600;min-height:48px;padding:0 16px;border-radius:10px;border:1px solid var(--accent);background:var(--accent);color:var(--onaccent);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;width:100%}
+.input{font:inherit;font-size:16px;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:0 12px;min-height:48px;box-sizing:border-box;width:100%}
+.field{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--muted)}
+</style>
+</helmet>
+<div class="{{theme}}" style="min-height: 100%; background: var(--bg); color: var(--text); font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column">
+<div style="display: flex; justify-content: flex-end; padding: 16px 24px">
+<button class="iconbtn" type="button" aria-label="{{themeLabel}}" onClick="{{toggleTheme}}">
+<sc-if value="{{dark}}" hint-placeholder-val="{{false}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg></sc-if>
+<sc-if value="{{light}}" hint-placeholder-val="{{true}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg></sc-if>
+</button>
+</div>
+<main style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px 24px 80px">
+<div style="width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 28px">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center">
+<svg width="56" height="56" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="14" cy="14" r="11"></circle><circle cx="14" cy="14" r="4"></circle><path d="M14 3v4M14 21v4M3 14h4M21 14h4"></path></svg>
+<h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 32px; font-weight: 700; letter-spacing: -0.02em">Filament Tracker</h1>
+</div>
+<form style="background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 28px; display: flex; flex-direction: column; gap: 18px">
+<sc-if value="{{showError}}" hint-placeholder-val="{{false}}"><div role="alert" style="background: var(--lowbg); color: var(--lowtext); border-radius: 10px; padding: 12px 14px; font-size: 14px; font-weight: 500">That username and password don't match.</div></sc-if>
+<label class="field">Username<input class="input" type="text" autocomplete="username" value="frank"></label>
+<label class="field">Password<input class="input" type="password" autocomplete="current-password"></label>
+<a class="btn" href="Inventory.dc.html">Sign in</a>
+</form>
+<p style="margin: 0; text-align: center; font-size: 14px; color: var(--muted)">No account? Ask the admin to create one.</p>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"error":{"editor":"boolean","default":false},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { dark: null, err: false }; }
+  renderVals() {
+    var self = this;
+    var dark = this.state.dark === null ? !!this.props.dark : this.state.dark;
+    return {
+      dark: dark, light: !dark, theme: dark ? 'dark' : 'light',
+      themeLabel: dark ? 'Switch to light theme' : 'Switch to dark theme',
+      toggleTheme: function () { self.setState({ dark: !dark }); },
+      showError: !!this.props.error
+    };
+  }
+}
+</script>
+</body>
+</html>

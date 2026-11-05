@@ -68,6 +68,7 @@ Select the image above to open the interactive 3D mockup. The source is in [hard
 
 ```text
 docs/SPEC.md         Full specification: the source of truth
+docs/mockups/web/    Web app page mockups and design tokens
 hardware/BOM.md      Bill of materials for one scanner
 hardware/enclosure/  3D model of the scanner case
 server/              FastAPI server: decoder, database, event log, API, scan simulator
