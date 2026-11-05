@@ -19,7 +19,7 @@
 
 ## In progress
 
-- `feature/event-log` (M1, part 3 of 5): spool state machine and replay, scanner action menus, and the event log service (append, undo, re-projection). Spool state may now be null (Unknown).
+- `feature/event-log` (M1, part 3 of 5): spool state machine and replay, scanner action menus, and the event log service (append, undo, re-projection). Spool state may now be null (Unknown). Accepted by the user; PR open, awaiting merge.
 
 ## Next
 
