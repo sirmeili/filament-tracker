@@ -20,7 +20,7 @@
 
 ## In progress
 
-- `feature/scans-api` (M1, part 4 of 5): `POST /scans` (lookup and actions, placeholder linking, provisional products, idempotent retries, unreadable tags), device registration and revocation, `POST /events/{id}/revert`, bearer-token auth, a request body cap and a security test suite.
+- `feature/scans-api` (M1, part 4 of 5): `POST /scans` (lookup and actions, placeholder linking, provisional products, idempotent retries, unreadable tags), device registration and revocation, `POST /events/{id}/revert`, bearer-token auth, a request body cap and a security test suite. Accepted by the user; PR open, awaiting merge.
 
 ## Next
 
