@@ -21,7 +21,7 @@
 
 ## In progress
 
-- `feature/scan-simulator` (M1, part 5 of 5): `ft-sim` command that imports BambuTagScanner exports (ZIP or `.bin`), strips sector trailers and posts scans; generates synthetic tag files; usage guide in `server/README.md`. Completes M1.
+- `feature/scan-simulator` (M1, part 5 of 5): `ft-sim` command that imports BambuTagScanner exports (ZIP or `.bin`), strips sector trailers and posts scans; generates synthetic tag files; usage guide in `server/README.md`. Completes M1. Accepted by the user; PR open, awaiting merge.
 
 ## Next
 
