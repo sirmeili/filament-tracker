@@ -7,7 +7,7 @@ from collections.abc import Iterator
 from uuid import uuid4
 
 import pytest
-from api_helpers import admin, bearer, register, scan, scan_body
+from api_helpers import BASE_URL, LAN_CLIENT, admin, bearer, register, scan, scan_body
 from fastapi.testclient import TestClient
 
 from filament_tracker.config import Settings
@@ -59,13 +59,13 @@ def test_bad_credentials_are_refused(
 def test_device_tokens_cannot_use_admin_routes(
     client: TestClient, token: str, method: str, path: str
 ) -> None:
-    assert _call(client, method, path, bearer(token)).status_code == 401
+    assert _call(client, method, path, bearer(token)).status_code == 403
 
 
 def test_the_admin_token_cannot_submit_scans(client: TestClient) -> None:
     body = scan_body(SyntheticTag(), "lookup")
 
-    assert client.post("/api/v1/scans", json=body, headers=admin()).status_code == 401
+    assert client.post("/api/v1/scans", json=body, headers=admin()).status_code == 403
 
 
 def test_a_revoked_token_is_refused_everywhere(client: TestClient, token: str) -> None:
@@ -85,7 +85,7 @@ def test_health_needs_no_token(client: TestClient) -> None:
 @pytest.fixture
 def unconfigured_client(db_url: str) -> Iterator[TestClient]:
     app = create_app(Settings(database_url=db_url, admin_token=None, _env_file=None))
-    with TestClient(app) as client:
+    with TestClient(app, base_url=BASE_URL, client=LAN_CLIENT) as client:
         yield client
 
 
@@ -100,7 +100,7 @@ def test_without_an_admin_token_configured_admin_routes_are_closed(
 
 def test_an_empty_admin_token_setting_does_not_open_admin_routes(db_url: str) -> None:
     app = create_app(Settings(database_url=db_url, admin_token="", _env_file=None))
-    with TestClient(app) as client:
+    with TestClient(app, base_url=BASE_URL, client=LAN_CLIENT) as client:
         assert client.get("/api/v1/devices", headers=bearer("")).status_code == 401
 
 

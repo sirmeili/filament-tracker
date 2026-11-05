@@ -65,6 +65,7 @@ def append_event(
     occurred_at: datetime,
     *,
     device_id: str | None = None,
+    user_id: int | None = None,
     event_id: UUID | None = None,
     payload: dict[str, Any] | None = None,
     flag: bool = False,
@@ -82,6 +83,7 @@ def append_event(
         type=event_type,
         source=source,
         device_id=device_id,
+        user_id=user_id,
         occurred_at=occurred_at,
         recorded_at=_next_recorded_at(spool),
         payload_json=payload,
@@ -100,6 +102,7 @@ def revert_event(
     occurred_at: datetime,
     *,
     device_id: str | None = None,
+    user_id: int | None = None,
     event_id: UUID | None = None,
 ) -> Event:
     """Undo an event by writing a `revert` event, then rebuild the spool."""
@@ -115,6 +118,7 @@ def revert_event(
         type=EventType.REVERT,
         source=source,
         device_id=device_id,
+        user_id=user_id,
         occurred_at=occurred_at,
         recorded_at=_next_recorded_at(spool),
         payload_json={"reverts": str(target.id)},

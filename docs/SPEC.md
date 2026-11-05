@@ -255,7 +255,7 @@ The web app has personal accounts, so a few people can use it from anywhere, som
 | Editor | Also record actions, undo, edit spools and products, add spools by hand, resolve review items |
 | Admin | Also manage users and scanners |
 
-- Accounts are created by an admin; there is no sign-up. The first admin is created from the command line (`ft-admin create-user`), so there is never a default account.
+- Accounts are created by an admin; there is no sign-up. The first admin is created from the command line (`ft-admin create-user`), so there is never a default account. `ft-admin reset-password` recovers an account when no admin can sign in.
 - Passwords are at least 12 characters and stored as Argon2id hashes. Users can change their own; an admin can reset one or disable an account.
 - Signing in sets a session cookie (HttpOnly, Secure, SameSite=Strict) valid for `SESSION_DAYS`. Sessions end on sign-out, on a password change (other sessions), or when the account is disabled.
 - Events recorded in the web app store who made them, and the Activity page shows it.
@@ -326,10 +326,11 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 | `TRUSTED_NETWORKS` | `192.168.0.0/16,10.0.0.0/8` | LAN ranges allowed to use bearer tokens, scanner routes and API docs; defaults to the private ranges |
 | `FORWARDED_ALLOW_IPS` | `192.168.1.5` | Address of the reverse proxy whose `X-Forwarded-For` is trusted |
 | `SESSION_DAYS` | `30` | How long a web sign-in lasts |
+| `COOKIE_SECURE` | `true` | Set `false` only to sign in over plain HTTP on the LAN during development; production is HTTPS |
 
 **Security requirements**
 
-- Every endpoint except `/health` and `/auth/login` requires authentication, and each enforces a minimum role.
+- Every endpoint except `/health`, `/auth/login` and `/auth/logout` (which only ends the caller's own session, if any) requires authentication, and each enforces a minimum role.
 - Sign-in attempts are throttled per username and per client address (HTTP 429), and failures give the same message whether the username exists or not.
 - State-changing requests made with a session cookie must carry the `X-Requested-With: filament-tracker` header, which other sites cannot send, in addition to SameSite cookies.
 - Responses carry a Content Security Policy, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` and a strict referrer policy.

@@ -19,17 +19,17 @@
 - M1 part 4, `/scans`, device registration, revert and auth, merged (PR #9).
 - M1 part 5, the `ft-sim` scan simulator, merged (PR #10). **M1 complete.**
 - Real BambuTagScanner dumps run through `ft-sim` against a local server: both Black PLA Basic refills recorded as sealed spools (same product name; one product not yet confirmed with `--json`).
+- M2 part 1, the spec for accounts, public access and the SvelteKit app, merged (PR #11).
 - M2 plan approved: seven branches (spec, users and auth, read API, write API, web foundation, stock pages, admin pages).
 - M1 plan approved: five branches merged in order (decoder, data model, event log, `/scans` API, scan simulator).
 
 ## In progress
 
-- `feature/m2-spec` (M2, part 1 of 7): spec for user accounts and roles, public access through an HTTPS reverse proxy with scanner routes LAN-only, the SvelteKit web app, review actions and the low-stock rule. `ft-sim` now says when a wildcard matches nothing and prints the spool number. Accepted by the user; PR open, awaiting merge.
+- `feature/users-auth` (M2, part 2 of 7): `user` and `session` tables and `event.user_id` (migration); Argon2id passwords; sign-in, sign-out, current user and password change under `/auth`; Admin user management under `/users` (the last active Admin cannot be demoted or disabled); Viewer/Editor/Admin checks on every route; bearer tokens, scanner routes and API docs only from `TRUSTED_NETWORKS`, with `X-Forwarded-For` trusted only from `FORWARDED_ALLOW_IPS`; CSRF header on cookie writes; sign-in throttling; security headers; the `ft-admin` command. 406 tests, 99.7% coverage. Accepted by the user; PR open, awaiting merge.
 
 ## Next
 
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
-- M2 part 2, `feature/users-auth`: users, sessions, roles, `ft-admin`, LAN-only bearer tokens, sign-in throttling, security headers.
 - M2 parts 3 to 7: read API, write API, SvelteKit foundation, stock pages, admin pages.
 
 ## Decisions
@@ -89,3 +89,9 @@
 - `.env.example` was not added because agent permission settings block writing it. Settings are documented in the spec's Configuration table.
 
 See also the Open questions section of docs/SPEC.md.
+
+- 2026-11-05: A valid token or session on a route it may not use now gets 403 (it was 401); 401 means not signed in or an invalid token. Bearer tokens from outside `TRUSTED_NETWORKS` get 403.
+- 2026-11-05: `ADMIN_TOKEN` acts as an Admin (devices, users, undo) from the LAN. Undo is open to Editors, the admin token, and a scanner for its own events; a web undo records the user.
+- 2026-11-05: Added `COOKIE_SECURE` (default true) for signing in over plain HTTP during development, and `ft-admin reset-password` to recover a locked-out Admin. `/auth/logout` needs no session: without one it just clears the cookie.
+- 2026-11-05: Sign-in throttling is kept in memory (5 failures per username, 20 per address, in 15 minutes), which suits one server process; a restart clears it. Unknown usernames are checked against a dummy hash so timing does not reveal them.
+- 2026-11-05: The API docs get a looser Content Security Policy (they load Swagger UI and ReDoc from a CDN) and are served only to the LAN; everything else gets `default-src 'self'`.

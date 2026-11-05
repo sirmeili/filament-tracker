@@ -1,4 +1,4 @@
-"""Register scanners and issue or revoke their tokens (admin only)."""
+"""Register scanners and issue or revoke their tokens (Admin role or the admin token)."""
 
 from typing import Annotated
 
@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from filament_tracker.api.deps import get_session
 from filament_tracker.api.schemas import DeviceCreate, DeviceCreated, DeviceOut
-from filament_tracker.auth import AdminCaller, hash_token, new_device_token
+from filament_tracker.auth import Admin, hash_token, new_device_token
 from filament_tracker.db.models import Device
 from filament_tracker.db.types import utcnow
 
@@ -28,12 +28,12 @@ def _out(device: Device) -> DeviceOut:
 
 
 @router.get("/devices", response_model=list[DeviceOut])
-def list_devices(_: AdminCaller, session: SessionDep) -> list[DeviceOut]:
+def list_devices(_: Admin, session: SessionDep) -> list[DeviceOut]:
     return [_out(d) for d in session.scalars(select(Device).order_by(Device.id))]
 
 
 @router.post("/devices", response_model=DeviceCreated, status_code=status.HTTP_201_CREATED)
-def register_device(body: DeviceCreate, _: AdminCaller, session: SessionDep) -> DeviceCreated:
+def register_device(body: DeviceCreate, _: Admin, session: SessionDep) -> DeviceCreated:
     """Register a scanner. The token is returned once and only its hash is stored."""
     if session.get(Device, body.id) is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "a device with this id already exists")
@@ -45,7 +45,7 @@ def register_device(body: DeviceCreate, _: AdminCaller, session: SessionDep) -> 
 
 
 @router.delete("/devices/{device_id}", status_code=status.HTTP_204_NO_CONTENT)
-def revoke_device(device_id: str, _: AdminCaller, session: SessionDep) -> Response:
+def revoke_device(device_id: str, _: Admin, session: SessionDep) -> Response:
     """Revoke a scanner's token. The device stays listed so its events keep their link."""
     device = session.get(Device, device_id)
     if device is None:
