@@ -29,6 +29,13 @@ from filament_tracker.main import create_app
 
 # Every route that needs a role, and the lowest role allowed.
 ROUTES = [
+    ("get", "/api/v1/inventory", Role.VIEWER),
+    ("get", "/api/v1/products", Role.VIEWER),
+    ("get", "/api/v1/products/99", Role.VIEWER),
+    ("get", "/api/v1/spools", Role.VIEWER),
+    ("get", "/api/v1/spools/99", Role.VIEWER),
+    ("get", "/api/v1/events", Role.VIEWER),
+    ("get", "/api/v1/review", Role.VIEWER),
     ("get", "/api/v1/devices", Role.ADMIN),
     ("post", "/api/v1/devices", Role.ADMIN),
     ("delete", "/api/v1/devices/scanner-9", Role.ADMIN),
@@ -69,7 +76,7 @@ def test_cookie_writes_need_the_csrf_header(
     response = _call(user, method, path)
 
     if method == "get":
-        assert response.status_code == 200
+        assert response.status_code in (200, 404)  # reads need no header
     else:
         assert response.status_code == 403
         assert "x-requested-with" in response.json()["detail"]

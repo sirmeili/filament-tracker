@@ -20,17 +20,18 @@
 - M1 part 5, the `ft-sim` scan simulator, merged (PR #10). **M1 complete.**
 - Real BambuTagScanner dumps run through `ft-sim` against a local server: both Black PLA Basic refills recorded as sealed spools (same product name; one product not yet confirmed with `--json`).
 - M2 part 1, the spec for accounts, public access and the SvelteKit app, merged (PR #11).
+- M2 part 2, user accounts, sessions, roles and LAN-only tokens, merged (PR #12).
 - M2 plan approved: seven branches (spec, users and auth, read API, write API, web foundation, stock pages, admin pages).
 - M1 plan approved: five branches merged in order (decoder, data model, event log, `/scans` API, scan simulator).
 
 ## In progress
 
-- `feature/users-auth` (M2, part 2 of 7): `user` and `session` tables and `event.user_id` (migration); Argon2id passwords; sign-in, sign-out, current user and password change under `/auth`; Admin user management under `/users` (the last active Admin cannot be demoted or disabled); Viewer/Editor/Admin checks on every route; bearer tokens, scanner routes and API docs only from `TRUSTED_NETWORKS`, with `X-Forwarded-For` trusted only from `FORWARDED_ALLOW_IPS`; CSRF header on cookie writes; sign-in throttling; security headers; the `ft-admin` command. 406 tests, 99.7% coverage. Accepted by the user; PR open, awaiting merge.
+- `feature/read-api` (M2, part 3 of 7): `GET /inventory` (counts per product, low-stock flag, type filter, low-stock sort), `/products`, `/products/{id}`, `/spools` (state, product, location filters, search, paging), `/spools/{id}` (tags with decoded fields, timeline with scanner or user and undo state), `/events` (Activity, newest first, paged) and `/review` (flagged events not undone, unidentified tags). All need Viewer; scanners are refused. 463 tests, 99.8% coverage; the suite now runs in about a minute instead of two. Accepted by the user; PR open, awaiting merge.
 
 ## Next
 
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
-- M2 parts 3 to 7: read API, write API, SvelteKit foundation, stock pages, admin pages.
+- M2 parts 4 to 7: write API (including review accept and dismiss, with `reviewed_at`), SvelteKit foundation, stock pages, admin pages.
 
 ## Decisions
 
@@ -95,3 +96,7 @@ See also the Open questions section of docs/SPEC.md.
 - 2026-11-05: Added `COOKIE_SECURE` (default true) for signing in over plain HTTP during development, and `ft-admin reset-password` to recover a locked-out Admin. `/auth/logout` needs no session: without one it just clears the cookie.
 - 2026-11-05: Sign-in throttling is kept in memory (5 failures per username, 20 per address, in 15 minutes), which suits one server process; a restart clears it. Unknown usernames are checked against a dummy hash so timing does not reveal them.
 - 2026-11-05: The API docs get a looser Content Security Policy (they load Swagger UI and ReDoc from a CDN) and are served only to the LAN; everything else gets `default-src 'self'`.
+- 2026-11-05: Inventory lists every product, including those with no spools, so a product with a threshold and nothing sealed shows as low. Spools whose events were all undone count as `unknown`.
+- 2026-11-05: Until review accept arrives in part 4, Review shows every flagged event that has not been undone. "Likely empty" is an empty list until the AMS work in M5.
+- 2026-11-05: Read responses never include a tag's raw blocks, only its decoded fields.
+- 2026-11-05: Tests copy one database migrated per run instead of migrating each test's database, and use cheap Argon2 parameters; one test still migrates an empty database. Production hashing is unchanged.

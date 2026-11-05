@@ -142,6 +142,8 @@ class Event(Base):
     result_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
     spool: Mapped[Spool] = relationship(back_populates="events")
+    device: Mapped[Device | None] = relationship()
+    user: Mapped["User | None"] = relationship()
 
 
 class User(Base):
