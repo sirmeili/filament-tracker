@@ -95,6 +95,12 @@ Upon user acceptance of a completed feature or step, you must commit your code, 
 
   * Run tests with the 90% coverage gate: `uv run pytest`
 
-  * Run the server: `uv run uvicorn filament_tracker.main:create_app --factory --reload`
+  * Run the server: `uv run uvicorn filament_tracker.main:create_app --factory --reload`. It upgrades the database on startup.
+
+  * Apply migrations by hand: `uv run alembic upgrade head`
+
+  * Create a migration after changing `db/models.py`: `uv run alembic revision --autogenerate -m "describe the change"`, then review the generated file. Never edit a migration that has been merged.
+
+  * Check that the models and migrations match: `uv run alembic check`
 
   * Audit dependencies: `uv export --quiet --no-hashes --no-emit-project -o requirements-audit.txt`, then `uv run pip-audit --disable-pip --no-deps -r requirements-audit.txt`. The exported file is ignored by git.
