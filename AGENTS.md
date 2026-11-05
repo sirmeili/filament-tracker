@@ -108,3 +108,21 @@ Upon user acceptance of a completed feature or step, you must commit your code, 
   * Scan simulator: `uv run ft-sim scan <dump.bin|export.zip> --action lookup|received|opened|empty` and `uv run ft-sim generate <out.bin>`. It needs `FT_TOKEN` (a registered device token); see `server/README.md`. Tag dumps never go in the repo.
 
   * Audit dependencies: `uv export --quiet --no-hashes --no-emit-project -o requirements-audit.txt`, then `uv run pip-audit --disable-pip --no-deps -r requirements-audit.txt`. The exported file is ignored by git.
+
+* **Web Commands:** Run these from `web/` (Node.js 24) before requesting a review. CI runs the same checks on every PR.
+
+  * Install dependencies: `npm ci`. Add new packages with `npm install --save-dev --before=<a date at least 7 days ago> <package>@<version>`, so nothing brand new is pulled in, then run the audit.
+
+  * Type-check: `npm run check`
+
+  * Check formatting: `npm run lint` (fix with `npm run format`)
+
+  * Run tests with the 90% coverage gate: `npm run test:coverage`
+
+  * Audit dependencies: `npm run audit`. It fails on any advisory not approved in `scripts/audit-policy.js`.
+
+  * Build: `npm run build`, which writes `web/build`. The server serves it at `/`.
+
+  * Develop with live reload: start the server on port 8000, then `npm run dev` (Vite proxies `/api` to it).
+
+  * End-to-end tests: `npx playwright install chromium` once, then `npm run build` and `npm run test:e2e`. They start the real server on a scratch database.

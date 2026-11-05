@@ -21,6 +21,7 @@ from filament_tracker.config import Settings
 from filament_tracker.db.engine import create_db_engine, create_session_factory
 from filament_tracker.db.migrate import upgrade
 from filament_tracker.services.throttle import LoginThrottle
+from filament_tracker.webapp import default_web_dir, mount_web_app
 
 API_PREFIX = "/api/v1"
 
@@ -46,4 +47,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(SecurityHeadersMiddleware, settings=settings)
     for module in (health, auth, scans, stock, edits, activity, review, devices, events, users):
         app.include_router(module.router, prefix=API_PREFIX)
+    mount_web_app(app, settings.web_dir or default_web_dir())
     return app

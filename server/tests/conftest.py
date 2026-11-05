@@ -52,3 +52,9 @@ def fast_password_hashing(monkeypatch: pytest.MonkeyPatch) -> None:
     fast = PasswordHasher(time_cost=1, memory_cost=1024, parallelism=1)
     monkeypatch.setattr(accounts, "_hasher", fast)
     monkeypatch.setattr(accounts, "_DUMMY_HASH", fast.hash("dummy"))
+
+
+@pytest.fixture(autouse=True)
+def no_web_app(monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory) -> None:
+    """Server tests do not depend on whether web/build happens to exist locally."""
+    monkeypatch.setenv("WEB_DIR", str(tmp_path_factory.getbasetemp() / "no-web-app"))

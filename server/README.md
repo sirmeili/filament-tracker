@@ -11,7 +11,7 @@ $env:ADMIN_TOKEN = "choose-a-long-random-value"
 uv run uvicorn filament_tracker.main:create_app --factory
 ```
 
-The API is under `http://localhost:8000/api/v1`, with interactive docs at `http://localhost:8000/docs`. The docs, the scanner routes and bearer tokens (device and admin) work only from the LAN (`TRUSTED_NETWORKS`, by default the private address ranges); from anywhere else they get 404 or 403.
+If the web app has been built (`npm ci` and `npm run build` in `web/`), it is served at `http://localhost:8000/`; set `WEB_DIR` to serve a build from elsewhere. The API is under `http://localhost:8000/api/v1`, with interactive docs at `http://localhost:8000/docs`. The docs, the scanner routes and bearer tokens (device and admin) work only from the LAN (`TRUSTED_NETWORKS`, by default the private address ranges); from anywhere else they get 404 or 403.
 
 ## Accounts
 
@@ -32,7 +32,7 @@ Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/v1/auth/login -Ses
 Invoke-RestMethod -Uri http://localhost:8000/api/v1/auth/me -WebSession $web
 ```
 
-The session cookie is marked Secure, so over plain HTTP set `$env:COOKIE_SECURE = "false"` before starting the server (development only). Requests that change something with the cookie must send the `X-Requested-With: filament-tracker` header. Five failed sign-ins for one username, or twenty from one address, within 15 minutes give HTTP 429.
+The session cookie is marked Secure. Browsers accept it over plain HTTP on `localhost`, but from another machine on the LAN over plain HTTP set `$env:COOKIE_SECURE = "false"` before starting the server (development only). Requests that change something with the cookie must send the `X-Requested-With: filament-tracker` header. Five failed sign-ins for one username, or twenty from one address, within 15 minutes give HTTP 429.
 
 ## Behind a reverse proxy
 

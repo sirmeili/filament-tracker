@@ -1,0 +1,13 @@
+{
+  "extends": "$app/tsconfig",
+  "include": ["src", "e2e", "scripts", "*"],
+  "exclude": ["src/service-worker"],
+  "compilerOptions": {
+    "strict": true,
+    "allowJs": true,
+    "checkJs": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "types": ["$app/types", "node", "vitest/globals", "@testing-library/jest-dom"]
+  }
+}

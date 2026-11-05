@@ -4,7 +4,7 @@ A self-hosted system that tracks every Bambu Lab filament spool from delivery to
 
 It runs in Docker with no Bambu cloud dependency. Scanners and integrations stay on your LAN; the web app, with personal accounts and Viewer, Editor and Admin roles, can be reached from the internet through your own HTTPS reverse proxy.
 
-> **Status: early development.** This repo currently holds the spec, the enclosure design and the server core (M1): the tag decoder, the database, the event log, the scanner API (`/scans`, device registration and undo) and a scan simulator. M2 has started: user accounts with Viewer, Editor and Admin roles, sign-in sessions, LAN-only tokens and the API behind the pages (reading, editing, manual entry and review) are built; the web pages are not yet. The features described below have not been built yet, and most of the software is planned to be built before the scanner hardware arrives. See [PROGRESS.md](PROGRESS.md) for current work.
+> **Status: early development.** This repo currently holds the spec, the enclosure design and the server core (M1): the tag decoder, the database, the event log, the scanner API (`/scans`, device registration and undo) and a scan simulator. M2 has started: user accounts with Viewer, Editor and Admin roles, sign-in sessions, LAN-only tokens and the API behind the pages are built, and the web app has sign-in and navigation; its pages are not built yet. The features described below have not been built yet, and most of the software is planned to be built before the scanner hardware arrives. See [PROGRESS.md](PROGRESS.md) for current work.
 
 [![Filament scanner case](hardware/enclosure/preview.png)](https://sirmeili.github.io/3d-mockup-viewer/openscad/viewer.html?manifest=https://raw.githubusercontent.com/sirmeili/filament-tracker/main/hardware/enclosure/manifest.json)
 
@@ -70,8 +70,9 @@ Select the image above to open the interactive 3D mockup. The source is in [hard
 docs/SPEC.md         Full specification: the source of truth
 hardware/BOM.md      Bill of materials for one scanner
 hardware/enclosure/  3D model of the scanner case
-server/              FastAPI server: decoder, database, event log, scanner API and scan simulator
-.github/workflows/   CI: lint, tests, 90% coverage gate and dependency audit
+server/              FastAPI server: decoder, database, event log, API, scan simulator
+web/                 SvelteKit web app (TypeScript), built to static files the server serves
+.github/workflows/   CI: lint, tests, 90% coverage gates, dependency audits, end-to-end tests
 AGENTS.md            Rules for AI agents working in this repo
 PROGRESS.md          Current status, next steps and decisions
 ```
@@ -91,6 +92,14 @@ uv sync                # Install dependencies
 uv run pytest          # Run tests with the 90% coverage gate
 uv run ruff check .    # Lint
 uv run uvicorn filament_tracker.main:create_app --factory --reload
+```
+
+The web app needs Node.js 24. From `web/`:
+
+```sh
+npm ci                 # Install dependencies
+npm run test:coverage  # Run tests with the 90% coverage gate
+npm run build          # Build to web/build, which the server serves at /
 ```
 
 To create accounts (`ft-admin`), run behind a reverse proxy, register a scanner and use the scan simulator (`ft-sim`) with your own tag dumps, see [server/README.md](server/README.md).

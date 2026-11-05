@@ -22,17 +22,19 @@
 - M2 part 1, the spec for accounts, public access and the SvelteKit app, merged (PR #11).
 - M2 part 2, user accounts, sessions, roles and LAN-only tokens, merged (PR #12).
 - M2 part 3, the read API for inventory, products, spools, activity and review, merged (PR #13).
+- M2 part 4, the write API (edits, manual entry, review, token rotation), merged (PR #14).
 - M2 plan approved: seven branches (spec, users and auth, read API, write API, web foundation, stock pages, admin pages).
 - M1 plan approved: five branches merged in order (decoder, data model, event log, `/scans` API, scan simulator).
 
 ## In progress
 
-- `feature/write-api` (M2, part 4 of 7): `PATCH /spools/{id}` (location, notes) and `PATCH /spools` (bulk location, all or nothing); `POST /spools/{id}/events` (manual received, opened, empty, optionally backdated, never in the future); `POST /spools` (manual entry: placeholder plus `received`); `POST /products` (provisional) and `PATCH /products/{id}` (name, threshold); `POST /review/events/{id}/accept` and `POST /review/tags/{uid}/dismiss`, with a migration adding `event.reviewed_at`, `event.reviewed_by` and `tag.dismissed_at`; `POST /devices/{id}/rotate`. Web app events record the user. 533 tests, 99.8% coverage. Accepted by the user; PR open, awaiting merge.
+- `feature/web-foundation` (M2, part 5 of 7): SvelteKit 3 app in `web/` (TypeScript, static SPA): typed API client with the CSRF header, session store, sign-in page, layout with navigation by role, "No access" for pages above the role, session-ended handling, placeholder pages, base CSS (light and dark). The server serves `web/build` at `/` with an SPA fallback and a CSP that allows the app's inline bootstrap script by hash (`WEB_DIR` setting). CI gains a `web` job (type-check, Prettier, Vitest with 90% coverage, audit, build) and an `e2e` job (Playwright against the real server). Server: 551 tests, 99.8%; web: 83 tests, 99.6%; e2e: 6. Accepted by the user (including the `WEB_DIR` setting); PR open, awaiting merge.
 
 ## Next
 
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
-- M2 parts 5 to 7: SvelteKit foundation (sign-in, layout, served by FastAPI), stock pages, admin pages. Part 6 is the first one usable day to day.
+- **Before M2 part 6:** the user wants to make UI mockups first, to build the pages from. Remind them, and wait for the mockups before starting part 6.
+- M2 parts 6 and 7: stock pages (the first part usable day to day), then admin pages.
 
 ## Decisions
 
@@ -104,3 +106,8 @@ See also the Open questions section of docs/SPEC.md.
 - 2026-11-05: Location and notes edits change the spool row directly rather than writing events, because the event types are only the spool's state changes (received, opened, empty, revert). Confirmed by the user.
 - 2026-11-05: Rotating a revoked scanner's token re-enables it, since a revoked device ID cannot be registered again. Confirmed by the user.
 - 2026-11-05: Manual actions may be backdated but not more than 5 minutes into the future. Accepting a flagged event twice keeps the first review; only flagged events still in effect can be accepted. Only tags with no spool can be dismissed.
+- 2026-11-05: npm packages are installed with `--before` a date at least a week back, so no version younger than a week is pulled in (several had been published that day). TypeScript stays on 6.0 because SvelteKit 3.1 and svelte-check require it.
+- 2026-11-05: Approved exception (user, AGENTS.md section 5): `deepmerge` 4.3.1, low severity, CVE-2026-93753 / GHSA-gcqx-w48m-w2h4 (https://github.com/advisories/GHSA-gcqx-w48m-w2h4), prototype poisoning when merging attacker-supplied objects. No fixed version exists; it comes in through `@sveltejs/vite-plugin-svelte`, which SvelteKit requires, and only merges our own config at build time. `npm run audit` allows only this advisory at low severity and fails on anything else.
+- 2026-11-05: SvelteKit 3 differs from earlier versions: its config goes in `sveltekit({...})` in `vite.config.ts` (no `svelte.config.js`), the library alias is `#lib` (a `package.json` import) instead of `$lib`, and imports name their `.ts` extension.
+- 2026-11-05: The web app's CSP allows SvelteKit's one inline bootstrap script by its SHA-256 hash, computed by the server from `index.html` at startup, instead of `'unsafe-inline'`. Unknown paths under `/api` stay JSON 404s rather than the app.
+- 2026-11-05: Added the `WEB_DIR` setting (defaults to `web/build` in a checkout) so the Docker image can point at its copy of the build. Server tests point it at a missing folder so they do not depend on a local build.
