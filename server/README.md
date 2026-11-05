@@ -48,4 +48,4 @@ uv run ft-sim generate white-matte.bin --color FFFFFFFF --detailed-type "PLA Mat
 uv run ft-sim scan black.bin --action opened
 ```
 
-Each scan prints the feedback code, product, state, the three soft-key choices and the suggested action. Add `--json` for the full server response, or `--event-id <uuid>` to resend the same event and test retries. Actions: `lookup` (default), `received`, `opened`, `empty`.
+Each scan prints the feedback code, product, spool number (or "new spool"), state, the three soft-key choices and the suggested action. Add `--json` for the full server response, or `--event-id <uuid>` to resend the same event and test retries. Actions: `lookup` (default), `received`, `opened`, `empty`.

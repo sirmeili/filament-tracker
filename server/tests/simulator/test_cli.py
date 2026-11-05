@@ -61,9 +61,9 @@ def test_a_spool_lifecycle_through_the_simulator(
         assert _sim(transport, token, str(tag), "--action", action) == 0
 
     lines = capsys.readouterr().out.splitlines()
-    assert "ok | PLA Basic #000000 | unknown" in lines[0]
+    assert "ok | PLA Basic #000000 | new spool | unknown" in lines[0]
     assert "suggested: received" in lines[0]
-    assert "| sealed |" in lines[1]
+    assert "| spool 1 | sealed |" in lines[1]
     assert "| open |" in lines[2]
     assert "| empty |" in lines[3]
 
@@ -73,7 +73,9 @@ def test_several_dumps_in_one_command(tmp_path: Path, token: str, transport, cap
 
     assert _sim(transport, token, *files, "--action", "received") == 0
 
-    assert capsys.readouterr().out.count("ok | PLA Basic #000000 | sealed") == 3
+    out = capsys.readouterr().out
+    assert out.count("| sealed |") == 3
+    assert all(f"spool {n} |" in out for n in (1, 2, 3))
 
 
 def test_wildcards_are_expanded(tmp_path: Path, token: str, transport, capsys) -> None:
@@ -83,6 +85,14 @@ def test_wildcards_are_expanded(tmp_path: Path, token: str, transport, capsys) -
     assert _sim(transport, token, str(tmp_path / "*.bin")) == 0
 
     assert len(capsys.readouterr().out.splitlines()) == 2
+
+
+def test_a_wildcard_that_matches_nothing_says_so(
+    tmp_path: Path, token: str, transport, capsys
+) -> None:
+    assert _sim(transport, token, str(tmp_path / "*.zip")) == 1
+
+    assert "*.zip: no files match" in capsys.readouterr().err
 
 
 def test_json_output_and_retries(tmp_path: Path, token: str, transport, capsys) -> None:

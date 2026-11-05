@@ -4,7 +4,7 @@ Oct 31, 2026 · @Frank
 
 ## Overview
 
-A self-hosted system that tracks every Bambu Lab filament spool from delivery to empty, using the RFID tags already on the spools. You tap a spool on a small touchscreen scanner; it shows what the spool is and asks whether it is new, just opened or empty. A central server keeps the inventory and feeds Home Assistant.
+A self-hosted system that tracks every Bambu Lab filament spool from delivery to empty, using the RFID tags already on the spools. You tap a spool on a small touchscreen scanner; it shows what the spool is and asks whether it is new, just opened or empty. A central server keeps the inventory, feeds Home Assistant and serves a web app that a few people can use, some only to view.
 
 **Goals**
 
@@ -13,7 +13,7 @@ A self-hosted system that tracks every Bambu Lab filament spool from delivery to
 - Identify spools automatically from their Bambu RFID tags, with no manual typing of type or color.
 - Use the P1S/AMS telemetry to fill in what the printer already knows (spool first loaded, remaining %).
 - Surface low-stock alerts and inventory sensors in Home Assistant.
-- Run fully on the LAN in Docker, with no Bambu cloud dependency.
+- Run in Docker with no Bambu cloud dependency. Scanners and integrations stay on the LAN; the web app can be reached from the internet through an HTTPS reverse proxy, with personal accounts.
 
 **Non-goals (v1)**
 
@@ -178,7 +178,7 @@ The firmware stays dumb: it reads the UID, derives the keys, dumps the raw block
 
 The server is event-sourced: every scan, AMS observation and UI edit is an immutable event, and each spool's current state is derived from its events. This makes undo and audit trivial.
 
-**Stack**: Python 3.12, FastAPI, SQLAlchemy with SQLite (WAL mode), Alembic migrations, server-rendered UI (Jinja2 + HTMX), one Docker image.
+**Stack**: Python 3.12, FastAPI, SQLAlchemy with SQLite (WAL mode), Alembic migrations, a SvelteKit web app (TypeScript, built as static files and served by FastAPI), one Docker image.
 
 **Tables**
 
@@ -187,8 +187,10 @@ The server is event-sourced: every scan, AMS observation and UI edit is an immut
 | `product` | id, material\_id, variant\_id, filament\_type, color\_rgba, display\_name, low\_stock\_threshold, provisional | One row per filament product (for example Black PLA Basic); created automatically from the first decoded tag; display name editable. Provisional products (from the AMS or manual entry) have no material or variant ID until a tag is scanned |
 | `spool` | id, tray\_uid (unique, null for a manual placeholder), product\_id, state, received\_at, opened\_at, emptied\_at, remaining\_pct, location, notes | One physical spool; state and timestamps derived from events. State is null (Unknown) when every event that set it has been undone |
 | `tag` | uid (unique), spool\_id, raw\_blocks, decoded\_json, first\_seen\_at | Each spool has up to two tags; raw dump kept for re-decoding |
-| `event` | id (UUID from device or server), spool\_id, type, source, device\_id, occurred\_at, payload\_json, reverted\_by | Append-only log; undo writes a new `revert` event |
-| `device` | id, name, token\_hash, last\_seen\_at, fw\_version | Registered scanners |
+| `event` | id (UUID from device or server), spool\_id, type, source, device\_id, user\_id, occurred\_at, flagged, reviewed\_at, reviewed\_by, payload\_json, reverted\_by | Append-only log; undo writes a new `revert` event. `user_id` records who acted in the web app |
+| `device` | id, name, token\_hash, revoked\_at, last\_seen\_at, fw\_version | Registered scanners |
+| `user` | id, username (unique, case-insensitive), password\_hash, role, disabled\_at, last\_login\_at | Web app accounts; see Users and roles |
+| `session` | id, token\_hash, user\_id, expires\_at, last\_seen\_at | Signed-in browsers; only a hash of the cookie value is stored |
 | `printer` | id, name, serial, host | Printers watched over MQTT |
 
 **Spool states and transitions**
@@ -212,40 +214,66 @@ The server is event-sourced: every scan, AMS observation and UI edit is an immut
 
 ## Server: API
 
-A versioned REST API under `/api/v1`, documented by FastAPI's generated OpenAPI page. Devices authenticate with a bearer token; the UI and Home Assistant use an admin token or session.
+A versioned REST API under `/api/v1`, documented by FastAPI's generated OpenAPI page (LAN only). Scanners authenticate with a device token and Home Assistant with the admin token, both bearer tokens accepted only from the LAN. The web app uses a session cookie, and each route requires a minimum role (see Users and roles).
 
 | Method | Path | Caller | Purpose |
 | --- | --- | --- | --- |
+| POST | `/auth/login`, `/auth/logout` | Web app | Sign in with username and password; sign out |
+| GET | `/auth/me` | Web app | Current user and role |
+| POST | `/auth/password` | Viewer | Change own password; ends the user's other sessions |
 | POST | `/scans` | Scanner | Submit a scan event; a lookup returns spool, product, state, allowed and suggested actions; an action returns the new state and a `feedback` code for the screen |
 | POST | `/devices/heartbeat` | Scanner | Online status, firmware version, queue length |
 | GET | `/devices/provisioning` | Scanner | Returns the key-derivation constant to an authenticated device |
-| GET | `/inventory` | UI, HA | Counts by product and state, low-stock flags |
-| GET | `/spools` | UI | List with filters: state, product, location |
-| POST | `/spools` | UI | Manual entry: create a placeholder spool for a product, with a `received` event |
-| GET | `/spools/{id}` | UI | Spool detail with tags and event timeline |
-| PATCH | `/spools/{id}` | UI | Edit location and notes |
-| POST | `/spools/{id}/events` | UI | Manual action (received, opened, empty) |
-| POST | `/events/{id}/revert` | UI, Scanner | Undo an event; a scanner can undo only events from its own device |
-| GET / POST / PATCH | `/products`, `/products/{id}` | UI | Display names and low-stock thresholds; POST creates a provisional product for manual entry |
-| GET / POST / DELETE | `/devices` | UI | Register a scanner and issue or revoke its token |
+| GET | `/inventory` | Viewer, HA | Counts by product and state, low-stock flags |
+| GET | `/spools` | Viewer | List with filters (state, product, location) and search |
+| POST | `/spools` | Editor | Manual entry: create a placeholder spool for a product, with a `received` event |
+| GET | `/spools/{id}` | Viewer | Spool detail with tags and event timeline |
+| PATCH | `/spools/{id}`, `/spools` | Editor | Edit location and notes; bulk change location |
+| POST | `/spools/{id}/events` | Editor | Manual action (received, opened, empty) |
+| GET | `/events` | Viewer | Activity: all events, newest first, paged |
+| POST | `/events/{id}/revert` | Editor, Scanner | Undo an event; a scanner can undo only events from its own device |
+| GET | `/review` | Viewer | Flagged events not yet reviewed, `unidentified` tags, likely-empty suggestions |
+| POST | `/review/events/{id}/accept` | Editor | Mark a flagged event as correct |
+| POST | `/review/tags/{uid}/dismiss` | Editor | Hide an `unidentified` tag from Review |
+| GET / POST / PATCH | `/products`, `/products/{id}` | Viewer (GET), Editor | Display names and low-stock thresholds; POST creates a provisional product for manual entry |
+| GET / POST / DELETE | `/devices`, `/devices/{id}` | Admin | Register a scanner and issue or revoke its token |
+| POST | `/devices/{id}/rotate` | Admin | Issue a new token, invalidating the old one |
+| GET / POST / PATCH | `/users`, `/users/{id}` | Admin | List and create users, change role, disable, reset password |
 | GET | `/health` | Docker, HA | Liveness and dependency status |
 
 **Scan response feedback codes**: `ok`, `ok_created` (implicit receive), `already_in_state`, `flagged` (out of order), `unreadable`, `error`. The device maps each to a screen message and sound.
 
 **Idempotency**: a repeated `event_id` returns the original result without writing a second event.
 
+## Users and roles
+
+The web app has personal accounts, so a few people can use it from anywhere, some only to look.
+
+| Role | Can |
+| --- | --- |
+| Viewer | See every page: inventory, spools, products, review, activity |
+| Editor | Also record actions, undo, edit spools and products, add spools by hand, resolve review items |
+| Admin | Also manage users and scanners |
+
+- Accounts are created by an admin; there is no sign-up. The first admin is created from the command line (`ft-admin create-user`), so there is never a default account.
+- Passwords are at least 12 characters and stored as Argon2id hashes. Users can change their own; an admin can reset one or disable an account.
+- Signing in sets a session cookie (HttpOnly, Secure, SameSite=Strict) valid for `SESSION_DAYS`. Sessions end on sign-out, on a password change (other sessions), or when the account is disabled.
+- Events recorded in the web app store who made them, and the Activity page shows it.
+
 ## Server: web UI
 
-A small, mobile-friendly web app for checking stock and fixing mistakes; day-to-day input comes from the scanner.
+A small, mobile-friendly web app for checking stock and fixing mistakes; day-to-day input comes from the scanner. It is a SvelteKit single-page app built to static files, so production needs no Node.js. Controls a user's role does not allow are hidden, and the API enforces the same rules.
 
 | Page | Shows | Actions |
 | --- | --- | --- |
-| Inventory | One card per product: color swatch, name, sealed / open / used-up counts, low-stock badge | Filter by type; sort by low stock |
+| Inventory | One card per product: color swatch, name, sealed / open / used-up counts, low-stock badge (sealed count at or below the product's threshold; 0 turns it off) | Filter by type; sort by low stock |
 | Spools | Table of spools with state, product, location, remaining %, dates | Filter, search, bulk change location, add a spool by hand |
 | Spool detail | Tag data, AMS remaining %, event timeline | Manual action, undo, edit notes and location |
 | Products | Decoded product IDs and colors | Set display name and low-stock threshold |
-| Review | Flagged events, `unidentified` tags, "likely empty" suggestions | Accept, correct or dismiss |
-| Devices | Scanners and printers with online status, firmware, queue | Register device, rotate token |
+| Review | Flagged events, `unidentified` tags, "likely empty" suggestions | Flagged event: Accept (it was right), Undo (revert it) or Open spool (fix by hand). Unidentified tag: dismiss. Likely empty: mark empty or dismiss |
+| Devices | Scanners and printers with online status, firmware, queue | Register device (token shown once), rotate token, revoke |
+| Users | Accounts and roles (Admin only) | Create, change role, reset password, disable |
+| Account | The signed-in user | Change password, sign out |
 | Activity | Global event log, newest first | Undo |
 
 The color swatch comes from the tag's RGBA value, so new colors appear correctly with no setup.
@@ -281,23 +309,30 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 **Deployment**
 
 - One Docker image, run with Docker Compose; SQLite database on a mounted volume.
-- LAN-only; remote access through the existing home VPN, never exposed to the internet.
+- The web app may be exposed to the internet, but only through an HTTPS reverse proxy the owner runs (for example Caddy, Nginx Proxy Manager, Traefik or a Cloudflare Tunnel). The app itself speaks plain HTTP to the proxy and trusts forwarded client addresses only from `FORWARDED_ALLOW_IPS`.
+- Scanner routes, bearer tokens (device and admin) and the API docs are accepted only from `TRUSTED_NETWORKS`, so they stay on the LAN even if the proxy forwards everything. The proxy should forward only the web app and `/api/v1` anyway.
 - Nightly SQLite backup (online backup API) to a second volume, 14 kept.
 
 **Configuration** (environment variables or a `.env` file, never committed)
 
 | Setting | Example | Purpose |
 | --- | --- | --- |
-| `ADMIN_TOKEN` | random 32 bytes | UI login and HA access |
+| `ADMIN_TOKEN` | random 32 bytes | Machine access for Home Assistant and scripts, from the LAN only |
 | `BAMBU_KDF_SALT` | hex string | Key-derivation constant, served to provisioned devices |
 | `PRINTERS` | name, host, serial, access code | Printers to watch over MQTT |
 | `MQTT_URL`, `MQTT_USER`, `MQTT_PASSWORD` | HA broker | Discovery and state publishing |
 | `HA_URL`, `HA_TOKEN` | long-lived token | Firing HA events |
 | `TZ` | `America/New_York` | Timestamps in the UI |
+| `TRUSTED_NETWORKS` | `192.168.0.0/16,10.0.0.0/8` | LAN ranges allowed to use bearer tokens, scanner routes and API docs; defaults to the private ranges |
+| `FORWARDED_ALLOW_IPS` | `192.168.1.5` | Address of the reverse proxy whose `X-Forwarded-For` is trusted |
+| `SESSION_DAYS` | `30` | How long a web sign-in lasts |
 
 **Security requirements**
 
-- Every endpoint except `/health` requires authentication.
+- Every endpoint except `/health` and `/auth/login` requires authentication, and each enforces a minimum role.
+- Sign-in attempts are throttled per username and per client address (HTTP 429), and failures give the same message whether the username exists or not.
+- State-changing requests made with a session cookie must carry the `X-Requested-With: filament-tracker` header, which other sites cannot send, in addition to SameSite cookies.
+- Responses carry a Content Security Policy, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` and a strict referrer policy.
 - Device tokens are stored hashed, revocable, and scoped to `/scans`, `/devices/heartbeat`, `/devices/provisioning` and `/events/{id}/revert` for events from that same device.
 - Input validation on all payloads (Pydantic); block arrays capped in size.
 - No tag UIDs or derived keys in logs above debug level, in line with the RFID guide's request not to publish UID/key pairs.
@@ -312,7 +347,9 @@ The server is fully testable without hardware. Firmware logic is unit tested on 
 | Decoder | Every field; two rolls of the same product yield the same product key | pytest against generated tags in CI, plus own spools and the public Bambu RFID library locally |
 | State machine | Every transition in the table, out-of-order flags, undo | pytest, property tests for event replay |
 | API | Auth on every route, idempotent scans, validation errors | pytest with FastAPI TestClient |
-| Security | Unauthenticated access refused, revoked tokens refused, oversized payloads rejected | pytest security suite, run in CI |
+| Security | Unauthenticated access refused, role checked on every route, revoked tokens and ended sessions refused, sign-in throttling, bearer tokens refused from outside the LAN, CSRF header, security headers, oversized payloads rejected | pytest security suite, run in CI |
+| Web app | Components, API client, role-based visibility | Vitest with Testing Library; 90% coverage; `svelte-check` and `npm audit` in CI |
+| Web end to end | Sign in as each role, inventory, record and undo an action, review | Playwright against the real server with a database seeded by the scan simulator |
 | AMS ingest | Report messages produce the right events | Fake printer replaying recorded or documentation-based messages |
 | End to end | Scan simulator drives Received, Opened, Empty for a spool; HA entities update | Docker Compose test stack with a Mosquitto container |
 | Firmware logic | Screen flow, tag parsing, offline queue, dedupe, button thresholds | PC unit tests with fakes; 90% coverage, excluding a named list of hardware drivers |
@@ -329,7 +366,7 @@ Each milestone ends with something usable. Reading is proved first with a phone,
 
 1. **M0a Prove reading, phone**: dump two rolls of the same product with an Android app; confirm matching product fields and distinct tray UIDs; try reading through the shipping box.
 2. **M1 Server core**: decoder, data model, event log, `/scans` API, scan simulator, tests.
-3. **M2 Web UI**: inventory, spools, spool detail, review, devices, manual entry.
+3. **M2 Web UI**: user accounts and roles, inventory, spools, spool detail, products, review, activity, devices, users, manual entry.
 4. **M5 Printer link**: P1S MQTT ingest, automatic Opened, remaining %, likely-empty suggestions, built against the fake printer and checked against the real P1S.
 5. **M6 Home Assistant**: MQTT discovery entities, events, low-stock automation.
 6. **M3a Firmware without hardware**: scan flow, offline queue and dedupe logic with PC tests, screen simulator.
