@@ -24,7 +24,7 @@
 
 ## In progress
 
-- `feature/m2-spec` (M2, part 1 of 7): spec for user accounts and roles, public access through an HTTPS reverse proxy with scanner routes LAN-only, the SvelteKit web app, review actions and the low-stock rule. `ft-sim` now says when a wildcard matches nothing and prints the spool number.
+- `feature/m2-spec` (M2, part 1 of 7): spec for user accounts and roles, public access through an HTTPS reverse proxy with scanner routes LAN-only, the SvelteKit web app, review actions and the low-stock rule. `ft-sim` now says when a wildcard matches nothing and prints the spool number. Accepted by the user; PR open, awaiting merge.
 
 ## Next
 
