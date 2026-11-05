@@ -9,6 +9,12 @@
 *.dump
 tag-dumps/
 
+# Local database
+server/data/
+*.db
+*.db-wal
+*.db-shm
+
 # Python
 .venv/
 __pycache__/

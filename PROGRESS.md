@@ -13,16 +13,16 @@
 - Enclosure manifest renamed to `manifest.json`.
 - Server skeleton with a health check, plus CI for lint, tests, the 90% coverage gate and a dependency audit.
 - Bill of materials (`hardware/BOM.md`) merged.
+- M1 part 1, the decoder, merged (PR #6).
 - M1 plan approved: five branches merged in order (decoder, data model, event log, `/scans` API, scan simulator).
 
 ## In progress
 
-- `feature/decoder` (M1, part 1 of 5): decodes the 48 data blocks a scanner sends into a typed record and a product key, plus a generator of synthetic tags for tests and the simulator. Accepted by the user; PR open, awaiting merge.
+- `feature/data-model` (M1, part 2 of 5): settings, SQLite engine (WAL, foreign keys), all six spec tables with Alembic migrations, and migration on startup.
 
 ## Next
 
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
-- M1 part 2, `feature/data-model`: tables, Alembic migrations and settings.
 - M1 parts 3 to 5: event log and state machine, `/scans` with device registration and revert, scan simulator.
 
 ## Decisions
@@ -45,6 +45,11 @@
 - 2026-11-05: The scan simulator reads BambuTagScanner's export (a ZIP or a 1024-byte `.bin` image with sector trailers) and strips the trailers so keys are never sent.
 - 2026-11-05: The decoder rejects a tag with no material ID or an all-zero tray UID as unreadable. Fields the RFID guide marks as uncertain decode to null when their bytes are unusable.
 - 2026-11-05: The synthetic tag generator lives in the package (`decoder/synthetic.py`), not in `tests/`, because the scan simulator's `generate` command uses it too.
+
+- 2026-11-05: Migrations live inside the package (`filament_tracker/migrations`) instead of `server/migrations`, so they ship with the installed server and the Docker image.
+- 2026-11-05: Timestamps are stored as UTC and refused if they have no timezone. Events also store `recorded_at` (arrival time) and a `flagged` flag; replay orders by `occurred_at`, then `recorded_at`.
+- 2026-11-05: Device IDs are strings chosen at registration. Revoking a device sets `revoked_at` rather than deleting it, so its events keep their link.
+- 2026-11-05: `low_stock_threshold` defaults to 0, which means no low-stock alert until one is set.
 
 ## Open questions
 
