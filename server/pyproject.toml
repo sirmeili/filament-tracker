@@ -11,6 +11,9 @@ dependencies = [
     "uvicorn>=0.54,<1",
 ]
 
+[project.scripts]
+ft-sim = "filament_tracker.simulator.cli:main"
+
 [dependency-groups]
 dev = [
     "httpx>=0.28,<1",

@@ -4,7 +4,7 @@ A self-hosted system that tracks every Bambu Lab filament spool from delivery to
 
 It runs entirely on your LAN in Docker, with no Bambu cloud dependency.
 
-> **Status: early development.** This repo currently holds the spec, the enclosure design and the server core: the tag decoder, the database, the event log and the scanner API (`/scans`, device registration and undo). The features described below have not been built yet, and most of the software is planned to be built before the scanner hardware arrives. See [PROGRESS.md](PROGRESS.md) for current work.
+> **Status: early development.** This repo currently holds the spec, the enclosure design and the server core (M1): the tag decoder, the database, the event log, the scanner API (`/scans`, device registration and undo) and a scan simulator. The features described below have not been built yet, and most of the software is planned to be built before the scanner hardware arrives. See [PROGRESS.md](PROGRESS.md) for current work.
 
 [![Filament scanner case](hardware/enclosure/preview.png)](https://sirmeili.github.io/3d-mockup-viewer/openscad/viewer.html?manifest=https://raw.githubusercontent.com/sirmeili/filament-tracker/main/hardware/enclosure/manifest.json)
 
@@ -70,7 +70,7 @@ Select the image above to open the interactive 3D mockup. The source is in [hard
 docs/SPEC.md         Full specification: the source of truth
 hardware/BOM.md      Bill of materials for one scanner
 hardware/enclosure/  3D model of the scanner case
-server/              FastAPI server: decoder, database, event log and scanner API
+server/              FastAPI server: decoder, database, event log, scanner API and scan simulator
 .github/workflows/   CI: lint, tests, 90% coverage gate and dependency audit
 AGENTS.md            Rules for AI agents working in this repo
 PROGRESS.md          Current status, next steps and decisions
@@ -92,5 +92,7 @@ uv run pytest          # Run tests with the 90% coverage gate
 uv run ruff check .    # Lint
 uv run uvicorn filament_tracker.main:create_app --factory --reload
 ```
+
+To register a scanner and use the scan simulator (`ft-sim`) with your own tag dumps, see [server/README.md](server/README.md).
 
 The server keeps its SQLite database in `server/data/` by default (set `DATABASE_URL` to change it) and applies migrations on startup.
