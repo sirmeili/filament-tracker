@@ -21,6 +21,7 @@
 
 ## Next
 
+- M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
 - M1 part 2, `feature/data-model`: tables, Alembic migrations and settings.
 - M1 parts 3 to 5: event log and state machine, `/scans` with device registration and revert, scan simulator.
 
@@ -47,6 +48,7 @@
 
 ## Open questions
 
+- The case model must be adjusted for the speaker that was ordered: a 15 × 10 × 3.5 mm rectangular cavity speaker (8 Ω, JST PH 1.25 mm plug, 80 mm lead) instead of the 20 mm round one in `filament-scanner-case.scad`. Replace the round holder with a rectangular one and resize the grille. Before changing it, check on the real parts which face the sound opening is on and where the CYD's speaker socket is. The lead may need an extension or a splice to reach the socket. Update BOM item 5 at the same time. Due by M4.
 - The user will confirm on the real parts and report back: JST connector sizes, the CN1 pinout, CC pull-downs on the USB-C breakout, two-supply protection on the CYD, and whether the CYD's 3.3 V supply can power the PN532.
 - `fastapi.testclient` warns that using httpx with Starlette's test client is deprecated and suggests `httpx2`. Tests pass. Vet `httpx2` and get approval before switching.
 - `.env.example` was not added because agent permission settings block writing it. Settings are documented in the spec's Configuration table.
