@@ -18,7 +18,7 @@
 - M1 part 3, state machine, replay and event log, merged (PR #8).
 - M1 part 4, `/scans`, device registration, revert and auth, merged (PR #9).
 - M1 part 5, the `ft-sim` scan simulator, merged (PR #10). **M1 complete.**
-- Real BambuTagScanner dumps run through `ft-sim` against a local server: both Black PLA Basic refills recorded as sealed spools of one product.
+- Real BambuTagScanner dumps run through `ft-sim` against a local server: both Black PLA Basic refills recorded as sealed spools (same product name; one product not yet confirmed with `--json`).
 - M2 plan approved: seven branches (spec, users and auth, read API, write API, web foundation, stock pages, admin pages).
 - M1 plan approved: five branches merged in order (decoder, data model, event log, `/scans` API, scan simulator).
 
