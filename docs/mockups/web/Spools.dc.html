@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Spools — Filament Tracker</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+.light{--bg:#F4F2EE;--surface:#FFFFFF;--line:#DDD8CF;--text:#1C1B19;--muted:#5E5A53;--accent:#B45309;--onaccent:#FFFFFF;--lowbg:#FDECD3;--lowtext:#7C3500;--chip:#ECE8E1;--track:#E9E5DE;--fill:#3F3B35;--fillLow:#C2410C;--ringShadow:0 1px 3px rgba(0,0,0,.22),0 4px 12px rgba(0,0,0,.16);--holeShadow:inset 0 1px 3px rgba(0,0,0,.18)}
+.dark{--bg:#121212;--surface:#1C1C1B;--line:#34322E;--text:#F2EFE9;--muted:#A9A49B;--accent:#F59E0B;--onaccent:#1A1205;--lowbg:#3A2608;--lowtext:#FBBF5C;--chip:#262523;--track:#2C2B28;--fill:#D9D4CB;--fillLow:#FB923C;--ringShadow:0 0 0 1.5px var(--surface),0 0 0 2.5px rgba(255,255,255,.3),0 0 10px 2px rgba(255,255,255,.1);--holeShadow:inset 0 0 0 1.5px var(--surface),inset 0 0 0 2.5px rgba(255,255,255,.3),inset 0 0 6px 1px rgba(255,255,255,.1)}
+.ring{display:inline-block;border-radius:50%;box-sizing:border-box;background:var(--bg);flex:none;box-shadow:var(--ringShadow),var(--holeShadow)}
+.dark .ring.sm{box-shadow:0 0 0 1px var(--surface),0 0 0 1.75px rgba(255,255,255,.28),0 0 6px 1px rgba(255,255,255,.08),inset 0 0 0 1px var(--surface),inset 0 0 0 1.75px rgba(255,255,255,.28)}
+.nav{padding:10px 14px;border-radius:8px;color:var(--muted);font-weight:500;font-size:15px;display:inline-flex;align-items:center;gap:8px;min-height:24px}
+.nav:hover{background:var(--chip);color:var(--text)}
+.nav.on{background:var(--text);color:var(--bg)}
+.iconbtn{width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--text);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.chip{font:inherit;font-size:14px;font-weight:600;padding:10px 16px;min-height:44px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--text);cursor:pointer}
+.chip.on{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
+.btn{font:inherit;font-size:14px;font-weight:600;min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-sizing:border-box}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.input{font:inherit;font-size:15px;color:var(--text);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:0 12px;min-height:44px;box-sizing:border-box}
+.st{display:inline-flex;align-items:center;font-size:12px;font-weight:700;padding:3px 9px;border-radius:6px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;border:1px solid transparent}
+.st.sealed{background:var(--text);color:var(--bg)}
+.st.open{background:var(--chip);color:var(--text);border-color:var(--line)}
+.st.empty{color:var(--muted);border:1px dashed var(--muted)}
+.bar{flex:1;height:8px;border-radius:999px;background:var(--track);overflow:hidden;min-width:40px}
+.bar > span{display:block;height:100%;border-radius:999px;background:var(--fill)}
+.bar.low > span{background:var(--fillLow)}
+.pct{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;width:40px;text-align:right}
+.pct.low{color:var(--lowtext)}
+table{border-collapse:collapse;width:100%}
+th{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:12px 14px;border-bottom:1px solid var(--line);font-size:14px;vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+tbody tr.sel td{background:var(--chip)}
+.cb{width:20px;height:20px;accent-color:var(--accent);cursor:pointer;margin:0}
+.date{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--muted);white-space:nowrap}
+</style>
+</helmet>
+<div class="{{theme}}" style="min-height: 100%; background: var(--bg); color: var(--text); font-family: Inter, system-ui, sans-serif">
+<header style="border-bottom: 1px solid var(--line); background: var(--surface)">
+<div style="max-width: 1240px; margin: 0 auto; padding: 14px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px">
+<a href="Inventory.dc.html" style="display: flex; align-items: center; gap: 10px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 20px; letter-spacing: -0.01em">
+<svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="14" cy="14" r="11"></circle><circle cx="14" cy="14" r="4"></circle><path d="M14 3v4M14 21v4M3 14h4M21 14h4"></path></svg>
+Filament Tracker
+</a>
+<nav aria-label="Main" style="display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 auto">
+<a class="nav" href="Inventory.dc.html">Inventory</a>
+<a class="nav on" href="Spools.dc.html" aria-current="page">Spools</a>
+<a class="nav" href="Products.dc.html">Products</a>
+<a class="nav" href="Review.dc.html">Review <span style="background: var(--accent); color: var(--onaccent); border-radius: 999px; font-size: 12px; font-weight: 700; padding: 1px 7px">4</span></a>
+<a class="nav" href="Activity.dc.html">Activity</a>
+<a class="nav" href="Devices.dc.html">Devices</a>
+<a class="nav" href="Users.dc.html">Users</a>
+</nav>
+<div style="display: flex; align-items: center; gap: 10px">
+<button class="iconbtn" type="button" aria-label="{{themeLabel}}" onClick="{{toggleTheme}}">
+<sc-if value="{{dark}}" hint-placeholder-val="{{false}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg></sc-if>
+<sc-if value="{{light}}" hint-placeholder-val="{{true}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg></sc-if>
+</button>
+<a href="Account.dc.html" style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px 8px 8px; border-radius: 10px; border: 1px solid var(--line); min-height: 26px; font-size: 14px; font-weight: 500"><span style="width: 26px; height: 26px; border-radius: 50%; background: var(--chip); display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px">F</span>frank</a>
+</div>
+</div>
+</header>
+
+<main style="max-width: 1240px; margin: 0 auto; padding: 32px 24px 56px; display: flex; flex-direction: column; gap: 24px">
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+<div>
+<h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 40px; font-weight: 700; letter-spacing: -0.02em">Spools</h1>
+<p style="margin: 6px 0 0; color: var(--muted); font-size: 15px">{{countText}}</p>
+</div>
+<button class="btn primary" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Add spool by hand</button>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+<label style="position: relative; flex: 1 1 260px; display: flex">
+<span style="position: absolute; left: -9999px">Search spools</span>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="position: absolute; left: 14px; top: 13px; color: var(--muted)"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+<input class="input" type="search" placeholder="Product, color or location" style="flex: 1; padding-left: 42px">
+</label>
+<div role="group" aria-label="Filter by state" style="display: flex; flex-wrap: wrap; gap: 8px">
+<sc-for list="{{states}}" as="t" hint-placeholder-count="4">
+<button type="button" class="{{t.cls}}" aria-pressed="{{t.pressed}}" onClick="{{t.pick}}">{{t.label}}</button>
+</sc-for>
+</div>
+<label style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--muted)">Type
+<select class="input" style="min-width: 110px"><option>All</option><option>PLA</option><option>PETG</option><option>TPU</option></select>
+</label>
+</div>
+
+<sc-if value="{{hasSel}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; background: var(--text); color: var(--bg)">
+<strong style="font-size: 15px">{{selText}}</strong>
+<span style="flex: 1"></span>
+<label style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600">Move to
+<select class="input" style="min-width: 160px"><option>Shelf A</option><option>Shelf B</option><option>Shelf C</option><option>Dry box</option><option>Drawer</option><option>New location…</option></select>
+</label>
+<button class="btn primary" type="button">Move</button>
+<button class="btn" type="button" onClick="{{clearSel}}">Clear</button>
+</div>
+</sc-if>
+
+<div style="background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow-x: auto">
+<table style="min-width: 940px">
+<thead><tr><th scope="col" style="width: 20px"><span style="position: absolute; left: -9999px">Select</span></th><th scope="col">Product</th><th scope="col">State</th><th scope="col">Location</th><th scope="col" style="width: 160px">Left</th><th scope="col">Received</th><th scope="col">Opened</th><th scope="col">Used up</th></tr></thead>
+<tbody>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="10">
+<tr class="{{r.rowCls}}">
+<td><input class="cb" type="checkbox" aria-label="{{r.selLabel}}" checked="{{r.selected}}" onChange="{{r.toggle}}"></td>
+<td><a href="SpoolDetail.dc.html" style="display: flex; align-items: center; gap: 12px"><span class="ring sm" aria-hidden="true" style="width: 30px; height: 30px; border: 8px solid {{r.hex}}"></span><span><span style="display: block; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 15px">{{r.name}}</span><span style="display: block; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted)">#{{r.id}}<sc-if value="{{r.placeholder}}" hint-placeholder-val="{{false}}"> · no tag yet</sc-if></span></span></a></td>
+<td><span class="{{r.stCls}}">{{r.stLabel}}</span></td>
+<td>{{r.loc}}</td>
+<td>
+<sc-if value="{{r.hasPct}}" hint-placeholder-val="{{false}}"><div style="display: flex; align-items: center; gap: 10px"><div class="{{r.barCls}}" aria-hidden="true"><span style="width: {{r.width}}"></span></div><span class="{{r.pctCls}}">{{r.pctText}}</span></div></sc-if>
+<sc-if value="{{r.noPct}}" hint-placeholder-val="{{true}}"><span style="color: var(--muted); font-size: 13px">{{r.pctNote}}</span></sc-if>
+</td>
+<td class="date">{{r.rec}}</td>
+<td class="date">{{r.opened}}</td>
+<td class="date">{{r.emptied}}</td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; color: var(--muted); font-size: 14px">
+<span>Showing 1–13 of 34</span>
+<div style="display: flex; gap: 8px"><button class="btn" type="button" disabled>Previous</button><button class="btn" type="button">Next</button></div>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1280,"height":1200}}'>
+var SPOOLS = [
+  { id: 1, name: 'Black PLA Basic', hex: '000000', state: 'open', loc: 'AMS slot 1', pct: 62, rec: 'Oct 12', opened: 'Oct 20' },
+  { id: 2, name: 'Black PLA Basic', hex: '000000', state: 'sealed', loc: 'Shelf A', rec: 'Oct 28' },
+  { id: 5, name: 'Jade White PLA Basic', hex: 'FFFFFF', state: 'open', loc: 'AMS slot 2', pct: 18, rec: 'Sep 20', opened: 'Oct 1' },
+  { id: 6, name: 'Jade White PLA Basic', hex: 'FFFFFF', state: 'sealed', loc: 'Shelf A', rec: 'Nov 2' },
+  { id: 9, name: 'Bambu Green PLA Basic', hex: '00AE42', state: 'sealed', loc: 'Shelf B', rec: 'Oct 12' },
+  { id: 12, name: 'Ash Gray PLA Matte', hex: '9B9EA0', state: 'open', loc: 'Dry box', pct: null, rec: 'Sep 28', opened: 'Nov 1' },
+  { id: 14, name: 'Dark Gray PETG HF', hex: '515151', state: 'sealed', loc: 'Shelf C', rec: 'Oct 3' },
+  { id: 17, name: 'Red PLA Basic', hex: 'C12E1F', state: 'open', loc: 'AMS slot 3', pct: 85, rec: 'Oct 12', opened: 'Nov 3' },
+  { id: 19, name: 'Blue TPU for AMS', hex: '5E9BD8', state: 'sealed', loc: 'Drawer', rec: 'Nov 4', placeholder: true },
+  { id: 21, name: 'PLA Silk+ #F4A925', hex: 'F4A925', state: 'open', loc: 'Dry box', pct: 40, rec: 'Aug 22', opened: 'Sep 9' },
+  { id: 22, name: 'PLA Silk+ #F4A925', hex: 'F4A925', state: 'open', loc: 'Shelf B', pct: 9, rec: 'Aug 22', opened: 'Oct 30' },
+  { id: 25, name: 'Cyan PLA Basic', hex: '0086D6', state: 'open', loc: 'AMS slot 4', pct: 7, rec: 'Sep 2', opened: 'Oct 15' },
+  { id: 4, name: 'Black PLA Basic', hex: '000000', state: 'empty', loc: '—', rec: 'Aug 30', opened: 'Sep 4', emptied: 'Oct 19' }
+];
+var LABELS = { sealed: 'Sealed', open: 'Open', empty: 'Used up' };
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { dark: null, filter: 'all', sel: {} }; }
+  renderVals() {
+    var self = this;
+    var dark = this.state.dark === null ? !!this.props.dark : this.state.dark;
+    var sel = this.state.sel;
+    var list = SPOOLS.filter(function (s) { return self.state.filter === 'all' || s.state === self.state.filter; });
+    var rows = list.map(function (s) {
+      var has = s.state === 'open' && s.pct !== null && s.pct !== undefined;
+      var low = has && s.pct < 15;
+      var on = !!sel[s.id];
+      return Object.assign({}, s, {
+        hex: '#' + s.hex, placeholder: !!s.placeholder,
+        stCls: 'st ' + s.state, stLabel: LABELS[s.state],
+        hasPct: has, noPct: !has, width: has ? s.pct + '%' : '0%', pctText: has ? s.pct + '%' : '',
+        barCls: low ? 'bar low' : 'bar', pctCls: low ? 'pct low' : 'pct',
+        pctNote: s.state === 'open' ? 'Not in AMS' : '—',
+        opened: s.opened || '—', emptied: s.emptied || '—',
+        selected: on, rowCls: on ? 'sel' : '', selLabel: 'Select spool ' + s.id,
+        toggle: function () { var n = Object.assign({}, self.state.sel); n[s.id] = !n[s.id]; self.setState({ sel: n }); }
+      });
+    });
+    var nSel = Object.keys(sel).filter(function (k) { return sel[k]; }).length;
+    var states = [['all', 'All'], ['sealed', 'Sealed'], ['open', 'Open'], ['empty', 'Used up']].map(function (p) {
+      var on = self.state.filter === p[0];
+      return { label: p[1], cls: on ? 'chip on' : 'chip', pressed: on ? 'true' : 'false', pick: function () { self.setState({ filter: p[0] }); } };
+    });
+    return {
+      dark: dark, light: !dark, theme: dark ? 'dark' : 'light',
+      themeLabel: dark ? 'Switch to light theme' : 'Switch to dark theme',
+      toggleTheme: function () { self.setState({ dark: !dark }); },
+      rows: rows, states: states,
+      hasSel: nSel > 0, selText: nSel + (nSel === 1 ? ' spool selected' : ' spools selected'),
+      clearSel: function () { self.setState({ sel: {} }); },
+      countText: '34 spools · 14 sealed · 9 open · 11 used up'
+    };
+  }
+}
+</script>
+</body>
+</html>

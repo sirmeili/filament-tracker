@@ -184,7 +184,7 @@ The server is event-sourced: every scan, AMS observation and UI edit is an immut
 
 | Table | Key fields | Purpose |
 | --- | --- | --- |
-| `product` | id, material\_id, variant\_id, filament\_type, color\_rgba, display\_name, low\_stock\_threshold, provisional | One row per filament product (for example Black PLA Basic); created automatically from the first decoded tag; display name editable. Provisional products (from the AMS or manual entry) have no material or variant ID until a tag is scanned |
+| `product` | id, material\_id, variant\_id, filament\_type, color\_rgba, display\_name, low\_stock\_threshold, nearly\_out\_pct, provisional | One row per filament product (for example Black PLA Basic); created automatically from the first decoded tag; display name editable. `nearly_out_pct` (default 15) is the AMS remaining % at or below which an open spool is shown as nearly out. Provisional products (from the AMS or manual entry) have no material or variant ID until a tag is scanned |
 | `spool` | id, tray\_uid (unique, null for a manual placeholder), product\_id, state, received\_at, opened\_at, emptied\_at, remaining\_pct, location, notes | One physical spool; state and timestamps derived from events. State is null (Unknown) when every event that set it has been undone |
 | `tag` | uid (unique), spool\_id, raw\_blocks, decoded\_json, first\_seen\_at, dismissed\_at | Each spool has up to two tags; raw dump kept for re-decoding. `dismissed_at` hides an `unidentified` tag from Review |
 | `event` | id (UUID from device or server), spool\_id, type, source, device\_id, user\_id, occurred\_at, flagged, reviewed\_at, reviewed\_by, payload\_json, reverted\_by | Append-only log; undo writes a new `revert` event. `user_id` records who acted in the web app |
@@ -224,7 +224,7 @@ A versioned REST API under `/api/v1`, documented by FastAPI's generated OpenAPI 
 | POST | `/scans` | Scanner | Submit a scan event; a lookup returns spool, product, state, allowed and suggested actions; an action returns the new state and a `feedback` code for the screen |
 | POST | `/devices/heartbeat` | Scanner | Online status, firmware version, queue length |
 | GET | `/devices/provisioning` | Scanner | Returns the key-derivation constant to an authenticated device |
-| GET | `/inventory` | Viewer, HA | Counts by product and state, low-stock flags |
+| GET | `/inventory` | Viewer, HA | Counts by product and state, low-stock flags, and each open spool's remaining % with a nearly-out flag |
 | GET | `/spools` | Viewer | List with filters (state, product, location) and search |
 | POST | `/spools` | Editor | Manual entry: create a placeholder spool for a product, with a `received` event |
 | GET | `/spools/{id}` | Viewer | Spool detail with tags and event timeline |
@@ -235,7 +235,8 @@ A versioned REST API under `/api/v1`, documented by FastAPI's generated OpenAPI 
 | GET | `/review` | Viewer | Flagged events not yet reviewed, `unidentified` tags, likely-empty suggestions |
 | POST | `/review/events/{id}/accept` | Editor | Mark a flagged event as correct |
 | POST | `/review/tags/{uid}/dismiss` | Editor | Hide an `unidentified` tag from Review |
-| GET / POST / PATCH | `/products`, `/products/{id}` | Viewer (GET), Editor | Display names and low-stock thresholds; POST creates a provisional product for manual entry |
+| POST | `/review/events/{id}/unaccept`, `/review/tags/{uid}/restore` | Editor | Bring back: return an accepted event or a dismissed tag to Review |
+| GET / POST / PATCH | `/products`, `/products/{id}` | Viewer (GET), Editor | Display names, low-stock thresholds and nearly-out %; POST creates a provisional product for manual entry |
 | GET / POST / DELETE | `/devices`, `/devices/{id}` | Admin | Register a scanner and issue or revoke its token |
 | POST | `/devices/{id}/rotate` | Admin | Issue a new token, invalidating the old one; also re-enables a revoked scanner |
 | GET / POST / PATCH | `/users`, `/users/{id}` | Admin | List and create users, change role, disable, reset password |
@@ -262,18 +263,18 @@ The web app has personal accounts, so a few people can use it from anywhere, som
 
 ## Server: web UI
 
-A small, mobile-friendly web app for checking stock and fixing mistakes; day-to-day input comes from the scanner. It is a SvelteKit single-page app built to static files, so production needs no Node.js. Controls a user's role does not allow are hidden, and the API enforces the same rules.
+A small, mobile-friendly web app for checking stock and fixing mistakes; day-to-day input comes from the scanner. It is a SvelteKit single-page app built to static files, so production needs no Node.js. Controls a user's role does not allow are hidden, and the API enforces the same rules. The look follows the mockups in `docs/mockups/web/`. A header control chooses the theme: Light, Dark or System (follow the device), remembered in the browser.
 
 | Page | Shows | Actions |
 | --- | --- | --- |
-| Inventory | One card per product: color swatch, name, sealed / open / used-up counts, low-stock badge (sealed count at or below the product's threshold; 0 turns it off) | Filter by type; sort by low stock |
+| Inventory | One card per product: color swatch, name, sealed / open / used-up counts, low-stock badge (sealed count at or below the product's threshold; 0 turns it off), and a remaining % bar for each open spool, marked nearly out at or below the product's nearly-out %. A summary counts open spools that are nearly out | Filter by type; sort by low stock; switch between cards and a list |
 | Spools | Table of spools with state, product, location, remaining %, dates | Filter, search, bulk change location, add a spool by hand |
-| Spool detail | Tag data, AMS remaining %, event timeline | Manual action, undo, edit notes and location |
-| Products | Decoded product IDs and colors | Set display name and low-stock threshold |
-| Review | Flagged events, `unidentified` tags, "likely empty" suggestions | Flagged event: Accept (it was right), Undo (revert it) or Open spool (fix by hand). Unidentified tag: dismiss. Likely empty: mark empty or dismiss |
-| Devices | Scanners and printers with online status, firmware, queue | Register device (token shown once), rotate token, revoke |
-| Users | Accounts and roles (Admin only) | Create, change role, reset password, disable |
-| Account | The signed-in user | Change password, sign out |
+| Spool detail | Tag data, AMS remaining % and grams left (remaining % of the tag's spool weight), event timeline | Manual action, undo, edit notes and location |
+| Products | Decoded product IDs and colors | Set display name, low-stock threshold and nearly-out % |
+| Review | Flagged events, `unidentified` tags, "likely empty" suggestions | Flagged event: Accept (it was right), Undo (revert it) or Open spool (fix by hand). Unidentified tag: dismiss. Likely empty: mark empty or dismiss. After an Accept or a dismiss, Bring back returns the item to Review |
+| Devices | Scanners and printers with online status, firmware, queue; each printer shows its AMS slots and the spool in each (from M5) | Register device (token shown once), rotate token, revoke |
+| Users | Accounts and roles (Admin only), with a short description of what each role can do | Create, change role, reset password, disable |
+| Account | The signed-in user | Change password (with a meter showing progress to the 12-character minimum), sign out |
 | Activity | Global event log, newest first | Undo |
 
 The color swatch comes from the tag's RGBA value, so new colors appear correctly with no setup.
