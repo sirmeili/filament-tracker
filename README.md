@@ -4,7 +4,7 @@ A self-hosted system that tracks every Bambu Lab filament spool from delivery to
 
 It runs in Docker with no Bambu cloud dependency. Scanners and integrations stay on your LAN; the web app, with personal accounts and Viewer, Editor and Admin roles, can be reached from the internet through your own HTTPS reverse proxy.
 
-> **Status: early development.** This repo currently holds the spec, the enclosure design and the server core (M1): the tag decoder, the database, the event log, the scanner API (`/scans`, device registration and undo) and a scan simulator. M2 has started: user accounts with Viewer, Editor and Admin roles, sign-in sessions and LAN-only tokens are built; the web pages are not yet. The features described below have not been built yet, and most of the software is planned to be built before the scanner hardware arrives. See [PROGRESS.md](PROGRESS.md) for current work.
+> **Status: early development.** This repo currently holds the spec, the enclosure design and the server core (M1): the tag decoder, the database, the event log, the scanner API (`/scans`, device registration and undo) and a scan simulator. M2 has started: user accounts with Viewer, Editor and Admin roles, sign-in sessions, LAN-only tokens and the read API for the pages are built; the web pages are not yet. The features described below have not been built yet, and most of the software is planned to be built before the scanner hardware arrives. See [PROGRESS.md](PROGRESS.md) for current work.
 
 [![Filament scanner case](hardware/enclosure/preview.png)](https://sirmeili.github.io/3d-mockup-viewer/openscad/viewer.html?manifest=https://raw.githubusercontent.com/sirmeili/filament-tracker/main/hardware/enclosure/manifest.json)
 
