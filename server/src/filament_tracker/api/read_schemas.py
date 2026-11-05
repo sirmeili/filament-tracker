@@ -75,6 +75,8 @@ class EventOut(BaseModel):
     reverts: UUID | None = Field(description="For an undo: the event it undid")
     reverted_by: UUID | None
     can_undo: bool
+    reviewed_at: datetime | None = Field(description="When a flagged event was accepted")
+    reviewed_by: str | None = Field(description="Who accepted it; null for the admin token")
 
 
 class SpoolDetail(SpoolRow):

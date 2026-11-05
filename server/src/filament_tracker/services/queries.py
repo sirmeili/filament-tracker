@@ -128,6 +128,7 @@ def _event_query() -> Select[tuple[Event]]:
         selectinload(Event.spool).selectinload(Spool.product),
         selectinload(Event.device),
         selectinload(Event.user),
+        selectinload(Event.reviewer),
     )
 
 
@@ -152,13 +153,21 @@ def spool_events(session: Session, spool: Spool) -> list[Event]:
 
 
 def flagged_events(session: Session) -> list[Event]:
-    """Flagged events still in effect. Undoing a flagged event takes it out of Review."""
+    """Flagged events still in effect and not yet accepted. Undoing or accepting a flagged
+    event takes it out of Review."""
     query = _event_query().where(
-        Event.flagged.is_(True), Event.reverted_by.is_(None), Event.type != EventType.REVERT
+        Event.flagged.is_(True),
+        Event.reverted_by.is_(None),
+        Event.reviewed_at.is_(None),
+        Event.type != EventType.REVERT,
     )
     return list(session.scalars(_newest_first(query)))
 
 
 def unidentified_tags(session: Session) -> list[Tag]:
-    query = select(Tag).where(Tag.spool_id.is_(None)).order_by(Tag.first_seen_at.desc(), Tag.id)
+    query = (
+        select(Tag)
+        .where(Tag.spool_id.is_(None), Tag.dismissed_at.is_(None))
+        .order_by(Tag.first_seen_at.desc(), Tag.id)
+    )
     return list(session.scalars(query))

@@ -54,3 +54,17 @@ def revoke_device(device_id: str, _: Admin, session: SessionDep) -> Response:
         device.revoked_at = utcnow()
         session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/devices/{device_id}/rotate", response_model=DeviceCreated)
+def rotate_token(device_id: str, _: Admin, session: SessionDep) -> DeviceCreated:
+    """Issue a new token; the old one stops working at once. A revoked device is
+    re-enabled with the new token. The token is returned once and only its hash is stored."""
+    device = session.get(Device, device_id)
+    if device is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such device")
+    token = new_device_token()
+    device.token_hash = hash_token(token)
+    device.revoked_at = None
+    session.commit()
+    return DeviceCreated(**_out(device).model_dump(), token=token)

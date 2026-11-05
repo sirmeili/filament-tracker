@@ -77,3 +77,30 @@ def test_revoking_twice_is_harmless(client: TestClient) -> None:
 
 def test_revoking_an_unknown_device_is_not_found(client: TestClient) -> None:
     assert client.delete("/api/v1/devices/nobody", headers=admin()).status_code == 404
+
+
+def test_rotating_a_token_replaces_it(client: TestClient, token: str) -> None:
+    response = client.post("/api/v1/devices/scanner-1/rotate", headers=admin())
+
+    assert response.status_code == 200
+    new_token = response.json()["token"]
+    assert new_token != token and new_token.startswith("ftd_")
+    body = scan_body(SyntheticTag(), "lookup")
+    assert client.post("/api/v1/scans", json=body, headers=bearer(token)).status_code == 401
+    assert client.post("/api/v1/scans", json=body, headers=bearer(new_token)).status_code == 200
+
+
+def test_rotating_re_enables_a_revoked_device(client: TestClient, token: str) -> None:
+    client.delete("/api/v1/devices/scanner-1", headers=admin())
+
+    rotated = client.post("/api/v1/devices/scanner-1/rotate", headers=admin()).json()
+
+    assert rotated["revoked"] is False
+    body = scan_body(SyntheticTag(), "lookup")
+    assert (
+        client.post("/api/v1/scans", json=body, headers=bearer(rotated["token"])).status_code == 200
+    )
+
+
+def test_rotating_an_unknown_device(client: TestClient) -> None:
+    assert client.post("/api/v1/devices/nope/rotate", headers=admin()).status_code == 404

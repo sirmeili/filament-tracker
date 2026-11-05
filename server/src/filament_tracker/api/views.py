@@ -68,6 +68,8 @@ def event_out(event: Event) -> EventOut:
         reverts=_reverts(event),
         reverted_by=event.reverted_by,
         can_undo=event.type != EventType.REVERT and event.reverted_by is None,
+        reviewed_at=event.reviewed_at,
+        reviewed_by=event.reviewer.username if event.reviewer else None,
     )
 
 
