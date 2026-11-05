@@ -1,0 +1,56 @@
+"""Register scanners and issue or revoke their tokens (admin only)."""
+
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from filament_tracker.api.deps import get_session
+from filament_tracker.api.schemas import DeviceCreate, DeviceCreated, DeviceOut
+from filament_tracker.auth import AdminCaller, hash_token, new_device_token
+from filament_tracker.db.models import Device
+from filament_tracker.db.types import utcnow
+
+router = APIRouter(tags=["devices"])
+SessionDep = Annotated[Session, Depends(get_session)]
+
+
+def _out(device: Device) -> DeviceOut:
+    return DeviceOut(
+        id=device.id,
+        name=device.name,
+        created_at=device.created_at,
+        last_seen_at=device.last_seen_at,
+        fw_version=device.fw_version,
+        revoked=device.revoked_at is not None,
+    )
+
+
+@router.get("/devices", response_model=list[DeviceOut])
+def list_devices(_: AdminCaller, session: SessionDep) -> list[DeviceOut]:
+    return [_out(d) for d in session.scalars(select(Device).order_by(Device.id))]
+
+
+@router.post("/devices", response_model=DeviceCreated, status_code=status.HTTP_201_CREATED)
+def register_device(body: DeviceCreate, _: AdminCaller, session: SessionDep) -> DeviceCreated:
+    """Register a scanner. The token is returned once and only its hash is stored."""
+    if session.get(Device, body.id) is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "a device with this id already exists")
+    token = new_device_token()
+    device = Device(id=body.id, name=body.name, token_hash=hash_token(token))
+    session.add(device)
+    session.commit()
+    return DeviceCreated(**_out(device).model_dump(), token=token)
+
+
+@router.delete("/devices/{device_id}", status_code=status.HTTP_204_NO_CONTENT)
+def revoke_device(device_id: str, _: AdminCaller, session: SessionDep) -> Response:
+    """Revoke a scanner's token. The device stays listed so its events keep their link."""
+    device = session.get(Device, device_id)
+    if device is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such device")
+    if device.revoked_at is None:
+        device.revoked_at = utcnow()
+        session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
