@@ -16,16 +16,18 @@
 - M1 part 1, the decoder, merged (PR #6).
 - M1 part 2, settings, tables and migrations, merged (PR #7).
 - M1 part 3, state machine, replay and event log, merged (PR #8).
+- M1 part 4, `/scans`, device registration, revert and auth, merged (PR #9).
 - M1 plan approved: five branches merged in order (decoder, data model, event log, `/scans` API, scan simulator).
 
 ## In progress
 
-- `feature/scans-api` (M1, part 4 of 5): `POST /scans` (lookup and actions, placeholder linking, provisional products, idempotent retries, unreadable tags), device registration and revocation, `POST /events/{id}/revert`, bearer-token auth, a request body cap and a security test suite. Accepted by the user; PR open, awaiting merge.
+- `feature/scan-simulator` (M1, part 5 of 5): `ft-sim` command that imports BambuTagScanner exports (ZIP or `.bin`), strips sector trailers and posts scans; generates synthetic tag files; usage guide in `server/README.md`. Completes M1. Accepted by the user; PR open, awaiting merge.
 
 ## Next
 
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
-- M1 part 5, `feature/scan-simulator`.
+- Run the real BambuTagScanner dumps through `ft-sim` against a local server (see `server/README.md`).
+- M2 Web UI: plan first, including manual entry (`POST /spools`, `POST /products`).
 
 ## Decisions
 
@@ -65,6 +67,9 @@
 - 2026-11-05: A provisional product is matched by filament type and color when it has unlinked placeholders; only a single match is used, and it is filled in with the tag's IDs (added to the spec).
 - 2026-11-05: Request bodies are capped at 16 KiB (413), checked from Content-Length and while streaming.
 - 2026-11-05: Fixed: synthetic tags regenerated their random filler on every read; they now read the same every time.
+
+- 2026-11-05: `ft-sim` uses only the standard library for HTTP, so the server needs no new runtime dependency. It expands wildcards itself because PowerShell does not, and masks the tag UID that BambuTagScanner puts at the start of its file names.
+- 2026-11-05: `ft-sim generate` writes a tag file instead of posting directly, so the same synthetic spool can be scanned through its whole life. `*.zip` is now ignored by git, alongside `*.bin`.
 
 ## Open questions
 
