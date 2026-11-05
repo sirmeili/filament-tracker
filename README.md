@@ -4,7 +4,7 @@ A self-hosted system that tracks every Bambu Lab filament spool from delivery to
 
 It runs entirely on your LAN in Docker, with no Bambu cloud dependency.
 
-> **Status: early development.** This repo currently holds the spec, the enclosure design and a server skeleton. The features described below have not been built yet, and most of the software is planned to be built before the scanner hardware arrives. See [PROGRESS.md](PROGRESS.md) for current work.
+> **Status: early development.** This repo currently holds the spec, the enclosure design and the start of the server: a health check and the tag decoder. The features described below have not been built yet, and most of the software is planned to be built before the scanner hardware arrives. See [PROGRESS.md](PROGRESS.md) for current work.
 
 [![Filament scanner case](hardware/enclosure/preview.png)](https://sirmeili.github.io/3d-mockup-viewer/openscad/viewer.html?manifest=https://raw.githubusercontent.com/sirmeili/filament-tracker/main/hardware/enclosure/manifest.json)
 
@@ -70,7 +70,7 @@ Select the image above to open the interactive 3D mockup. The source is in [hard
 docs/SPEC.md         Full specification: the source of truth
 hardware/BOM.md      Bill of materials for one scanner
 hardware/enclosure/  3D model of the scanner case
-server/              FastAPI server (currently a skeleton with a health check)
+server/              FastAPI server (so far a health check and the tag decoder)
 .github/workflows/   CI: lint, tests, 90% coverage gate and dependency audit
 AGENTS.md            Rules for AI agents working in this repo
 PROGRESS.md          Current status, next steps and decisions

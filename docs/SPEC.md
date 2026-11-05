@@ -83,6 +83,15 @@ Menu items:
 - Offline: if the lookup fails, the screen offers New, Opened and Empty with the product decoded from the raw tag, and the chosen event is queued. The server applies the same rules when it arrives.
 - Replay order: events are replayed by `occurred_at`, not by arrival, so a queued event takes its true place in the spool's history.
 - A queued Opened that still falls after the spool's Empty is applied: the spool becomes `open` and the event is flagged for review.
+- A `received` on a spool that is already `open` or `empty` is recorded and flagged for review, with no state change. A second roll of the same product is a different spool, because it has its own tray UID.
+
+**Manual entry (tags that cannot be read yet)**
+
+Some spools cannot be scanned when they arrive; TPU, for example, ships in a foil bag that blocks the tag.
+
+- In the web UI (phone or computer), choose a product and record New. This creates a placeholder spool with no tray UID.
+- If the product has never been scanned, enter its name, filament type and color by hand. It is created as a provisional product and merged into the real product when one of its tags is scanned.
+- The first scan of an unknown tray UID whose product has unlinked placeholders shows the oldest placeholder, with its state and date, instead of an unknown spool. Confirming an action links the tag to that placeholder, so its history carries over, and the link event is flagged for review so a wrong match can be corrected.
 
 **Automatic detection from the AMS**
 
@@ -175,8 +184,8 @@ The server is event-sourced: every scan, AMS observation and UI edit is an immut
 
 | Table | Key fields | Purpose |
 | --- | --- | --- |
-| `product` | id, material\_id, variant\_id, filament\_type, color\_rgba, display\_name, low\_stock\_threshold | One row per filament product (for example Black PLA Basic); created automatically from the first decoded tag; display name editable |
-| `spool` | id, tray\_uid (unique), product\_id, state, received\_at, opened\_at, emptied\_at, remaining\_pct, location, notes | One physical spool; state and timestamps derived from events |
+| `product` | id, material\_id, variant\_id, filament\_type, color\_rgba, display\_name, low\_stock\_threshold, provisional | One row per filament product (for example Black PLA Basic); created automatically from the first decoded tag; display name editable. Provisional products (from the AMS or manual entry) have no material or variant ID until a tag is scanned |
+| `spool` | id, tray\_uid (unique, null for a manual placeholder), product\_id, state, received\_at, opened\_at, emptied\_at, remaining\_pct, location, notes | One physical spool; state and timestamps derived from events |
 | `tag` | uid (unique), spool\_id, raw\_blocks, decoded\_json, first\_seen\_at | Each spool has up to two tags; raw dump kept for re-decoding |
 | `event` | id (UUID from device or server), spool\_id, type, source, device\_id, occurred\_at, payload\_json, reverted\_by | Append-only log; undo writes a new `revert` event |
 | `device` | id, name, token\_hash, last\_seen\_at, fw\_version | Registered scanners |
@@ -186,13 +195,14 @@ The server is event-sourced: every scan, AMS observation and UI edit is an immut
 
 | From | Event | To | Source |
 | --- | --- | --- | --- |
-| (none) | `received` | `sealed` | Scanner, UI |
+| (none) | `received` | `sealed` | Scanner, UI (manual entry creates a placeholder) |
 | (none) | `opened` | `open` | Scanner, UI, AMS (implicit receive) |
 | `sealed` | `opened` | `open` | Scanner, UI, AMS first sighting |
 | `open` | `empty` | `empty` | Scanner, UI |
 | `sealed` | `empty` | `empty` | Scanner, UI (flagged for review) |
 | any | `revert` | previous state | Undo from scanner or UI |
 | `empty` | `opened` | `open` | UI (correction); queued offline scan (flagged for review) |
+| `open`, `empty` | `received` | unchanged | Queued offline scan, UI (flagged for review) |
 
 **Decoding**
 
@@ -211,11 +221,12 @@ A versioned REST API under `/api/v1`, documented by FastAPI's generated OpenAPI 
 | GET | `/devices/provisioning` | Scanner | Returns the key-derivation constant to an authenticated device |
 | GET | `/inventory` | UI, HA | Counts by product and state, low-stock flags |
 | GET | `/spools` | UI | List with filters: state, product, location |
+| POST | `/spools` | UI | Manual entry: create a placeholder spool for a product, with a `received` event |
 | GET | `/spools/{id}` | UI | Spool detail with tags and event timeline |
 | PATCH | `/spools/{id}` | UI | Edit location and notes |
 | POST | `/spools/{id}/events` | UI | Manual action (received, opened, empty) |
 | POST | `/events/{id}/revert` | UI, Scanner | Undo an event; a scanner can undo only events from its own device |
-| GET / PATCH | `/products`, `/products/{id}` | UI | Display names and low-stock thresholds |
+| GET / POST / PATCH | `/products`, `/products/{id}` | UI | Display names and low-stock thresholds; POST creates a provisional product for manual entry |
 | GET / POST / DELETE | `/devices` | UI | Register a scanner and issue or revoke its token |
 | GET | `/health` | Docker, HA | Liveness and dependency status |
 
@@ -230,7 +241,7 @@ A small, mobile-friendly web app for checking stock and fixing mistakes; day-to-
 | Page | Shows | Actions |
 | --- | --- | --- |
 | Inventory | One card per product: color swatch, name, sealed / open / used-up counts, low-stock badge | Filter by type; sort by low stock |
-| Spools | Table of spools with state, product, location, remaining %, dates | Filter, search, bulk change location |
+| Spools | Table of spools with state, product, location, remaining %, dates | Filter, search, bulk change location, add a spool by hand |
 | Spool detail | Tag data, AMS remaining %, event timeline | Manual action, undo, edit notes and location |
 | Products | Decoded product IDs and colors | Set display name and low-stock threshold |
 | Review | Flagged events, `unidentified` tags, "likely empty" suggestions | Accept, correct or dismiss |
@@ -318,7 +329,7 @@ Each milestone ends with something usable. Reading is proved first with a phone,
 
 1. **M0a Prove reading, phone**: dump two rolls of the same product with an Android app; confirm matching product fields and distinct tray UIDs; try reading through the shipping box.
 2. **M1 Server core**: decoder, data model, event log, `/scans` API, scan simulator, tests.
-3. **M2 Web UI**: inventory, spools, spool detail, review, devices.
+3. **M2 Web UI**: inventory, spools, spool detail, review, devices, manual entry.
 4. **M5 Printer link**: P1S MQTT ingest, automatic Opened, remaining %, likely-empty suggestions, built against the fake printer and checked against the real P1S.
 5. **M6 Home Assistant**: MQTT discovery entities, events, low-stock automation.
 6. **M3a Firmware without hardware**: scan flow, offline queue and dedupe logic with PC tests, screen simulator.
@@ -337,9 +348,9 @@ Each milestone ends with something usable. Reading is proved first with a phone,
 
 ## Open questions
 
-- [ ] Does a tag read through the sealed shipping box with the PN532, and from which side? If not, New needs another trigger (box barcode, or scanning at first opening). A Pixel 9 Pro XL has read a tag through one box, contents not recorded, but a phone antenna is not a PN532.
+- [ ] Does a tag read through the sealed shipping box with the PN532, and from which side? If not, New needs another trigger (box barcode, or scanning at first opening). A Pixel 9 Pro XL reads tags through sealed refill boxes from either side, but a phone antenna is not a PN532. Tags in TPU's foil bag cannot be read; see Manual entry.
 - [ ] Does the AMS tray UUID equal the tag's tray UID, and how does the AMS report non-Bambu spools? Check against the real P1S.
 - [x] Buttons on the CYD prototype: resistor ladder on GPIO35. The PCF8574 expander stays as the fallback.
 - [ ] Printer data source: direct MQTT from the server, or the ha-bambulab entities in Home Assistant?
-- [ ] Do Bambu refill packs carry the same tags, and how should a refill on a reused spool be tracked?
+- [x] Refill packs carry Bambu tags that read through the box. A refill has its own tray UID, so it is tracked as a new spool.
 - [ ] Project and repo name.

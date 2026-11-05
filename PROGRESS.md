@@ -5,18 +5,25 @@
 - Spec and enclosure design committed.
 - README.md added, and AGENTS.md now requires keeping it up to date.
 - M0a partly done: a Pixel 9 Pro XL running BambuTagScanner read filament tags, including through one box with contents not recorded.
+- M0a two-roll comparison passed (2026-11-05): two Black PLA Basic rolls decoded with the new decoder to the same product key (GFA00, A00-K00, 000000FF) and different tray UIDs. Production dates differ by minutes on the same day.
+- M0a further results (2026-11-05): both PLA rolls were refills, read through their sealed boxes from either side; both tags of one roll share a tray UID; TPU in its foil bag cannot be read.
+- M0a complete (2026-11-05): older ABS and PETG spools, not refills, also read through their sealed boxes once the phone was held still. Reading through the box with a PN532 is still open for M0b.
+- Spec updated: manual entry of spools whose tags cannot be read yet (placeholder spools linked on first scan, provisional products), and the rule for `received` on an open or empty spool.
 - Spec updated with the approved gap fixes, test tools and milestone order; `nfc_skin` set to 1.0 mm.
 - Enclosure manifest renamed to `manifest.json`.
 - Server skeleton with a health check, plus CI for lint, tests, the 90% coverage gate and a dependency audit.
+- Bill of materials (`hardware/BOM.md`) merged.
+- M1 plan approved: five branches merged in order (decoder, data model, event log, `/scans` API, scan simulator).
 
 ## In progress
 
-- `feature/bom`: accepted by the user; PR open, awaiting merge.
+- `feature/decoder` (M1, part 1 of 5): decodes the 48 data blocks a scanner sends into a typed record and a product key, plus a generator of synthetic tags for tests and the simulator. Accepted by the user; PR open, awaiting merge.
 
 ## Next
 
-- Finish M0a: compare dumps from two rolls of the same product, retest a labeled box, and scan a refill if available. Dumps stay outside the repo.
-- M1 Server core, starting with the decoder and generated tags.
+- M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
+- M1 part 2, `feature/data-model`: tables, Alembic migrations and settings.
+- M1 parts 3 to 5: event log and state machine, `/scans` with device registration and revert, scan simulator.
 
 ## Decisions
 
@@ -31,8 +38,17 @@
 - 2026-10-31: Any printer MQTT proxy stays a separate project; `bradsjm/bambu-mqtt-proxy` is the first to try if the connection limit is hit.
 - 2026-10-31: The README mockup link uses the OpenSCAD edition of the viewer, because the manifest has only `.scad` parts and the repo has no STLs.
 
+- 2026-11-05: M1 includes `/scans`, `/devices` registration and `/events/{id}/revert`; heartbeat and provisioning wait for M3a, when the firmware needs them.
+- 2026-11-05: A `received` event for a spool that is already open or empty is recorded and flagged for review, with no state change. A second roll of the same product has its own tray UID, so it is a new spool.
+- 2026-11-05: Spools whose tags cannot be read yet (for example TPU in a foil bag) are added by hand in the web UI as placeholders with no tray UID; the first scan of that product's tag links to the oldest placeholder and is flagged for review. Unknown products are created by hand as provisional. The data model in M1 allows this; the UI comes in M2.
+- 2026-11-05: Lookups do not write events; only actions are logged.
+- 2026-11-05: The scan simulator reads BambuTagScanner's export (a ZIP or a 1024-byte `.bin` image with sector trailers) and strips the trailers so keys are never sent.
+- 2026-11-05: The decoder rejects a tag with no material ID or an all-zero tray UID as unreadable. Fields the RFID guide marks as uncertain decode to null when their bytes are unusable.
+- 2026-11-05: The synthetic tag generator lives in the package (`decoder/synthetic.py`), not in `tests/`, because the scan simulator's `generate` command uses it too.
+
 ## Open questions
 
+- The case model must be adjusted for the speaker that was ordered: a 15 × 10 × 3.5 mm rectangular cavity speaker (8 Ω, JST PH 1.25 mm plug, 80 mm lead) instead of the 20 mm round one in `filament-scanner-case.scad`. Replace the round holder with a rectangular one and resize the grille. Before changing it, check on the real parts which face the sound opening is on and where the CYD's speaker socket is. The lead may need an extension or a splice to reach the socket. Update BOM item 5 at the same time. Due by M4.
 - The user will confirm on the real parts and report back: JST connector sizes, the CN1 pinout, CC pull-downs on the USB-C breakout, two-supply protection on the CYD, and whether the CYD's 3.3 V supply can power the PN532.
 - `fastapi.testclient` warns that using httpx with Starlette's test client is deprecated and suggests `httpx2`. Tests pass. Vet `httpx2` and get approval before switching.
 - `.env.example` was not added because agent permission settings block writing it. Settings are documented in the spec's Configuration table.
