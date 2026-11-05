@@ -26,7 +26,7 @@
 
 ## In progress
 
-- `feature/read-api` (M2, part 3 of 7): `GET /inventory` (counts per product, low-stock flag, type filter, low-stock sort), `/products`, `/products/{id}`, `/spools` (state, product, location filters, search, paging), `/spools/{id}` (tags with decoded fields, timeline with scanner or user and undo state), `/events` (Activity, newest first, paged) and `/review` (flagged events not undone, unidentified tags). All need Viewer; scanners are refused. 463 tests, 99.8% coverage; the suite now runs in about a minute instead of two. Awaiting user review.
+- `feature/read-api` (M2, part 3 of 7): `GET /inventory` (counts per product, low-stock flag, type filter, low-stock sort), `/products`, `/products/{id}`, `/spools` (state, product, location filters, search, paging), `/spools/{id}` (tags with decoded fields, timeline with scanner or user and undo state), `/events` (Activity, newest first, paged) and `/review` (flagged events not undone, unidentified tags). All need Viewer; scanners are refused. 463 tests, 99.8% coverage; the suite now runs in about a minute instead of two. Accepted by the user; PR open, awaiting merge.
 
 ## Next
 
