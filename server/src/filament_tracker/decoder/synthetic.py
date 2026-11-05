@@ -21,11 +21,18 @@ from filament_tracker.decoder.blocks import (
 
 _ACCESS_BITS = bytes.fromhex("87878769")
 _SIGNATURE_BLOCKS = range(40, TOTAL_BLOCKS)
+_SIGNATURE_DATA_BLOCKS = [n for n in _SIGNATURE_BLOCKS if not is_trailer(n)]
+_TRAILERS = range(BLOCKS_PER_SECTOR - 1, TOTAL_BLOCKS, BLOCKS_PER_SECTOR)
+# Random filler: 11 bytes of block 0, the signature blocks, and a 6-byte key per trailer.
+_FILLER_SIZE = 11 + len(_SIGNATURE_DATA_BLOCKS) * BLOCK_SIZE + len(_TRAILERS) * 6
 
 
 @dataclass
 class SyntheticTag:
-    """Field values for a generated tag. Defaults describe a Black PLA Basic roll."""
+    """Field values for a generated tag. Defaults describe a Black PLA Basic roll.
+
+    The random parts are chosen once per tag, so a tag reads the same every time.
+    """
 
     tag_uid: bytes = field(default_factory=lambda: secrets.token_bytes(4))
     tray_uid: bytes = field(default_factory=lambda: secrets.token_bytes(16))
@@ -47,11 +54,13 @@ class SyntheticTag:
     max_hotend_temp_c: int = 230
     min_hotend_temp_c: int = 190
     production_date: datetime = datetime(2026, 9, 14, 8, 30)
+    filler: bytes = field(default_factory=lambda: secrets.token_bytes(_FILLER_SIZE), repr=False)
 
     def image(self) -> bytes:
         """Return a full 1024-byte tag image, sector trailers included."""
+        filler = iter(_chunks(self.filler, [11] + [BLOCK_SIZE] * len(_SIGNATURE_DATA_BLOCKS)))
         blocks = [bytes(BLOCK_SIZE)] * TOTAL_BLOCKS
-        blocks[0] = self.tag_uid + _bcc(self.tag_uid) + secrets.token_bytes(11)
+        blocks[0] = self.tag_uid + _bcc(self.tag_uid) + next(filler)
         blocks[1] = _pad(self.variant_id, 8) + _pad(self.material_id, 8)
         blocks[2] = _pad(self.filament_type)
         blocks[4] = _pad(self.detailed_filament_type)
@@ -79,16 +88,24 @@ class SyntheticTag:
         if self.second_color_rgba is not None:
             abgr = bytes.fromhex(self.second_color_rgba)[::-1]
             blocks[16] = struct.pack("<HH", 2, 2) + abgr + bytes(8)
-        for n in _SIGNATURE_BLOCKS:
-            if not is_trailer(n):
-                blocks[n] = secrets.token_bytes(BLOCK_SIZE)
-        for n in range(BLOCKS_PER_SECTOR - 1, TOTAL_BLOCKS, BLOCKS_PER_SECTOR):
-            blocks[n] = secrets.token_bytes(6) + _ACCESS_BITS + bytes(6)
+        for n in _SIGNATURE_DATA_BLOCKS:
+            blocks[n] = next(filler)
+        keys = self.filler[-len(_TRAILERS) * 6 :]
+        for i, n in enumerate(_TRAILERS):
+            blocks[n] = keys[i * 6 : i * 6 + 6] + _ACCESS_BITS + bytes(6)
         return b"".join(blocks)
 
     def data_blocks(self) -> list[str]:
         """Return the 48 data blocks as hex, as a scanner sends them."""
         return [b.hex().upper() for b in strip_trailers(self.image())]
+
+
+def _chunks(data: bytes, sizes: list[int]) -> list[bytes]:
+    out, start = [], 0
+    for size in sizes:
+        out.append(data[start : start + size])
+        start += size
+    return out
 
 
 def _pad(text: str, size: int = BLOCK_SIZE) -> bytes:

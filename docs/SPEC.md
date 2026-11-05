@@ -90,7 +90,7 @@ Menu items:
 Some spools cannot be scanned when they arrive; TPU, for example, ships in a foil bag that blocks the tag.
 
 - In the web UI (phone or computer), choose a product and record New. This creates a placeholder spool with no tray UID.
-- If the product has never been scanned, enter its name, filament type and color by hand. It is created as a provisional product and merged into the real product when one of its tags is scanned.
+- If the product has never been scanned, enter its name, filament type and color by hand. It is created as a provisional product and merged into the real product when one of its tags is scanned. A scanned tag matches a provisional product when the filament type and color are the same and the product still has unlinked placeholders; if several match, none is used and the scan is treated as a new product.
 - The first scan of an unknown tray UID whose product has unlinked placeholders shows the oldest placeholder, with its state and date, instead of an unknown spool. Confirming an action links the tag to that placeholder, so its history carries over, and the link event is flagged for review so a wrong match can be corrected.
 
 **Automatic detection from the AMS**

@@ -15,16 +15,16 @@
 - Bill of materials (`hardware/BOM.md`) merged.
 - M1 part 1, the decoder, merged (PR #6).
 - M1 part 2, settings, tables and migrations, merged (PR #7).
+- M1 part 3, state machine, replay and event log, merged (PR #8).
 - M1 plan approved: five branches merged in order (decoder, data model, event log, `/scans` API, scan simulator).
 
 ## In progress
 
-- `feature/event-log` (M1, part 3 of 5): spool state machine and replay, scanner action menus, and the event log service (append, undo, re-projection). Spool state may now be null (Unknown). Accepted by the user; PR open, awaiting merge.
+- `feature/scans-api` (M1, part 4 of 5): `POST /scans` (lookup and actions, placeholder linking, provisional products, idempotent retries, unreadable tags), device registration and revocation, `POST /events/{id}/revert`, bearer-token auth, a request body cap and a security test suite.
 
 ## Next
 
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
-- M1 part 4, `feature/scans-api`: `/scans`, device registration and tokens, `/events/{id}/revert`, placeholder linking.
 - M1 part 5, `feature/scan-simulator`.
 
 ## Decisions
@@ -57,6 +57,14 @@
 - 2026-11-05: A spool's state is null (Unknown) after every event that set it is undone; the spool row and its tags are kept. Added to the spec and as a migration.
 - 2026-11-05: Reopening an empty spool from the UI is a correction and is not flagged; from a scanner (a queued scan) it is flagged. A reopened spool keeps its first `opened_at` and clears `emptied_at`.
 - 2026-11-05: Undoing an undo, or undoing an event twice, is refused.
+
+- 2026-11-05: Device tokens look like `ftd_<random>`, are shown once at registration and stored as SHA-256 hashes. Admin routes are closed if `ADMIN_TOKEN` is not set. The admin token cannot submit scans; device tokens cannot use admin routes (both get 401).
+- 2026-11-05: A scan's `device_id` must match its token (403). An `event_id` already used by another device is refused (409). Each action event stores its response, which is returned unchanged on retry.
+- 2026-11-05: A tag whose UID disagrees with block 0, or whose blocks do not decode, is unreadable; it is kept by UID with its raw blocks for later re-decoding. A failed read never overwrites a tag already known.
+- 2026-11-05: New products get the default name "<detailed type> #<RRGGBB>", editable in M2.
+- 2026-11-05: A provisional product is matched by filament type and color when it has unlinked placeholders; only a single match is used, and it is filled in with the tag's IDs (added to the spec).
+- 2026-11-05: Request bodies are capped at 16 KiB (413), checked from Content-Length and while streaming.
+- 2026-11-05: Fixed: synthetic tags regenerated their random filler on every read; they now read the same every time.
 
 ## Open questions
 

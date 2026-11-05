@@ -137,6 +137,8 @@ class Event(Base):
     flagged: Mapped[bool] = mapped_column(Boolean, default=False)
     payload_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     reverted_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("event.id"))
+    # The response sent for this event, returned again if the same event ID is retried.
+    result_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
     spool: Mapped[Spool] = relationship(back_populates="events")
 

@@ -33,6 +33,13 @@ def test_each_generated_tag_has_new_random_identity() -> None:
     assert first.tray_uid != second.tray_uid
 
 
+def test_a_tag_reads_the_same_every_time() -> None:
+    tag = SyntheticTag()
+
+    assert tag.image() == tag.image()
+    assert tag.data_blocks() == tag.data_blocks()
+
+
 def test_text_that_does_not_fit_is_rejected() -> None:
     with pytest.raises(ValueError, match="does not fit"):
         SyntheticTag(variant_id="TOO-LONG-ID").image()
