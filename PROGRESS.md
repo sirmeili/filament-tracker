@@ -6,6 +6,8 @@
 - README.md added, and AGENTS.md now requires keeping it up to date.
 - M0a partly done: a Pixel 9 Pro XL running BambuTagScanner read filament tags, including through one box with contents not recorded.
 - M0a two-roll comparison passed (2026-11-05): two Black PLA Basic rolls decoded with the new decoder to the same product key (GFA00, A00-K00, 000000FF) and different tray UIDs. Production dates differ by minutes on the same day.
+- M0a further results (2026-11-05): both PLA rolls were refills, read through their sealed boxes from either side; both tags of one roll share a tray UID; TPU in its foil bag cannot be read.
+- Spec updated: manual entry of spools whose tags cannot be read yet (placeholder spools linked on first scan, provisional products), and the rule for `received` on an open or empty spool.
 - Spec updated with the approved gap fixes, test tools and milestone order; `nfc_skin` set to 1.0 mm.
 - Enclosure manifest renamed to `manifest.json`.
 - Server skeleton with a health check, plus CI for lint, tests, the 90% coverage gate and a dependency audit.
@@ -18,7 +20,7 @@
 
 ## Next
 
-- Finish M0a: retest a labeled box, and scan a refill if available. Optionally confirm both tags on one spool share a tray UID. Dumps stay outside the repo.
+- Finish M0a: retry the older ABS and PETG spools, which the phone detected through the box but BambuTagScanner showed nothing for; retry out of the box, holding still. Scan a new (non-refill) boxed spool. Dumps stay outside the repo.
 - M1 part 2, `feature/data-model`: tables, Alembic migrations and settings.
 - M1 parts 3 to 5: event log and state machine, `/scans` with device registration and revert, scan simulator.
 
@@ -37,6 +39,7 @@
 
 - 2026-11-05: M1 includes `/scans`, `/devices` registration and `/events/{id}/revert`; heartbeat and provisioning wait for M3a, when the firmware needs them.
 - 2026-11-05: A `received` event for a spool that is already open or empty is recorded and flagged for review, with no state change. A second roll of the same product has its own tray UID, so it is a new spool.
+- 2026-11-05: Spools whose tags cannot be read yet (for example TPU in a foil bag) are added by hand in the web UI as placeholders with no tray UID; the first scan of that product's tag links to the oldest placeholder and is flagged for review. Unknown products are created by hand as provisional. The data model in M1 allows this; the UI comes in M2.
 - 2026-11-05: Lookups do not write events; only actions are logged.
 - 2026-11-05: The scan simulator reads BambuTagScanner's export (a ZIP or a 1024-byte `.bin` image with sector trailers) and strips the trailers so keys are never sent.
 - 2026-11-05: The decoder rejects a tag with no material ID or an all-zero tray UID as unreadable. Fields the RFID guide marks as uncertain decode to null when their bytes are unusable.
