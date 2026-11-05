@@ -29,7 +29,7 @@ class SyntheticTag:
 
     tag_uid: bytes = field(default_factory=lambda: secrets.token_bytes(4))
     tray_uid: bytes = field(default_factory=lambda: secrets.token_bytes(16))
-    variant_id: str = "A00-K0"
+    variant_id: str = "A00-K00"
     material_id: str = "GFA00"
     filament_type: str = "PLA"
     detailed_filament_type: str = "PLA Basic"

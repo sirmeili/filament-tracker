@@ -5,6 +5,7 @@
 - Spec and enclosure design committed.
 - README.md added, and AGENTS.md now requires keeping it up to date.
 - M0a partly done: a Pixel 9 Pro XL running BambuTagScanner read filament tags, including through one box with contents not recorded.
+- M0a two-roll comparison passed (2026-11-05): two Black PLA Basic rolls decoded with the new decoder to the same product key (GFA00, A00-K00, 000000FF) and different tray UIDs. Production dates differ by minutes on the same day.
 - Spec updated with the approved gap fixes, test tools and milestone order; `nfc_skin` set to 1.0 mm.
 - Enclosure manifest renamed to `manifest.json`.
 - Server skeleton with a health check, plus CI for lint, tests, the 90% coverage gate and a dependency audit.
@@ -17,7 +18,7 @@
 
 ## Next
 
-- Finish M0a: compare dumps from two rolls of the same product, retest a labeled box, and scan a refill if available. Dumps stay outside the repo.
+- Finish M0a: retest a labeled box, and scan a refill if available. Optionally confirm both tags on one spool share a tray UID. Dumps stay outside the repo.
 - M1 part 2, `feature/data-model`: tables, Alembic migrations and settings.
 - M1 parts 3 to 5: event log and state machine, `/scans` with device registration and revert, scan simulator.
 

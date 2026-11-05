@@ -95,7 +95,7 @@ def test_different_colors_are_different_products() -> None:
 def test_product_key_fields() -> None:
     record = decode(SyntheticTag().data_blocks())
 
-    assert record.product_key == ProductKey("GFA00", "A00-K0", "000000FF")
+    assert record.product_key == ProductKey("GFA00", "A00-K00", "000000FF")
 
 
 def test_decoding_is_pure() -> None:
