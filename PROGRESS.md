@@ -8,15 +8,18 @@
 - Spec updated with the approved gap fixes, test tools and milestone order; `nfc_skin` set to 1.0 mm.
 - Enclosure manifest renamed to `manifest.json`.
 - Server skeleton with a health check, plus CI for lint, tests, the 90% coverage gate and a dependency audit.
+- Bill of materials (`hardware/BOM.md`) merged.
+- M1 plan approved: five branches merged in order (decoder, data model, event log, `/scans` API, scan simulator).
 
 ## In progress
 
-- `feature/bom`: accepted by the user; PR open, awaiting merge.
+- `feature/decoder` (M1, part 1 of 5): decodes the 48 data blocks a scanner sends into a typed record and a product key, plus a generator of synthetic tags for tests and the simulator.
 
 ## Next
 
 - Finish M0a: compare dumps from two rolls of the same product, retest a labeled box, and scan a refill if available. Dumps stay outside the repo.
-- M1 Server core, starting with the decoder and generated tags.
+- M1 part 2, `feature/data-model`: tables, Alembic migrations and settings.
+- M1 parts 3 to 5: event log and state machine, `/scans` with device registration and revert, scan simulator.
 
 ## Decisions
 
@@ -30,6 +33,13 @@
 - 2026-10-31: Keep tag dumps out of the repo because they contain UIDs and keys, and the public library is GPL-3.0. CI uses generated tags.
 - 2026-10-31: Any printer MQTT proxy stays a separate project; `bradsjm/bambu-mqtt-proxy` is the first to try if the connection limit is hit.
 - 2026-10-31: The README mockup link uses the OpenSCAD edition of the viewer, because the manifest has only `.scad` parts and the repo has no STLs.
+
+- 2026-11-05: M1 includes `/scans`, `/devices` registration and `/events/{id}/revert`; heartbeat and provisioning wait for M3a, when the firmware needs them.
+- 2026-11-05: A `received` event for a spool that is already open or empty is recorded and flagged for review, with no state change. A second roll of the same product has its own tray UID, so it is a new spool.
+- 2026-11-05: Lookups do not write events; only actions are logged.
+- 2026-11-05: The scan simulator reads BambuTagScanner's export (a ZIP or a 1024-byte `.bin` image with sector trailers) and strips the trailers so keys are never sent.
+- 2026-11-05: The decoder rejects a tag with no material ID or an all-zero tray UID as unreadable. Fields the RFID guide marks as uncertain decode to null when their bytes are unusable.
+- 2026-11-05: The synthetic tag generator lives in the package (`decoder/synthetic.py`), not in `tests/`, because the scan simulator's `generate` command uses it too.
 
 ## Open questions
 
