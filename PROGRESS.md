@@ -33,6 +33,7 @@
 ## Next
 
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
+- **Before M2 part 6:** the user wants to make UI mockups first, to build the pages from. Remind them, and wait for the mockups before starting part 6.
 - M2 parts 6 and 7: stock pages (the first part usable day to day), then admin pages.
 
 ## Decisions
