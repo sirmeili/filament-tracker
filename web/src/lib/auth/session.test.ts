@@ -1,0 +1,103 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiError } from "#lib/api/client.ts";
+import { Session } from "#lib/auth/session.svelte.ts";
+
+const ALICE = { id: 1, username: "alice", role: "editor" };
+
+function respond(...replies: Array<[number, unknown?]>) {
+  const fetchFn = vi.fn();
+  for (const [status, body] of replies) {
+    fetchFn.mockResolvedValueOnce(
+      new Response(body === undefined ? null : JSON.stringify(body), { status }),
+    );
+  }
+  vi.stubGlobal("fetch", fetchFn);
+  return fetchFn;
+}
+
+describe("Session", () => {
+  let session: Session;
+  beforeEach(() => {
+    session = new Session();
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("loads the signed-in user", async () => {
+    respond([200, ALICE]);
+
+    await session.load();
+
+    expect(session.user).toEqual(ALICE);
+    expect(session.loaded).toBe(true);
+    expect(session.can("editor")).toBe(true);
+    expect(session.can("admin")).toBe(false);
+  });
+
+  it.each([401, 403])("treats %i as signed out", async (status) => {
+    respond([status, { detail: "no" }]);
+
+    await session.load();
+
+    expect(session.user).toBeNull();
+    expect(session.loaded).toBe(true);
+    expect(session.can("viewer")).toBe(false);
+  });
+
+  it("passes other failures on, but still finishes loading", async () => {
+    respond([500, { detail: "boom" }]);
+
+    await expect(session.load()).rejects.toBeInstanceOf(ApiError);
+    expect(session.loaded).toBe(true);
+  });
+
+  it("signs in", async () => {
+    const fetchFn = respond([200, ALICE]);
+
+    await session.login("alice", "secret password");
+
+    expect(session.user).toEqual(ALICE);
+    const init = fetchFn.mock.calls[0][1];
+    expect(fetchFn.mock.calls[0][0]).toBe("/api/v1/auth/login");
+    expect(JSON.parse(init.body)).toEqual({ username: "alice", password: "secret password" });
+  });
+
+  it("signs out, even if the request fails", async () => {
+    respond([200, ALICE], [204]);
+    await session.login("alice", "pw");
+    await session.logout();
+    expect(session.user).toBeNull();
+
+    respond([200, ALICE], [500, { detail: "boom" }]);
+    await session.login("alice", "pw");
+    await expect(session.logout()).rejects.toBeInstanceOf(ApiError);
+    expect(session.user).toBeNull();
+  });
+
+  it("notices when a signed-in session ends", async () => {
+    respond([200, ALICE], [401, { detail: "Not signed in" }]);
+    await session.load();
+
+    await expect(session.load()).resolves.toBeUndefined();
+
+    expect(session.user).toBeNull();
+    expect(session.expired).toBe(true);
+  });
+
+  it("does not call a first visit an ended session", async () => {
+    respond([401]);
+
+    await session.load();
+
+    expect(session.expired).toBe(false);
+  });
+
+  it("clears the ended flag on the next sign-in", async () => {
+    respond([200, ALICE], [401], [200, ALICE]);
+    await session.load();
+    await session.load();
+
+    await session.login("alice", "pw");
+
+    expect(session.expired).toBe(false);
+  });
+});

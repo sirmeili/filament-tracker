@@ -1,0 +1,44 @@
+{
+  "name": "filament-tracker-web",
+  "private": true,
+  "version": "0.1.0",
+  "description": "The Filament Tracker web app: a SvelteKit single-page app served by the FastAPI server",
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "imports": {
+    "#lib/*": "./src/lib/*"
+  },
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
+    "lint": "prettier --check .",
+    "format": "prettier --write .",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "audit": "node scripts/audit.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@sveltejs/adapter-static": "4.0.0",
+    "@sveltejs/kit": "3.1.0",
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/svelte": "5.4.2",
+    "@testing-library/user-event": "14.6.8",
+    "@types/node": "24.19.2",
+    "@vitest/coverage-v8": "4.1.12",
+    "jsdom": "30.1.3",
+    "prettier": "3.9.10",
+    "prettier-plugin-svelte": "4.1.1",
+    "svelte": "5.57.3",
+    "svelte-check": "4.7.7",
+    "typescript": "6.0.3",
+    "vite": "8.3.5",
+    "vitest": "4.1.12"
+  }
+}
