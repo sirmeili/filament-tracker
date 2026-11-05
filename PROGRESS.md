@@ -29,12 +29,12 @@
 
 ## In progress
 
-- `feature/web-mockups`: mockups for every M2 web page in the chosen style (direction A, "Workshop"), in `docs/mockups/web/`: ten page sources (`.dc.html`), `tokens.css` (light and dark tokens, spool ring treatment) and a README mapping each mockup to its route, with the design rules. The README lists eight things the mockups show that the spec does not cover yet; they wait for the user's approval. Docs only, no code or tests changed.
+- `feature/web-mockups`: mockups for every M2 web page in the chosen style (direction A, "Workshop"), in `docs/mockups/web/`: ten page sources (`.dc.html`), `tokens.css` (light and dark tokens, spool ring treatment) and a README mapping each mockup to its route, with the design rules. The user decided on the eight things the mockups show beyond the spec (see the README's decisions table), and the spec now includes the approved ones: per-spool % left on Inventory, a per-product `nearly_out_pct`, grams left, Review "Bring back" (`unaccept`, `restore`), the AMS slot strip, a password meter, role descriptions and a Light/Dark/System theme choice. The backdating field is not built. Docs only. PR open, awaiting merge.
 
 ## Next
 
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
-- **Before M2 part 6:** the mockups are in `docs/mockups/web/`. Build parts 6 and 7 from them. First get the user's decision on the "Beyond the spec" list in its README (per-spool % left on Inventory and the `/inventory` change it needs, the 15% nearly-out cutoff, and the smaller additions), and update the spec for whatever is approved.
+- M2 part 6 starts once the mockups PR is merged: build from `docs/mockups/web/`, including the approved additions in its README. Part 6 needs a small backend change first (`nearly_out_pct` migration, open spools' % in `/inventory`, grams left).
 - M2 parts 6 and 7: stock pages (the first part usable day to day), then admin pages.
 
 ## Decisions
@@ -112,3 +112,4 @@ See also the Open questions section of docs/SPEC.md.
 - 2026-11-05: SvelteKit 3 differs from earlier versions: its config goes in `sveltekit({...})` in `vite.config.ts` (no `svelte.config.js`), the library alias is `#lib` (a `package.json` import) instead of `$lib`, and imports name their `.ts` extension.
 - 2026-11-05: The web app's CSP allows SvelteKit's one inline bootstrap script by its SHA-256 hash, computed by the server from `index.html` at startup, instead of `'unsafe-inline'`. Unknown paths under `/api` stay JSON 404s rather than the app.
 - 2026-11-05: Added the `WEB_DIR` setting (defaults to `web/build` in a checkout) so the Docker image can point at its copy of the build. Server tests point it at a missing folder so they do not depend on a local build.
+- 2026-11-05: Web mockups decisions (user): build per-spool % left on Inventory, grams left, the AMS slot strip, Review "Bring back" for Accept and dismiss, a password length meter, role descriptions, and a Light/Dark/System theme choice. The nearly-out cutoff is per product (`nearly_out_pct`, default 15). No backdating field in the UI. Fonts are bundled because the CSP blocks Google Fonts.

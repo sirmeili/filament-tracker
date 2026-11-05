@@ -51,15 +51,22 @@ Each file is one page: plain HTML and CSS, plus a small template layer. The file
 - **Touch targets** are at least 44 px; buttons and filters are real `<button>` elements; tables sit in a horizontally scrolling box on phones.
 - **Inventory** has a Cards / List switch. Cards show the three counts and one bar per open spool; List is the same data as a table.
 
-## Beyond the spec
+## Beyond the spec: decisions
 
-The mockups show these, but the spec does not cover them yet. Do not build them until the owner approves them and the spec is updated:
+The mockups showed eight things the spec did not cover. The owner decided on them on 2026-11-05, and the spec now includes the approved ones.
 
-1. **Inventory: % left for each open spool**, on cards and in the list, and an "Open, under 15%" summary tile. `GET /inventory` returns only counts; this needs each open spool's `remaining_pct` in `ProductSummary` (or a second call to `/spools`).
-2. **The 15% "nearly out" cutoff**: fixed, a setting, or dropped. It may share a rule with the M5 "likely empty" suggestions.
-3. **Spool detail: grams left** worked out from the AMS % and the tag's weight.
-4. **Spool detail: a backdating field** for manual actions. The write API already accepts a past time; the spec does not say the UI exposes it.
-5. **Review: a "Bring back" banner** after resolving an item.
-6. **Account: a password length meter.**
-7. **Devices: the AMS slot strip** on the printer card.
-8. **Users: a short description of each role** under the table.
+| # | Mockup feature | Decision |
+| --- | --- | --- |
+| 1 | Inventory: % left for each open spool, and an "Open, nearly out" summary tile | **Build.** `GET /inventory` returns each open spool's `remaining_pct` and a nearly-out flag. Bars stay empty ("Not seen by the AMS") until M5 fills `remaining_pct`. |
+| 2 | The 15% "nearly out" cutoff | **Per product:** a new `nearly_out_pct` on each product (default 15), edited on the Products page. The tile counts open spools at or below their own product's cutoff, so its label is "Open, nearly out" rather than "under 15%". |
+| 3 | Spool detail: grams left | **Build:** remaining % of the tag's spool weight. Empty until M5. |
+| 4 | Spool detail: a backdating field for manual actions | **Not built.** Manual actions record the current time. |
+| 5 | Review: a "Bring back" banner after resolving an item | **Build** for Accept and dismiss (new `unaccept` and `restore` endpoints). An Undo cannot be brought back, because undoing an undo is refused. |
+| 6 | Account: a password length meter | **Build.** |
+| 7 | Devices: the AMS slot strip on the printer card | **Build** with the Devices page; it shows real slots once printers arrive in M5. |
+| 8 | Users: a short description of each role | **Build.** |
+
+Also decided:
+
+- **Theme:** the header control offers **Light, Dark and System** (follow the device), remembered in the browser. The mockups show only a light/dark toggle.
+- **Fonts:** the Content Security Policy only allows files the app serves, so Space Grotesk, Inter and JetBrains Mono are bundled with the app (they are under the SIL Open Font License) instead of loaded from Google Fonts.
