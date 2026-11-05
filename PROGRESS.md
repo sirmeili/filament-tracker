@@ -14,16 +14,18 @@
 - Server skeleton with a health check, plus CI for lint, tests, the 90% coverage gate and a dependency audit.
 - Bill of materials (`hardware/BOM.md`) merged.
 - M1 part 1, the decoder, merged (PR #6).
+- M1 part 2, settings, tables and migrations, merged (PR #7).
 - M1 plan approved: five branches merged in order (decoder, data model, event log, `/scans` API, scan simulator).
 
 ## In progress
 
-- `feature/data-model` (M1, part 2 of 5): settings, SQLite engine (WAL, foreign keys), all six spec tables with Alembic migrations, and migration on startup. Accepted by the user; PR open, awaiting merge.
+- `feature/event-log` (M1, part 3 of 5): spool state machine and replay, scanner action menus, and the event log service (append, undo, re-projection). Spool state may now be null (Unknown).
 
 ## Next
 
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
-- M1 parts 3 to 5: event log and state machine, `/scans` with device registration and revert, scan simulator.
+- M1 part 4, `feature/scans-api`: `/scans`, device registration and tokens, `/events/{id}/revert`, placeholder linking.
+- M1 part 5, `feature/scan-simulator`.
 
 ## Decisions
 
@@ -50,6 +52,11 @@
 - 2026-11-05: Timestamps are stored as UTC and refused if they have no timezone. Events also store `recorded_at` (arrival time) and a `flagged` flag; replay orders by `occurred_at`, then `recorded_at`.
 - 2026-11-05: Device IDs are strings chosen at registration. Revoking a device sets `revoked_at` rather than deleting it, so its events keep their link.
 - 2026-11-05: `low_stock_threshold` defaults to 0, which means no low-stock alert until one is set.
+
+- 2026-11-05: Repeated actions (`already_in_state`) are still stored as events. They change nothing, but keep the audit trail complete, and they take effect if an earlier event is undone.
+- 2026-11-05: A spool's state is null (Unknown) after every event that set it is undone; the spool row and its tags are kept. Added to the spec and as a migration.
+- 2026-11-05: Reopening an empty spool from the UI is a correction and is not flagged; from a scanner (a queued scan) it is flagged. A reopened spool keeps its first `opened_at` and clears `emptied_at`.
+- 2026-11-05: Undoing an undo, or undoing an event twice, is refused.
 
 ## Open questions
 
