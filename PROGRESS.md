@@ -26,7 +26,7 @@
 
 ## In progress
 
-- `feature/read-api` (M2, part 3 of 7): `GET /inventory` (counts per product, low-stock flag, type filter, low-stock sort), `/products`, `/products/{id}`, `/spools` (state, product, location filters, search, paging), `/spools/{id}` (tags with decoded fields, timeline with scanner or user and undo state), `/events` (Activity, newest first, paged) and `/review` (flagged events not undone, unidentified tags). All need Viewer; scanners are refused. 462 tests, 99.8% coverage. Awaiting user review.
+- `feature/read-api` (M2, part 3 of 7): `GET /inventory` (counts per product, low-stock flag, type filter, low-stock sort), `/products`, `/products/{id}`, `/spools` (state, product, location filters, search, paging), `/spools/{id}` (tags with decoded fields, timeline with scanner or user and undo state), `/events` (Activity, newest first, paged) and `/review` (flagged events not undone, unidentified tags). All need Viewer; scanners are refused. 463 tests, 99.8% coverage; the suite now runs in about a minute instead of two. Awaiting user review.
 
 ## Next
 
@@ -99,3 +99,4 @@ See also the Open questions section of docs/SPEC.md.
 - 2026-11-05: Inventory lists every product, including those with no spools, so a product with a threshold and nothing sealed shows as low. Spools whose events were all undone count as `unknown`.
 - 2026-11-05: Until review accept arrives in part 4, Review shows every flagged event that has not been undone. "Likely empty" is an empty list until the AMS work in M5.
 - 2026-11-05: Read responses never include a tag's raw blocks, only its decoded fields.
+- 2026-11-05: Tests copy one database migrated per run instead of migrating each test's database, and use cheap Argon2 parameters; one test still migrates an empty database. Production hashing is unchanged.

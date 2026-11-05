@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from sqlalchemy import Engine, inspect
@@ -32,4 +34,14 @@ def test_downgrade_removes_every_table(db_url: str) -> None:
 
     engine = create_db_engine(db_url)
     assert not TABLES & set(inspect(engine).get_table_names())
+    engine.dispose()
+
+
+def test_upgrade_from_an_empty_database(tmp_path: Path) -> None:
+    url = f"sqlite:///{tmp_path / 'empty.db'}"
+
+    upgrade(url)
+
+    engine = create_db_engine(url)
+    assert TABLES <= set(inspect(engine).get_table_names())
     engine.dispose()
