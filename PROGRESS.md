@@ -28,7 +28,7 @@
 
 ## In progress
 
-- `feature/web-foundation` (M2, part 5 of 7): SvelteKit 3 app in `web/` (TypeScript, static SPA): typed API client with the CSRF header, session store, sign-in page, layout with navigation by role, "No access" for pages above the role, session-ended handling, placeholder pages, base CSS (light and dark). The server serves `web/build` at `/` with an SPA fallback and a CSP that allows the app's inline bootstrap script by hash (`WEB_DIR` setting). CI gains a `web` job (type-check, Prettier, Vitest with 90% coverage, audit, build) and an `e2e` job (Playwright against the real server). Server: 551 tests, 99.8%; web: 83 tests, 99.6%; e2e: 6. Awaiting user review.
+- `feature/web-foundation` (M2, part 5 of 7): SvelteKit 3 app in `web/` (TypeScript, static SPA): typed API client with the CSRF header, session store, sign-in page, layout with navigation by role, "No access" for pages above the role, session-ended handling, placeholder pages, base CSS (light and dark). The server serves `web/build` at `/` with an SPA fallback and a CSP that allows the app's inline bootstrap script by hash (`WEB_DIR` setting). CI gains a `web` job (type-check, Prettier, Vitest with 90% coverage, audit, build) and an `e2e` job (Playwright against the real server). Server: 551 tests, 99.8%; web: 83 tests, 99.6%; e2e: 6. Accepted by the user (including the `WEB_DIR` setting); PR open, awaiting merge.
 
 ## Next
 
