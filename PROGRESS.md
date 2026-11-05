@@ -7,6 +7,7 @@
 - M0a partly done: a Pixel 9 Pro XL running BambuTagScanner read filament tags, including through one box with contents not recorded.
 - M0a two-roll comparison passed (2026-11-05): two Black PLA Basic rolls decoded with the new decoder to the same product key (GFA00, A00-K00, 000000FF) and different tray UIDs. Production dates differ by minutes on the same day.
 - M0a further results (2026-11-05): both PLA rolls were refills, read through their sealed boxes from either side; both tags of one roll share a tray UID; TPU in its foil bag cannot be read.
+- M0a complete (2026-11-05): older ABS and PETG spools, not refills, also read through their sealed boxes once the phone was held still. Reading through the box with a PN532 is still open for M0b.
 - Spec updated: manual entry of spools whose tags cannot be read yet (placeholder spools linked on first scan, provisional products), and the rule for `received` on an open or empty spool.
 - Spec updated with the approved gap fixes, test tools and milestone order; `nfc_skin` set to 1.0 mm.
 - Enclosure manifest renamed to `manifest.json`.
@@ -20,7 +21,6 @@
 
 ## Next
 
-- Finish M0a: retry the older ABS and PETG spools, which the phone detected through the box but BambuTagScanner showed nothing for; retry out of the box, holding still. Scan a new (non-refill) boxed spool. Dumps stay outside the repo.
 - M1 part 2, `feature/data-model`: tables, Alembic migrations and settings.
 - M1 parts 3 to 5: event log and state machine, `/scans` with device registration and revert, scan simulator.
 
