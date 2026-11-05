@@ -17,7 +17,7 @@
 
 ## In progress
 
-- `feature/decoder` (M1, part 1 of 5): decodes the 48 data blocks a scanner sends into a typed record and a product key, plus a generator of synthetic tags for tests and the simulator.
+- `feature/decoder` (M1, part 1 of 5): decodes the 48 data blocks a scanner sends into a typed record and a product key, plus a generator of synthetic tags for tests and the simulator. Accepted by the user; PR open, awaiting merge.
 
 ## Next
 
