@@ -185,7 +185,7 @@ The server is event-sourced: every scan, AMS observation and UI edit is an immut
 | Table | Key fields | Purpose |
 | --- | --- | --- |
 | `product` | id, material\_id, variant\_id, filament\_type, color\_rgba, display\_name, low\_stock\_threshold, provisional | One row per filament product (for example Black PLA Basic); created automatically from the first decoded tag; display name editable. Provisional products (from the AMS or manual entry) have no material or variant ID until a tag is scanned |
-| `spool` | id, tray\_uid (unique, null for a manual placeholder), product\_id, state, received\_at, opened\_at, emptied\_at, remaining\_pct, location, notes | One physical spool; state and timestamps derived from events |
+| `spool` | id, tray\_uid (unique, null for a manual placeholder), product\_id, state, received\_at, opened\_at, emptied\_at, remaining\_pct, location, notes | One physical spool; state and timestamps derived from events. State is null (Unknown) when every event that set it has been undone |
 | `tag` | uid (unique), spool\_id, raw\_blocks, decoded\_json, first\_seen\_at | Each spool has up to two tags; raw dump kept for re-decoding |
 | `event` | id (UUID from device or server), spool\_id, type, source, device\_id, occurred\_at, payload\_json, reverted\_by | Append-only log; undo writes a new `revert` event |
 | `device` | id, name, token\_hash, last\_seen\_at, fw\_version | Registered scanners |
@@ -200,7 +200,7 @@ The server is event-sourced: every scan, AMS observation and UI edit is an immut
 | `sealed` | `opened` | `open` | Scanner, UI, AMS first sighting |
 | `open` | `empty` | `empty` | Scanner, UI |
 | `sealed` | `empty` | `empty` | Scanner, UI (flagged for review) |
-| any | `revert` | previous state | Undo from scanner or UI |
+| any | `revert` | previous state (Unknown if no events remain) | Undo from scanner or UI |
 | `empty` | `opened` | `open` | UI (correction); queued offline scan (flagged for review) |
 | `open`, `empty` | `received` | unchanged | Queued offline scan, UI (flagged for review) |
 

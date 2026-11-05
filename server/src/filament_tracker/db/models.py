@@ -63,14 +63,18 @@ class Product(Base):
 
 
 class Spool(Base):
-    """One physical spool. A manual placeholder has no tray UID until it is scanned."""
+    """One physical spool. A manual placeholder has no tray UID until it is scanned.
+
+    `state` is None ("Unknown" in the spec's action table) when every event that would
+    give the spool a state has been undone.
+    """
 
     __tablename__ = "spool"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     tray_uid: Mapped[str | None] = mapped_column(String(32), unique=True)
     product_id: Mapped[int] = mapped_column(ForeignKey("product.id"), index=True)
-    state: Mapped[SpoolState] = mapped_column(str_enum(SpoolState, "spool_state"))
+    state: Mapped[SpoolState | None] = mapped_column(str_enum(SpoolState, "spool_state"))
     received_at: Mapped[datetime | None]
     opened_at: Mapped[datetime | None]
     emptied_at: Mapped[datetime | None]
