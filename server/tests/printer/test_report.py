@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from filament_tracker.printer.report import AmsView, TrayReport
+from filament_tracker.printer.report import AmsView, TrayReport, slot_name
 
 REPORTS = Path(__file__).parent / "reports"
 
@@ -111,3 +111,54 @@ def test_tray_fields_are_cleaned(fields: dict, expected: TrayReport) -> None:
     view.apply({"print": {"ams": {"ams": [{"id": 0, "tray": [{"id": 0, **fields}]}]}}})
 
     assert view.trays() == [expected]
+
+
+def test_a_real_p1s_report_with_an_ams_ht() -> None:
+    """Captured from a P1S with an AMS and an AMS HT; identifiers replaced."""
+    trays = view_of("p1s-pushall").trays()
+
+    assert [(t.ams_index, t.tray_index) for t in trays] == [
+        (0, 0),
+        (0, 1),
+        (0, 2),
+        (0, 3),
+        (128, 0),
+    ]
+    assert [t.remaining_pct for t in trays] == [85, 37, 83, 74, 6]
+    assert trays[4].material_id == "GFG02"
+    assert trays[4].sub_brand == "PETG HF"
+    assert all(t.tray_uuid for t in trays)
+
+
+def test_tray_exist_bits_cover_the_ams_ht() -> None:
+    view = view_of("p1s-pushall")
+    view.apply({"print": {"ams": {"tray_exist_bits": "f"}}})
+
+    trays = view.trays()
+    assert [t.loaded for t in trays] == [True, True, True, True, False]
+
+
+@pytest.mark.parametrize("unit_id", ["4", "127", "136", "-1"])
+def test_unknown_unit_ids_are_skipped(unit_id: str) -> None:
+    view = AmsView()
+    view.apply(
+        {"print": {"ams": {"ams": [{"id": unit_id, "tray": [{"id": "0", "tray_type": "PLA"}]}]}}}
+    )
+
+    assert view.trays() == []
+
+
+def test_an_ams_ht_has_one_slot() -> None:
+    view = AmsView()
+    trays = [{"id": "0", "tray_type": "PLA"}, {"id": "1", "tray_type": "PETG"}]
+    view.apply({"print": {"ams": {"ams": [{"id": "129", "tray": trays}]}}})
+
+    assert [(t.ams_index, t.tray_index) for t in view.trays()] == [(129, 0)]
+
+
+@pytest.mark.parametrize(
+    ("ams_index", "tray_index", "name"),
+    [(0, 1, "AMS 1, slot 2"), (3, 3, "AMS 4, slot 4"), (128, 0, "AMS HT 1"), (130, 0, "AMS HT 3")],
+)
+def test_slot_names(ams_index: int, tray_index: int, name: str) -> None:
+    assert slot_name(ams_index, tray_index) == name

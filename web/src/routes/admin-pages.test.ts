@@ -738,6 +738,15 @@ function printer(overrides: Partial<PrinterOut> = {}): PrinterOut {
         spool: null,
         updated_at: "2026-11-06T09:00:00Z",
       },
+      {
+        ams_index: 128,
+        tray_index: 0,
+        filament_type: "PETG",
+        color_rgba: "000000FF",
+        remaining_pct: 6,
+        spool: { id: 9, state: "open", product: product({ display_name: "Black PETG HF" }) },
+        updated_at: "2026-11-06T09:00:00Z",
+      },
     ],
     ...overrides,
   };
@@ -765,6 +774,10 @@ describe("Devices page, printers", () => {
     );
     expect(within(card).getByRole("listitem", { name: "AMS 1, slot 3" })).toHaveTextContent(
       /PETG.*No Bambu tag/,
+    );
+    expect(within(card).getByRole("heading", { name: "AMS HT 1" })).toBeInTheDocument();
+    expect(within(card).getByRole("listitem", { name: "AMS HT 1" })).toHaveTextContent(
+      /Black PETG HF #9.*6%/,
     );
     expect(within(card).getByText("ABAB ABAB ABAB ABAB")).toBeInTheDocument();
   });

@@ -227,7 +227,7 @@ The server is event-sourced: every scan, AMS observation and UI edit is an immut
 | `user` | id, username (unique, case-insensitive), password\_hash, role, disabled\_at, last\_login\_at | Web app accounts; see Users and roles |
 | `session` | id, token\_hash, user\_id, expires\_at, last\_seen\_at | Signed-in browsers; only a hash of the cookie value is stored |
 | `printer` | id, name, serial, host, port, cert\_sha256, last\_report\_at | Printers watched over MQTT, synced from `PRINTERS` at startup. `cert_sha256` is the pinned TLS certificate fingerprint |
-| `printer_slot` | id, printer\_id, ams\_index, tray\_index, tray\_uuid, spool\_id, filament\_type, color\_rgba, remaining\_pct, updated\_at | What the AMS last reported in each slot, and the spool it is |
+| `printer_slot` | id, printer\_id, ams\_index, tray\_index, tray\_uuid, spool\_id, filament\_type, color\_rgba, remaining\_pct, updated\_at | What the AMS last reported in each slot, and the spool it is. `ams_index` is the printer's unit ID: 0 to 3 for an AMS, 128 and up for an AMS HT |
 
 **Spool states and transitions**
 
@@ -324,6 +324,8 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 
 - The server keeps one MQTT connection per configured printer (TLS, port 8883 by default, user `bblp` and the LAN access code), subscribes to `device/{serial}/report` and reconnects with backoff.
 - P1 printers report only what changed, so the server merges each message into its full view of every AMS tray. From each tray it reads the tray UID, material ID (`tray_info_idx`), filament type, color and remaining %. See Automatic detection from the AMS for what this does to spools.
+- The report's `tray_uuid` is the tag's tray UID (checked on a P1S), so the AMS and the scanner identify a spool the same way. Its `tag_uid` starts with the tag's 4-byte UID and is not used.
+- Units 0 to 3 are AMS units with four slots each, shown as AMS 1 to AMS 4. An AMS HT has one slot and a unit ID from 128, and is shown as AMS HT 1, AMS HT 2 and so on. The external spool holder (`vt_tray`) is not read.
 - Read-only, with one exception: the server publishes `pushall`, which requests full state, on connect and every 30 minutes. It never publishes anything else to the printer.
 - A printer is online when it reported in the last 5 minutes.
 - **Certificate pinning**: the printer's TLS certificate is not from a public authority, so the server pins it on first use. The first connection only completes a TLS handshake and stores the certificate's SHA-256 fingerprint; every connection after that trusts only the pinned certificate, so the access code is never sent to anything else. A different certificate is refused and shown on the Devices page, where an admin can forget the pin (for example after a firmware update).
@@ -395,7 +397,8 @@ The server is fully testable without hardware. Firmware logic is unit tested on 
 | Phone app | Scan flow, offline queue, on-phone decode, pairing | Vitest; 90% coverage |
 | Phone NFC plugin | Key derivation, block assembly, trailer stripping | Kotlin unit tests with a fake tag; 90% coverage, excluding the `MifareClassic` and camera code |
 | Phone on hardware | Reading on a real phone, MIFARE Classic detection, QR pairing, offline queue, sign-in | Manual checklist per release |
-| AMS ingest | Report messages produce the right events | Fake printer replaying recorded or documentation-based messages |
+| AMS ingest | Report messages produce the right events | Fake printer replaying recorded or documentation-based messages, including a report captured from a P1S with its identifiers replaced |
+| Printer on hardware | Connection and pin, every AMS and AMS HT slot, tray UID matching a scanned tag, automatic Opened, remaining % | `ft-printer check` and a manual checklist, before a release that changes the printer link |
 | End to end | Scan simulator drives Received, Opened, Empty for a spool; HA entities update | Docker Compose test stack with a Mosquitto container |
 | Firmware logic | Screen flow, tag parsing, offline queue, dedupe, button thresholds | PC unit tests with fakes; 90% coverage, excluding a named list of hardware drivers |
 | Firmware screens | Every screen and soft-key mapping | Screen simulator |
@@ -432,7 +435,8 @@ Each milestone ends with something usable. Reading is proved first with a phone,
 ## Open questions
 
 - [ ] Does a tag read through the sealed shipping box with the PN532, and from which side? If not, New needs another trigger (box barcode, or scanning at first opening). A Pixel 9 Pro XL reads tags through sealed refill boxes from either side, but a phone antenna is not a PN532. Tags in TPU's foil bag cannot be read; see Manual entry.
-- [ ] Does the AMS tray UUID equal the tag's tray UID, and how does the AMS report non-Bambu spools? Check against the real P1S.
+- [x] The AMS tray UUID equals the tag's tray UID (checked on a P1S with `ft-printer check` against a scanned tag).
+- [ ] How does the AMS report a non-Bambu spool? Expected: no tray UUID (all zeros) and a remaining % of -1. Check when one is loaded.
 - [x] Buttons on the CYD prototype: resistor ladder on GPIO35. The PCF8574 expander stays as the fallback.
 - [x] Printer data source: direct MQTT from the server, which also works through an MQTT proxy if the printer's connection limit is hit.
 - [x] Refill packs carry Bambu tags that read through the box. A refill has its own tray UID, so it is tracked as a new spool.

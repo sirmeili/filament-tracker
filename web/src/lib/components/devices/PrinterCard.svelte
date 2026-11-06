@@ -3,6 +3,7 @@
   import PctBar from "#lib/components/ui/PctBar.svelte";
   import Ring from "#lib/components/ui/Ring.svelte";
   import {
+    amsName,
     byAms,
     PRINTER_STATUS_LABELS,
     printerStatus,
@@ -51,7 +52,7 @@
   {/if}
   {#each units as unit (unit.ams)}
     <div class="ams">
-      <h4 class="label">AMS {unit.ams + 1}</h4>
+      <h4 class="label">{amsName(unit.ams)}</h4>
       <ul>
         {#each unit.slots as slot (slot.tray_index)}
           <li aria-label={slotName(slot.ams_index, slot.tray_index)}>

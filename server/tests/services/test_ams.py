@@ -231,3 +231,16 @@ def test_an_emptied_spool_is_not_likely_empty(session: Session, printer: Printer
     record_action(session, spool_by_uid(session, GRAY), EventType.EMPTY, T1, user_id=None)
 
     assert queries.likely_empty(session) == []
+
+
+def test_a_real_p1s_report_tracks_the_ams_ht_spool(session: Session, printer: Printer) -> None:
+    black = product(session)
+    ingest(session, printer, trays("p1s-pushall"), T0)
+
+    assert count(session, Spool) == 5
+    assert [(s.ams_index, s.tray_index) for s in printer.slots][-1] == (128, 0)
+    ht = printer.slots[-1].spool
+    assert ht is not None
+    assert (ht.state, ht.remaining_pct, ht.product.filament_type) == (SpoolState.OPEN, 6, "PETG")
+    assert ht.events[0].payload_json == {"printer_id": printer.id, "ams": 128, "tray": 0}
+    assert printer.slots[1].spool is not None and printer.slots[1].spool.product is black

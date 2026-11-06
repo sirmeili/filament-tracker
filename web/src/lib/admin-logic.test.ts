@@ -9,6 +9,7 @@ import {
   printerStatus,
   reportText,
   shortFingerprint,
+  amsName,
   slotName,
   slotText,
 } from "#lib/printers.ts";
@@ -180,6 +181,10 @@ describe("printers", () => {
 
   it("names slots from 0-based indexes", () => {
     expect(slotName(0, 1)).toBe("AMS 1, slot 2");
+    expect(slotName(128, 0)).toBe("AMS HT 1");
+    expect(slotName(129, 0)).toBe("AMS HT 2");
+    expect(amsName(3)).toBe("AMS 4");
+    expect(amsName(128)).toBe("AMS HT 1");
     expect(slotText({ printer_id: 1, printer_name: "P1S", ams_index: 1, tray_index: 3 })).toBe(
       "AMS 2, slot 4 on P1S",
     );

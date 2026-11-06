@@ -11,6 +11,9 @@ The fields follow the report's `print.ams` section:
       "tray_color": "000000FF", "remain": 85}, {"id": "1"}]}], "tray_exist_bits": "1"}}}
 
 A tray with only an `id` is an empty slot.
+
+Units 0 to 3 are four-slot AMS units; an AMS HT has one slot and an id from 128. In
+`tray_exist_bits`, AMS unit n has bits 4n to 4n+3 and AMS HT 128+n has bit 16+n.
 """
 
 import re
@@ -27,8 +30,41 @@ TRAY_FIELDS = (
     "tray_color",
     "remain",
 )
-MAX_UNITS = 16
+AMS_UNITS = 4
 TRAYS_PER_UNIT = 4
+HT_FIRST = 128
+HT_UNITS = 8
+HT_FIRST_BIT = AMS_UNITS * TRAYS_PER_UNIT
+
+
+def is_ht(ams_index: int) -> bool:
+    return ams_index >= HT_FIRST
+
+
+def unit_name(ams_index: int) -> str:
+    """ "AMS 1" for the first AMS, "AMS HT 1" for the first AMS HT."""
+    return f"AMS HT {ams_index - HT_FIRST + 1}" if is_ht(ams_index) else f"AMS {ams_index + 1}"
+
+
+def slot_name(ams_index: int, tray_index: int) -> str:
+    """ "AMS 1, slot 2", or just "AMS HT 1" for its only slot."""
+    name = unit_name(ams_index)
+    return name if is_ht(ams_index) else f"{name}, slot {tray_index + 1}"
+
+
+def _exist_bit(ams_index: int, tray_index: int) -> int:
+    if is_ht(ams_index):
+        return HT_FIRST_BIT + ams_index - HT_FIRST
+    return ams_index * TRAYS_PER_UNIT + tray_index
+
+
+def _unit_index(value: object) -> int | None:
+    number = _int(value)
+    if number is None:
+        return None
+    if 0 <= number < AMS_UNITS or HT_FIRST <= number < HT_FIRST + HT_UNITS:
+        return number
+    return None
 
 
 @dataclass(frozen=True)
@@ -67,7 +103,7 @@ class AmsView:
         if bits is not None:
             for key in list(self._trays):
                 ams_index, tray_index = key
-                if not bits >> (ams_index * TRAYS_PER_UNIT + tray_index) & 1:
+                if not bits >> _exist_bit(ams_index, tray_index) & 1:
                     self._trays[key] = {}
         return True
 
@@ -76,14 +112,15 @@ class AmsView:
 
     def _apply_units(self, units: list[Any]) -> None:
         present: set[int] = set()
-        for unit in units[:MAX_UNITS]:
-            ams_index = _index(_get(unit, "id"), MAX_UNITS)
+        for unit in units[: AMS_UNITS + HT_UNITS]:
+            ams_index = _unit_index(_get(unit, "id"))
             trays = _get(unit, "tray")
             if ams_index is None or not isinstance(trays, list):
                 continue
             present.add(ams_index)
-            for tray in trays[:TRAYS_PER_UNIT]:
-                tray_index = _index(_get(tray, "id"), TRAYS_PER_UNIT)
+            slots = 1 if is_ht(ams_index) else TRAYS_PER_UNIT
+            for tray in trays[:slots]:
+                tray_index = _index(_get(tray, "id"), slots)
                 if tray_index is None:
                     continue
                 key = (ams_index, tray_index)
