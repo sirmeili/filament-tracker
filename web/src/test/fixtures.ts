@@ -45,6 +45,7 @@ export function spoolRow(overrides: Partial<SpoolRow> = {}): SpoolRow {
     received_at: "2026-10-12T16:05:00Z",
     opened_at: "2026-10-20T18:41:00Z",
     emptied_at: null,
+    ams_slot: null,
     ...overrides,
   };
 }

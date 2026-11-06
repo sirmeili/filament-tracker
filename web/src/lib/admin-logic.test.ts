@@ -4,8 +4,16 @@ import { ago, deviceId, DEVICE_ID_PATTERN, deviceStatus, seenText } from "#lib/d
 import { blankIsNull, emptyEntry, entryProblem, rgbaOf } from "#lib/manual-entry.ts";
 import { passwordMeterText, passwordOk, passwordProgress } from "#lib/password.ts";
 import { flaggedText, spoolName, tagText } from "#lib/review.ts";
+import {
+  byAms,
+  printerStatus,
+  reportText,
+  shortFingerprint,
+  slotName,
+  slotText,
+} from "#lib/printers.ts";
 import { ROLE_DESCRIPTIONS, ROLES } from "#lib/roles.ts";
-import type { DeviceOut } from "#lib/api/types.ts";
+import type { DeviceOut, PrinterOut } from "#lib/api/types.ts";
 import { event } from "../test/fixtures.ts";
 
 const NOW = new Date(2026, 10, 6, 15, 0); // Nov 6, 3 PM local time
@@ -152,5 +160,61 @@ describe("manual entry", () => {
 describe("roles", () => {
   it("describes every role", () => {
     expect(ROLES.map((r) => ROLE_DESCRIPTIONS[r].length > 0)).toEqual([true, true, true]);
+  });
+});
+
+describe("printers", () => {
+  const base: PrinterOut = {
+    id: 1,
+    name: "P1S",
+    host: "h",
+    port: 8883,
+    configured: true,
+    connection: "connected",
+    online: true,
+    last_report_at: null,
+    pinned_sha256: null,
+    presented_sha256: null,
+    slots: [],
+  };
+
+  it("names slots from 0-based indexes", () => {
+    expect(slotName(0, 1)).toBe("AMS 1, slot 2");
+    expect(slotText({ printer_id: 1, printer_name: "P1S", ams_index: 1, tray_index: 3 })).toBe(
+      "AMS 2, slot 4 on P1S",
+    );
+  });
+
+  it("gives each printer a status", () => {
+    expect(printerStatus(base)).toBe("online");
+    expect(printerStatus({ ...base, online: false })).toBe("offline");
+    expect(printerStatus({ ...base, configured: false })).toBe("not_configured");
+    expect(printerStatus({ ...base, connection: "pin_mismatch", configured: false })).toBe(
+      "pin_mismatch",
+    );
+  });
+
+  it("describes the last report and shortens fingerprints", () => {
+    expect(reportText(base)).toBe("No report yet");
+    expect(reportText({ ...base, last_report_at: local(6, 14) }, NOW)).toBe(
+      "Last report 30 min ago",
+    );
+    expect(reportText({ ...base, last_report_at: new Date().toISOString() })).toBe(
+      "Last report just now",
+    );
+    expect(shortFingerprint("ab12cd34ef56ab78" + "0".repeat(48))).toBe("AB12 CD34 EF56 AB78");
+    expect(shortFingerprint("")).toBe("");
+  });
+
+  it("groups slots by AMS unit", () => {
+    const slots = [
+      { ams_index: 1, tray_index: 0 },
+      { ams_index: 0, tray_index: 0 },
+      { ams_index: 0, tray_index: 1 },
+    ];
+    expect(byAms(slots).map((g) => [g.ams, g.slots.length])).toEqual([
+      [0, 2],
+      [1, 1],
+    ]);
   });
 });

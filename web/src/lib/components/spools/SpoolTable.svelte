@@ -4,6 +4,7 @@
   import Ring from "#lib/components/ui/Ring.svelte";
   import StateChip from "#lib/components/ui/StateChip.svelte";
   import { shortDate } from "#lib/format.ts";
+  import { slotText } from "#lib/printers.ts";
   import { nearlyOut } from "#lib/spools.ts";
 
   interface Props {
@@ -55,7 +56,12 @@
             </a>
           </td>
           <td><StateChip state={spool.state} /></td>
-          <td>{spool.location ?? "—"}</td>
+          <td>
+            {spool.location ?? (spool.ams_slot ? "" : "—")}
+            {#if spool.ams_slot}
+              <span class="sub">{slotText(spool.ams_slot)}</span>
+            {/if}
+          </td>
           <td>
             {#if spool.state === "open"}
               <PctBar pct={spool.remaining_pct} low={nearlyOut(spool)} />

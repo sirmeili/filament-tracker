@@ -26,6 +26,10 @@ describe("admin API calls", () => {
       "POST /users": { id: 4 },
       "PATCH /users/4": { id: 4 },
       "POST /auth/password": null,
+      "POST /review/spools/16/dismiss": null,
+      "POST /review/spools/16/restore": null,
+      "GET /printers": [],
+      "POST /printers/1/unpin": { id: 1 },
     });
     vi.stubGlobal("fetch", fetch);
 
@@ -55,6 +59,10 @@ describe("admin API calls", () => {
     await admin.createUser("sam", "viewer", "a long password");
     await admin.updateUser(4, { role: "editor" });
     await admin.changePassword("old", "new password!");
+    await admin.dismissLikelyEmpty(16);
+    await admin.restoreLikelyEmpty(16);
+    expect(await admin.listPrinters()).toEqual([]);
+    expect((await admin.unpinPrinter(1)).id).toBe(1);
 
     expect(fetch.calls.filter((c) => c.method !== "GET")).toEqual([
       { method: "POST", path: "/review/events/e1/accept", body: undefined },
@@ -81,6 +89,9 @@ describe("admin API calls", () => {
         path: "/auth/password",
         body: { current_password: "old", new_password: "new password!" },
       },
+      { method: "POST", path: "/review/spools/16/dismiss", body: undefined },
+      { method: "POST", path: "/review/spools/16/restore", body: undefined },
+      { method: "POST", path: "/printers/1/unpin", body: undefined },
     ]);
   });
 });

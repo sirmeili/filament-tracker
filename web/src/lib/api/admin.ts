@@ -7,6 +7,7 @@ import type {
   EventOut,
   EventSource,
   Page,
+  PrinterOut,
   Product,
   ReviewOut,
   SpoolDetail,
@@ -34,6 +35,14 @@ export function dismissTag(uid: string): Promise<void> {
 
 export function restoreTag(uid: string): Promise<void> {
   return api<void>(`/review/tags/${encodeURIComponent(uid)}/restore`, { method: "POST" });
+}
+
+export function dismissLikelyEmpty(spoolId: number): Promise<void> {
+  return api<void>(`/review/spools/${spoolId}/dismiss`, { method: "POST" });
+}
+
+export function restoreLikelyEmpty(spoolId: number): Promise<void> {
+  return api<void>(`/review/spools/${spoolId}/restore`, { method: "POST" });
 }
 
 // --- Activity ---------------------------------------------------------------------------
@@ -86,6 +95,14 @@ export function rotateToken(id: string): Promise<DeviceCreated> {
 
 export function revokeDevice(id: string): Promise<void> {
   return api<void>(`/devices/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export function listPrinters(): Promise<PrinterOut[]> {
+  return api<PrinterOut[]>("/printers");
+}
+
+export function unpinPrinter(id: number): Promise<PrinterOut> {
+  return api<PrinterOut>(`/printers/${id}/unpin`, { method: "POST" });
 }
 
 // --- Users and account ------------------------------------------------------------------

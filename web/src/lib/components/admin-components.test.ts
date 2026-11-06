@@ -1,13 +1,14 @@
 import { render, screen } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { DeviceOut, UserOut } from "#lib/api/types.ts";
+import type { DeviceOut, PrinterOut, SlotOut, UserOut } from "#lib/api/types.ts";
 import EventRow from "#lib/components/activity/EventRow.svelte";
 import DeviceCard from "#lib/components/devices/DeviceCard.svelte";
+import PrinterCard from "#lib/components/devices/PrinterCard.svelte";
 import UserRow from "#lib/components/users/UserRow.svelte";
 import Ring from "#lib/components/ui/Ring.svelte";
 import StateChip from "#lib/components/ui/StateChip.svelte";
-import { event } from "../../test/fixtures.ts";
+import { event, product } from "../../test/fixtures.ts";
 
 const DEVICE: DeviceOut = {
   id: "shelf",
@@ -115,5 +116,91 @@ describe("small pieces", () => {
     const chip = render(StateChip, { props: { state: "sealed" } });
     await chip.rerender({ state: "open" });
     expect(chip.container.querySelector(".st")).toHaveClass("open");
+  });
+});
+
+describe("PrinterCard", () => {
+  const slot = (overrides: Partial<SlotOut> = {}): SlotOut => ({
+    ams_index: 0,
+    tray_index: 0,
+    filament_type: null,
+    color_rgba: null,
+    remaining_pct: null,
+    spool: null,
+    updated_at: "2026-11-06T09:00:00Z",
+    ...overrides,
+  });
+  const PRINTER: PrinterOut = {
+    id: 1,
+    name: "P1S",
+    host: "h",
+    port: 8883,
+    configured: true,
+    connection: "pin_mismatch",
+    online: false,
+    last_report_at: null,
+    pinned_sha256: "ab".repeat(32),
+    presented_sha256: null,
+    slots: [slot()],
+  };
+
+  it("follows the printer as it changes", async () => {
+    const onunpin = vi.fn();
+    const { rerender } = render(PrinterCard, {
+      props: { printer: PRINTER, busy: false, onunpin },
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent(/different certificate, so/);
+    expect(screen.getByRole("listitem")).toHaveTextContent("Empty");
+
+    await rerender({
+      printer: {
+        ...PRINTER,
+        connection: "connected",
+        online: true,
+        slots: [slot({ filament_type: "ABS", color_rgba: "FFFFFFFF", remaining_pct: 0 })],
+      },
+    });
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("listitem")).toHaveTextContent(/ABS.*0%/);
+
+    await rerender({
+      printer: {
+        ...PRINTER,
+        slots: [
+          slot({
+            color_rgba: "000000FF",
+            remaining_pct: 40,
+            spool: { id: 3, state: "open", product: product() },
+          }),
+        ],
+      },
+      busy: true,
+    });
+    expect(screen.getByRole("link")).toHaveTextContent("Black PLA Basic #3");
+
+    await rerender({
+      printer: {
+        ...PRINTER,
+        name: "Garage",
+        host: "proxy",
+        port: 18883,
+        last_report_at: new Date().toISOString(),
+        slots: [
+          slot({
+            color_rgba: "000000FF",
+            spool: { id: 4, state: "open", product: product({ display_name: "Other" }) },
+          }),
+        ],
+      },
+    });
+    expect(screen.getByRole("link")).toHaveTextContent("Other #4");
+    expect(screen.getByRole("article")).toHaveTextContent(/proxy:18883 · Last report just now/);
+    expect(screen.getByRole("button", { name: "Forget pin" })).toBeDisabled();
+
+    await rerender({ busy: false });
+    await userEvent.click(screen.getByRole("button", { name: "Forget pin" }));
+    await rerender({ busy: true });
+    expect(screen.getAllByRole("button", { name: "Forget pin" })[0]).toBeDisabled();
+    expect(onunpin).not.toHaveBeenCalled();
   });
 });

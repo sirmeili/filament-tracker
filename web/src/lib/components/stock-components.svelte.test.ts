@@ -213,6 +213,73 @@ describe("spools", () => {
     expect(ontoggle).toHaveBeenCalledWith(1);
   });
 
+  it("shows where a spool is loaded in the AMS", () => {
+    const loaded = { printer_id: 1, printer_name: "P1S", ams_index: 0, tray_index: 1 };
+    render(SpoolTable, {
+      spools: [
+        spoolRow({ id: 1, ams_slot: loaded }),
+        spoolRow({ id: 2, location: null, ams_slot: loaded }),
+        spoolRow({ id: 3, location: null }),
+      ],
+      selected: null,
+    });
+
+    const rows = screen.getAllByRole("row").slice(1);
+    expect(rows[0]).toHaveTextContent(/Shelf A\s*AMS 1, slot 2 on P1S/);
+    expect(rows[1]).toHaveTextContent("AMS 1, slot 2 on P1S");
+    expect(rows[1]).not.toHaveTextContent("—AMS");
+    expect(rows[2]).toHaveTextContent("—");
+  });
+
+  it("says on the spool page where it is loaded", () => {
+    const slot = { printer_id: 1, printer_name: "P1S", ams_index: 0, tray_index: 3 };
+    render(WhereNotes, { spool: spoolDetail({ ams_slot: slot }), canEdit: false, onsave: vi.fn() });
+
+    expect(screen.getByText("Loaded in AMS 1, slot 4 on P1S")).toBeInTheDocument();
+  });
+
+  it("follows the spool when another one is shown", async () => {
+    const slot = { printer_id: 1, printer_name: "P1S", ams_index: 0, tray_index: 0 };
+    const { rerender } = render(WhereNotes, {
+      spool: spoolDetail({ location: null, notes: null }),
+      canEdit: true,
+      onsave: vi.fn(),
+    });
+    expect(screen.getByLabelText("Location")).toHaveValue("");
+    expect(screen.queryByText(/Loaded in/)).toBeNull();
+
+    await rerender({
+      spool: spoolDetail({ id: 2, location: "Dry box", notes: "x", ams_slot: slot }),
+    });
+
+    expect(screen.getByLabelText("Location")).toHaveValue("Dry box");
+    expect(screen.getByLabelText("Notes")).toHaveValue("x");
+    expect(screen.getByText("Loaded in AMS 1, slot 1 on P1S")).toBeInTheDocument();
+
+    await rerender({ spool: spoolDetail({ id: 3, location: null }), canEdit: false });
+    expect(screen.getByText("—")).toBeInTheDocument();
+  });
+
+  it("updates rows when the spools change", async () => {
+    const slot = { printer_id: 1, printer_name: "P1S", ams_index: 0, tray_index: 0 };
+    const { rerender } = render(SpoolTable, {
+      spools: [spoolRow({ location: null })],
+      selected: new Set<number>(),
+      ontoggle: vi.fn(),
+    });
+    expect(screen.getByRole("row", { name: /Black PLA/ })).toHaveTextContent("—");
+
+    await rerender({
+      spools: [spoolRow({ location: "Shelf B", placeholder: true, ams_slot: slot })],
+      selected: new Set([1]),
+    });
+
+    const row = screen.getAllByRole("row")[1];
+    expect(row).toHaveTextContent(/Shelf B\s*AMS 1, slot 1 on P1S/);
+    expect(row).toHaveTextContent(/no tag yet/);
+    expect(within(row).getByRole("checkbox")).toBeChecked();
+  });
+
   it("has no checkboxes for viewers", () => {
     render(SpoolTable, { spools: [spoolRow()], selected: null });
 
