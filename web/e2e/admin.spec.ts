@@ -65,7 +65,7 @@ test("editors add a spool by hand with a new product", async ({ page }) => {
   await expect(page.getByText("No tag yet")).toBeVisible();
 });
 
-test("admins register a scanner and see its token once", async ({ page }) => {
+test("admins register a scanner and see its token and pairing code once", async ({ page }) => {
   await signInAt(page, "/devices", "e2e-admin");
   await page.getByRole("button", { name: "Register scanner" }).click();
   await page.getByLabel("Name").fill("Office scanner");
@@ -75,6 +75,14 @@ test("admins register a scanner and see its token once", async ({ page }) => {
   const panel = page.getByRole("alert", { name: "New token for Office scanner" });
   await expect(panel.locator("code")).toHaveText(/\S{20,}/);
   await expect(page.getByRole("article", { name: "Office scanner" })).toContainText("Never seen");
+
+  await expect(panel.getByLabel("Server address for the phone")).toHaveValue(
+    /^http:\/\/127\.0\.0\.1:/,
+  );
+  await panel.getByRole("button", { name: "Show QR code" }).click();
+  await expect(
+    panel.getByRole("img", { name: "Pairing QR code for Office scanner" }),
+  ).toBeVisible();
 
   await panel.getByRole("button", { name: "Done" }).click();
   await expect(panel).toHaveCount(0);

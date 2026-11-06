@@ -1,13 +1,28 @@
 <script lang="ts">
-  /** A new device token, shown once with a Copy button. */
+  /** A new device token, shown once with a Copy button and a QR code for the phone app. */
+  import QrCode from "#lib/components/devices/QrCode.svelte";
+  import { pairingPayload, serverUrlError } from "#lib/pairing.ts";
+
   interface Props {
     name: string;
     token: string;
+    /** The address the admin is using; the default server address for the phone. */
+    origin: string;
     ondone: () => void;
   }
 
-  let { name, token, ondone }: Props = $props();
+  let { name, token, origin, ondone }: Props = $props();
   let copied = $state<string | null>(null);
+  // svelte-ignore state_referenced_locally
+  let serverUrl = $state(origin);
+  let urlError = $state<string | null>(null);
+  let payload = $state<string | null>(null);
+
+  function showQr(event: SubmitEvent): void {
+    event.preventDefault();
+    urlError = serverUrlError(serverUrl);
+    payload = urlError ? null : pairingPayload(serverUrl, token);
+  }
 
   async function copy(): Promise<void> {
     try {
@@ -28,8 +43,30 @@
   </div>
   {#if copied}<span>{copied}</span>{/if}
   <span class="muted">
-    Enter it in the scanner's setup screen. Scanner routes accept it only from your LAN.
+    Enter it in the scanner's setup screen, or pair the phone app below. Scanner routes accept it
+    only from your LAN.
   </span>
+  {#if payload}
+    <div class="pair">
+      <QrCode text={payload} label="Pairing QR code for {name}" />
+      <span class="muted">
+        In the Filament Tracker app, choose Pair and scan this code. It holds the token, so don't
+        share it.
+      </span>
+    </div>
+  {:else}
+    <form class="row" novalidate onsubmit={showQr}>
+      <label
+        >Server address for the phone<input
+          type="url"
+          bind:value={serverUrl}
+          aria-invalid={urlError ? "true" : undefined}
+        /></label
+      >
+      <button type="submit">Show QR code</button>
+    </form>
+    {#if urlError}<span role="status">{urlError}</span>{/if}
+  {/if}
 </section>
 
 <style>
@@ -60,6 +97,21 @@
     color: var(--text);
     word-break: break-all;
     user-select: all;
+  }
+
+  label {
+    display: flex;
+    flex: 1 1 280px;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+  }
+
+  .pair {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
   }
 
   .muted {

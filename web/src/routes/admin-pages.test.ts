@@ -436,6 +436,23 @@ describe("Devices page", () => {
     await userEvent.click(within(panel).getByRole("button", { name: "Copy" }));
     expect(writeText).toHaveBeenCalledWith("ft_dev_secret");
     expect(await within(panel).findByText("Copied.")).toBeInTheDocument();
+
+    const address = within(panel).getByLabelText("Server address for the phone");
+    expect(address).toHaveValue(window.location.origin);
+    await userEvent.clear(address);
+    await userEvent.type(address, "filament.local");
+    await userEvent.click(within(panel).getByRole("button", { name: "Show QR code" }));
+    expect(within(panel).getByRole("status")).toHaveTextContent(/full address/);
+    expect(address).toHaveAttribute("aria-invalid", "true");
+    expect(within(panel).queryByRole("img")).toBeNull();
+
+    await userEvent.clear(address);
+    await userEvent.type(address, "https://filament.example.com");
+    await userEvent.click(within(panel).getByRole("button", { name: "Show QR code" }));
+    const qr = within(panel).getByRole("img", { name: "Pairing QR code for Office scanner" });
+    expect(qr.querySelector("path")?.getAttribute("d")).toMatch(/^M/);
+    expect(within(panel).queryByLabelText("Server address for the phone")).toBeNull();
+
     await userEvent.click(within(panel).getByRole("button", { name: "Done" }));
     expect(screen.queryByText("ft_dev_secret")).toBeNull();
   });
