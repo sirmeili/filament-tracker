@@ -32,6 +32,7 @@
 - M5 part 3, the printer pages: Printers on Devices, likely-empty Dismiss on Review, the AMS slot on spools, merged (PR #22).
 - M5 part 4, checked against the real P1S, AMS HT units and `ft-printer check`, merged (PR #23). **M5 complete.**
 - M8 part 1, `BAMBU_KDF_SALT`, `/devices/provisioning`, `ft-sim check-salt` and the pairing QR code, merged (PR #24).
+- M8 part 3, the Android app with its Kotlin NFC plugin, Keystore storage, QR scanning and the Android CI job, merged (PR #26).
 - M8 part 2, the phone app's logic in the web app (bridge interface, pairing, device API, offline decode and queue, Scan flow, Scan and Pairing pages), merged (PR #25).
 - M2 part 7, the Review, Activity, Devices, Users and Account pages, manual entry, Review Bring back, the scanner heartbeat and the Activity source filter, merged (PR #18). **M2 complete.**
 - M2 plan approved: seven branches (spec, users and auth, read API, write API, web foundation, stock pages, admin pages).
@@ -40,12 +41,16 @@
 ## In progress
 
 - M8, the phone scanner. Plan approved: four branches (provisioning and the pairing QR code, the app logic in the web app, the Android app with its NFC plugin, a check on the owner's phone). Android Studio and the Android SDK are installed.
-- `feature/android-app` (M8 part 3): the Android app. A Capacitor project in `android/` around the web build (Capacitor 8.6.0; `glob` and `minimatch` overridden to patched versions for two moderate advisories in the CLI's `rimraf`). A Kotlin plugin: NFC reader mode with `MifareClassic`, keys derived on the phone (HKDF, checked against the server's keys), 48 data blocks without trailers, `readOk` false when a sector refuses its key; QR scanning with the Google code scanner (no camera permission); values encrypted with AES-GCM under an Android Keystore key, backup off. The web app installs the native bridge at start in the app. Plain `http://` pairing only for LAN addresses. Kotlin tests with a fake tag at 100% of the testable code (JaCoCo gate 90%), and a CI job that runs them and builds the APK. Builds need JDK 21 (Temurin 21 installed).
-  - Next: review by the owner, then the PR. Then part 4, the check on the owner's Pixel 9 Pro XL.
+- `feature/m8-phone-check` (M8 part 4): the phone checklist is in `android/README.md` (install, a server the phone can reach, 21 checks covering pairing, scanning, offline, sign-in and a clean phone log). The debug APK is installed on the owner's Pixel 9 Pro XL over USB and starts. Found on install: Capacitor's debug builds log every plugin call with its result, which would have put the token, the tag key constant and tag UIDs in the phone's log; `loggingBehavior` is now `none`, checked with `adb logcat`. Found while pairing: the Devices page fills the phone's server address with the address the admin uses, so an admin on `localhost` got a QR code the phone could not use; pairing now refuses loopback addresses with a message saying to use the computer's network address. Checklist run 1 (2026-11-06): checks 1 to 7 and 9 to 13 passed; 8 cannot be shown online (a known spool never offers the same action twice), so it moves to the offline checks. Fixed from the run:
+    - NFC turned on in Android settings needed an app restart: Scan now checks again every 2 s while NFC is off and when the app comes back to the front.
+    - A spool left on the phone was read over and over, and Android's "tag found" sound played before the read was done, so lifting the spool at the sound cut the read short. Reader mode now stays on while the app is in front and ignores tags while a spool is on screen (a spool has to be lifted and tapped again), the system sound is off, and the app beeps once the whole tag has been read (another tone for a failed read).
+    - Check 14 failed: with the server stopped, Scan stayed on "Looking it up". The firewall drops the connection, so the request never ended. Device API requests now give up after 5 s and the scan falls back to offline.
+    - Checklist run 2: 14, 8 (offline) and 15 passed; reading stops after one scan, and NFC changes show at once. No beep was heard because the phone's notification volume was 0 (Android's own NFC sound ignores it), so the app also vibrates after a read: one buzz for a good read, two for a failed one.
+    - Checklist complete (2026-11-06), all 21 checks passed on the Pixel 9 Pro XL: 16 (queued scans sent once the server was back), 17 (queue kept across an app restart), 18 (sign-in in the app, with `COOKIE_SECURE=false` over plain HTTP; without it sign-in is refused, as the spec says), 19, 20, 4 (typed `http://example.com` refused) and 21 (no device token, key constant, plugin call data or any of the server's 8 tag UIDs in `adb logcat`).
+  - Next: review by the owner, then the PR. That completes M8.
 
 ## Next
 
-- M8 part 4 (`feature/m8-phone-check`): install the debug APK on the Pixel 9 Pro XL and work through the phone manual checklist (reading, MIFARE Classic detection, QR pairing, offline queue, sign-in).
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
 
 ## Decisions

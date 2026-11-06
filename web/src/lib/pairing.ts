@@ -17,10 +17,25 @@ export function serverUrlError(text: string): string | null {
   }
   if (url.username || url.password) return "The address must not include a user name.";
   if (url.search || url.hash) return "The address must not include ? or #.";
+  if (isLoopbackHost(url.hostname)) {
+    return "The phone can't reach localhost: on the phone, it means the phone itself. Use this computer's network address, such as http://192.168.1.20:8000.";
+  }
   if (url.protocol === "http:" && !isLanHost(url.hostname)) {
     return "Plain http:// works only for addresses on your home network. Use https://.";
   }
   return null;
+}
+
+/** Loopback addresses: on a phone they name the phone, never the server. */
+export function isLoopbackHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/\.$/, "");
+  return (
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    host === "[::1]" ||
+    host === "0.0.0.0" ||
+    /^127\.\d+\.\d+\.\d+$/.test(host)
+  );
 }
 
 const LAN_SUFFIXES = [".local", ".lan", ".home.arpa"];

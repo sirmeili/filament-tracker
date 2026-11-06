@@ -160,6 +160,23 @@ export class ScanFlow {
     return () => this.listeners.delete(listener);
   }
 
+  /** Resolves once the screen is back to waiting for a tap, or when the signal aborts. */
+  whenIdle(signal: AbortSignal): Promise<void> {
+    if (this.current.phase === "idle" || signal.aborted) return Promise.resolve();
+    return new Promise((resolve) => {
+      const done = () => {
+        this.listeners.delete(listener);
+        signal.removeEventListener("abort", done);
+        resolve();
+      };
+      const listener = (view: FlowView) => {
+        if (view.phase === "idle") done();
+      };
+      this.listeners.add(listener);
+      signal.addEventListener("abort", done, { once: true });
+    });
+  }
+
   /** A tag was tapped: look it up and offer its actions. */
   async tapped(read: TagRead): Promise<void> {
     if (this.current.phase === "sending" || this.current.phase === "looking_up") return;

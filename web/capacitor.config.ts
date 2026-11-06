@@ -10,6 +10,9 @@ const config: CapacitorConfig = {
   android: {
     path: "../android",
   },
+  // Capacitor logs every plugin call and its result in debug builds, which would put the
+  // device token, the tag key constant and tag UIDs in the phone's log. Never log them.
+  loggingBehavior: "none",
   plugins: {
     CapacitorHttp: { enabled: true },
     CapacitorCookies: { enabled: true },
