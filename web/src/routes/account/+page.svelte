@@ -28,5 +28,5 @@
     </dl>
   {/if}
   <p class="muted">Changing your password arrives with the account page in a later part of M2.</p>
-  <button onclick={signOut} disabled={busy}>Sign out</button>
+  <button class="primary" onclick={signOut} disabled={busy}>Sign out</button>
 </section>

@@ -1,19 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { navItemFor, requiredRole, visibleNav } from "#lib/nav.ts";
+import { ACCOUNT_PATH, navItemFor, requiredRole, visibleNav } from "#lib/nav.ts";
 
 const labels = (role: Parameters<typeof visibleNav>[0]) => visibleNav(role).map((i) => i.label);
 
 describe("visibleNav", () => {
   it("hides admin pages from viewers and editors", () => {
     for (const role of ["viewer", "editor"] as const) {
-      expect(labels(role)).toEqual([
-        "Inventory",
-        "Spools",
-        "Products",
-        "Review",
-        "Activity",
-        "Account",
-      ]);
+      expect(labels(role)).toEqual(["Inventory", "Spools", "Products", "Review", "Activity"]);
     }
   });
 
@@ -47,5 +40,6 @@ describe("requiredRole", () => {
     expect(requiredRole("/devices/scanner-1")).toBe("admin");
     expect(requiredRole("/spools/3")).toBe("viewer");
     expect(requiredRole("/nowhere")).toBe("viewer");
+    expect(requiredRole(ACCOUNT_PATH)).toBe("viewer");
   });
 });
