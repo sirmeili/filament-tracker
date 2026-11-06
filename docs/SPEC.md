@@ -160,7 +160,7 @@ The firmware stays dumb: it reads the UID, derives the keys, dumps the raw block
 
 - Offline: if the lookup fails, offer New, Opened and Empty using the product decoded on the device from the raw tag; store chosen events in flash (at least 50) and retry with backoff. A status icon shows the queue size.
 - A spool confirmed twice for the same action within 30 seconds sends only one event.
-- Heartbeat every 5 minutes so the server can show online/offline.
+- Heartbeat every 5 minutes so the server can show online/offline. A scanner counts as online when it was seen (heartbeat or scan) in the last 15 minutes.
 
 **Configuration**
 
@@ -188,7 +188,7 @@ The server is event-sourced: every scan, AMS observation and UI edit is an immut
 | `spool` | id, tray\_uid (unique, null for a manual placeholder), product\_id, state, received\_at, opened\_at, emptied\_at, remaining\_pct, location, notes | One physical spool; state and timestamps derived from events. State is null (Unknown) when every event that set it has been undone |
 | `tag` | uid (unique), spool\_id, raw\_blocks, decoded\_json, first\_seen\_at, dismissed\_at | Each spool has up to two tags; raw dump kept for re-decoding. `dismissed_at` hides an `unidentified` tag from Review |
 | `event` | id (UUID from device or server), spool\_id, type, source, device\_id, user\_id, occurred\_at, flagged, reviewed\_at, reviewed\_by, payload\_json, reverted\_by | Append-only log; undo writes a new `revert` event. `user_id` records who acted in the web app |
-| `device` | id, name, token\_hash, revoked\_at, last\_seen\_at, fw\_version | Registered scanners |
+| `device` | id, name, token\_hash, revoked\_at, last\_seen\_at, fw\_version, queue\_length | Registered scanners; firmware version and offline queue length come from the last heartbeat |
 | `user` | id, username (unique, case-insensitive), password\_hash, role, disabled\_at, last\_login\_at | Web app accounts; see Users and roles |
 | `session` | id, token\_hash, user\_id, expires\_at, last\_seen\_at | Signed-in browsers; only a hash of the cookie value is stored |
 | `printer` | id, name, serial, host | Printers watched over MQTT |
@@ -230,7 +230,7 @@ A versioned REST API under `/api/v1`, documented by FastAPI's generated OpenAPI 
 | GET | `/spools/{id}` | Viewer | Spool detail with tags and event timeline |
 | PATCH | `/spools/{id}`, `/spools` | Editor | Edit location and notes; bulk change location |
 | POST | `/spools/{id}/events` | Editor | Manual action (received, opened, empty) |
-| GET | `/events` | Viewer | Activity: all events, newest first, paged |
+| GET | `/events` | Viewer | Activity: all events, newest first, paged; filter by spool or source (scanner, web app, printer) |
 | POST | `/events/{id}/revert` | Editor, Scanner | Undo an event; a scanner can undo only events from its own device |
 | GET | `/review` | Viewer | Flagged events not yet reviewed, `unidentified` tags, likely-empty suggestions |
 | POST | `/review/events/{id}/accept` | Editor | Mark a flagged event as correct |
@@ -275,7 +275,7 @@ A small, mobile-friendly web app for checking stock and fixing mistakes; day-to-
 | Devices | Scanners and printers with online status, firmware, queue; each printer shows its AMS slots and the spool in each (from M5) | Register device (token shown once), rotate token, revoke |
 | Users | Accounts and roles (Admin only), with a short description of what each role can do | Create, change role, reset password, disable |
 | Account | The signed-in user | Change password (with a meter showing progress to the 12-character minimum), sign out |
-| Activity | Global event log, newest first | Undo |
+| Activity | Global event log, newest first, grouped by day | Filter by source (scanners, web app, printer); undo |
 
 The color swatch comes from the tag's RGBA value, so new colors appear correctly with no setup.
 

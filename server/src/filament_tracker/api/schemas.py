@@ -95,7 +95,16 @@ class DeviceOut(BaseModel):
     created_at: datetime
     last_seen_at: datetime | None
     fw_version: str | None
+    queue_length: int | None = Field(description="Scans in the offline queue at the last heartbeat")
+    online: bool = Field(description="Not revoked, and seen in the last 15 minutes")
     revoked: bool
+
+
+class Heartbeat(Strict):
+    """Sent by a scanner every 5 minutes."""
+
+    fw_version: Annotated[str, StringConstraints(min_length=1, max_length=32)]
+    queue_length: Annotated[int, Field(ge=0, le=100_000)]
 
 
 class DeviceCreated(DeviceOut):

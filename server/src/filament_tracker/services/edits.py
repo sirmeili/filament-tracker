@@ -75,13 +75,36 @@ def accept_event(event: Event, now: datetime, *, user_id: int | None) -> None:
         event.reviewed_by = user_id
 
 
-def dismiss_tag(session: Session, uid: str, now: datetime) -> Tag:
-    """Review: hide an unidentified tag. Dismissing twice changes nothing."""
+def unaccept_event(event: Event) -> None:
+    """Review, Bring back: return an accepted flagged event to Review. Doing it twice
+    changes nothing."""
+    if not event.flagged:
+        raise EditError("only flagged events can be brought back")
+    if event.reverted_by is not None:
+        raise EditError("the event has been undone")
+    event.reviewed_at = None
+    event.reviewed_by = None
+
+
+def _unidentified(session: Session, uid: str) -> Tag:
     tag = session.scalar(select(Tag).where(Tag.uid == uid.strip().upper()))
     if tag is None:
         raise NotFound("no such tag")
     if tag.spool_id is not None:
         raise EditError("the tag belongs to a spool, so it is not unidentified")
+    return tag
+
+
+def restore_tag(session: Session, uid: str) -> Tag:
+    """Review, Bring back: show a dismissed unidentified tag again."""
+    tag = _unidentified(session, uid)
+    tag.dismissed_at = None
+    return tag
+
+
+def dismiss_tag(session: Session, uid: str, now: datetime) -> Tag:
+    """Review: hide an unidentified tag. Dismissing twice changes nothing."""
+    tag = _unidentified(session, uid)
     if tag.dismissed_at is None:
         tag.dismissed_at = now
     return tag

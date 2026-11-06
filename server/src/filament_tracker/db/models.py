@@ -119,6 +119,8 @@ class Device(Base):
     revoked_at: Mapped[datetime | None]
     last_seen_at: Mapped[datetime | None]
     fw_version: Mapped[str | None] = mapped_column(String(32))
+    # Scans waiting in the device's offline queue, from its last heartbeat.
+    queue_length: Mapped[int | None]
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
 

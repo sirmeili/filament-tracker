@@ -8,7 +8,7 @@ from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from filament_tracker.db.models import Event, Product, Spool, Tag
-from filament_tracker.domain.enums import EventType, SpoolState
+from filament_tracker.domain.enums import EventSource, EventType, SpoolState
 
 UNKNOWN = "unknown"
 
@@ -170,12 +170,19 @@ def _newest_first(query: Select[tuple[Event]]) -> Select[tuple[Event]]:
 
 
 def events(
-    session: Session, *, spool_id: int | None = None, limit: int, offset: int
+    session: Session,
+    *,
+    spool_id: int | None = None,
+    source: EventSource | None = None,
+    limit: int,
+    offset: int,
 ) -> tuple[list[Event], int]:
     """A page of events, newest first, and the total."""
     query = _event_query()
     if spool_id is not None:
         query = query.where(Event.spool_id == spool_id)
+    if source is not None:
+        query = query.where(Event.source == source)
     total = session.scalar(select(func.count()).select_from(query.subquery())) or 0
     page = session.scalars(_newest_first(query).limit(limit).offset(offset))
     return list(page), total

@@ -363,6 +363,22 @@ def test_activity_lists_every_event_newest_first(
     assert page["items"][0]["color_rgba"] == "FF0000FF"
 
 
+def test_activity_filters_by_source(
+    app: FastAPI, client: TestClient, token: str, viewer: TestClient
+) -> None:
+    received = scan(client, token, SyntheticTag(), "received")
+    editor = signed_in(app, Role.EDITOR)
+    editor.post(f"/api/v1/events/{received['event_id']}/revert", headers=CSRF)
+
+    by_scanner = viewer.get("/api/v1/events", params={"source": "scanner"}).json()
+    by_ui = viewer.get("/api/v1/events", params={"source": "ui"}).json()
+
+    assert [e["type"] for e in by_scanner["items"]] == ["received"]
+    assert [e["type"] for e in by_ui["items"]] == ["revert"]
+    assert viewer.get("/api/v1/events", params={"source": "ams"}).json()["total"] == 0
+    assert viewer.get("/api/v1/events", params={"source": "fax"}).status_code == 422
+
+
 def test_activity_filters_by_spool(client: TestClient, token: str, viewer: TestClient) -> None:
     _stock(client, token)
 
