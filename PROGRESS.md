@@ -32,6 +32,7 @@
 - M5 part 3, the printer pages: Printers on Devices, likely-empty Dismiss on Review, the AMS slot on spools, merged (PR #22).
 - M5 part 4, checked against the real P1S, AMS HT units and `ft-printer check`, merged (PR #23). **M5 complete.**
 - M8 part 1, `BAMBU_KDF_SALT`, `/devices/provisioning`, `ft-sim check-salt` and the pairing QR code, merged (PR #24).
+- M8 part 4, the phone checklist on a Pixel 9 Pro XL and the fixes it found (no plugin data in the phone's log, loopback addresses refused, a 5 s request limit, one read at a time, a beep and buzz after a full read), merged (PR #27). **M8 complete.**
 - M8 part 3, the Android app with its Kotlin NFC plugin, Keystore storage, QR scanning and the Android CI job, merged (PR #26).
 - M8 part 2, the phone app's logic in the web app (bridge interface, pairing, device API, offline decode and queue, Scan flow, Scan and Pairing pages), merged (PR #25).
 - M2 part 7, the Review, Activity, Devices, Users and Account pages, manual entry, Review Bring back, the scanner heartbeat and the Activity source filter, merged (PR #18). **M2 complete.**
@@ -40,21 +41,19 @@
 
 ## In progress
 
-- M8, the phone scanner. Plan approved: four branches (provisioning and the pairing QR code, the app logic in the web app, the Android app with its NFC plugin, a check on the owner's phone). Android Studio and the Android SDK are installed.
-- `feature/m8-phone-check` (M8 part 4): the phone checklist is in `android/README.md` (install, a server the phone can reach, 21 checks covering pairing, scanning, offline, sign-in and a clean phone log). The debug APK is installed on the owner's Pixel 9 Pro XL over USB and starts. Found on install: Capacitor's debug builds log every plugin call with its result, which would have put the token, the tag key constant and tag UIDs in the phone's log; `loggingBehavior` is now `none`, checked with `adb logcat`. Found while pairing: the Devices page fills the phone's server address with the address the admin uses, so an admin on `localhost` got a QR code the phone could not use; pairing now refuses loopback addresses with a message saying to use the computer's network address. Checklist run 1 (2026-11-06): checks 1 to 7 and 9 to 13 passed; 8 cannot be shown online (a known spool never offers the same action twice), so it moves to the offline checks. Fixed from the run:
-    - NFC turned on in Android settings needed an app restart: Scan now checks again every 2 s while NFC is off and when the app comes back to the front.
-    - A spool left on the phone was read over and over, and Android's "tag found" sound played before the read was done, so lifting the spool at the sound cut the read short. Reader mode now stays on while the app is in front and ignores tags while a spool is on screen (a spool has to be lifted and tapped again), the system sound is off, and the app beeps once the whole tag has been read (another tone for a failed read).
-    - Check 14 failed: with the server stopped, Scan stayed on "Looking it up". The firewall drops the connection, so the request never ended. Device API requests now give up after 5 s and the scan falls back to offline.
-    - Checklist run 2: 14, 8 (offline) and 15 passed; reading stops after one scan, and NFC changes show at once. No beep was heard because the phone's notification volume was 0 (Android's own NFC sound ignores it), so the app also vibrates after a read: one buzz for a good read, two for a failed one.
-    - Checklist complete (2026-11-06), all 21 checks passed on the Pixel 9 Pro XL: 16 (queued scans sent once the server was back), 17 (queue kept across an app restart), 18 (sign-in in the app, with `COOKIE_SECURE=false` over plain HTTP; without it sign-in is refused, as the spec says), 19, 20, 4 (typed `http://example.com` refused) and 21 (no device token, key constant, plugin call data or any of the server's 8 tag UIDs in `adb logcat`).
-  - Next: review by the owner, then the PR. That completes M8.
+- M6, Home Assistant. Plan approved (2026-11-06): four branches (MQTT discovery entities; HA events and an example automation; an Admin Settings page for the Home Assistant settings, with secrets encrypted in the database; a check against the owner's Home Assistant, which uses the Mosquitto add-on).
+- `feature/ha-mqtt` (M6 part 1): `MQTT_URL`, `MQTT_USER`, `MQTT_PASSWORD` and `HA_DISCOVERY_PREFIX`; a publisher on its own thread that reads the stock every 5 s and publishes only what changed, retained, under one device "Filament Tracker": Total spools, Total open, Total sealed, Spools in review, and a Low filament binary sensor whose attributes list the low products (the owner chose these over per-product entities after trying them in Home Assistant). Retained entities the server no longer publishes are cleared. An availability topic with an `offline` will, so entities are unavailable while the server is down; everything is republished when Home Assistant restarts; reconnects with backoff; `/health` reports the link. Tested with a fake client and against a real Mosquitto (the test broker's new plain listener on 127.0.0.1:11883, `FT_HA_BROKER`, run in CI).
+  - Next: review by the owner, then the PR. Then part 2, HA events.
 
 ## Next
 
+- Later (owner's request, 2026-11-06): make printers configurable from the web app too, like the Home Assistant settings in M6 part 3, instead of only `PRINTERS` in `server/.env`.
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
 
 ## Decisions
 
+- 2026-11-06: Home Assistant entities come from a 5-second snapshot of the database, published only when changed, because it covers every way stock changes without hooking each write path.
+- 2026-11-06: Home Assistant settings will also be editable on an Admin Settings page (owner's choice), with secrets encrypted in the database and `.env` values taking precedence.
 - 2026-11-06: Build the Android app with JDK 21, because Gradle 8.14 cannot run on Android Studio's bundled JDK 25.
 - 2026-11-06: Scan pairing QR codes with Google's code scanner (Play services), because it needs no camera permission and keeps camera code out of the app.
 - 2026-11-06: Allow plain HTTP in the Android platform settings and enforce "LAN addresses only" when pairing, because Android's network rules cannot express private address ranges.

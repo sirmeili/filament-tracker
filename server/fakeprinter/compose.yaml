@@ -1,10 +1,13 @@
 # A stand-in for a Bambu printer's MQTT broker: TLS on 8883, user bblp, a test access code.
+# It also listens for plain MQTT on 1883, standing in for Home Assistant's broker.
 # Make the certificate first with ./make-cert.sh; see server/README.md.
 services:
   broker:
     image: eclipse-mosquitto:2.0.22
     ports:
       - "127.0.0.1:${FAKE_PRINTER_PORT:-8883}:8883"
+      # Plain MQTT for the Home Assistant broker tests (FT_HA_BROKER).
+      - "127.0.0.1:${FAKE_HA_BROKER_PORT:-11883}:1883"
     environment:
       ACCESS_CODE: ${FAKE_PRINTER_ACCESS_CODE:-fake-access-code}
     volumes:

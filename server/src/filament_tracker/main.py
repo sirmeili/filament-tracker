@@ -21,6 +21,8 @@ from filament_tracker.api.security import SecurityHeadersMiddleware
 from filament_tracker.config import Settings
 from filament_tracker.db.engine import create_db_engine, create_session_factory
 from filament_tracker.db.migrate import upgrade
+from filament_tracker.ha.broker import broker_config
+from filament_tracker.ha.publisher import HaPublisher
 from filament_tracker.printer.manager import PrinterManager
 from filament_tracker.services.throttle import LoginThrottle
 from filament_tracker.webapp import default_web_dir, mount_web_app
@@ -39,9 +41,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         printer_links = PrinterManager(settings.printers, app.state.session_factory)
         app.state.printers = printer_links
         printer_links.start()
+        home_assistant = HaPublisher(
+            broker_config(settings.mqtt_url, settings.mqtt_user, settings.mqtt_password),
+            settings.ha_discovery_prefix,
+            app.state.session_factory,
+        )
+        app.state.home_assistant = home_assistant
+        home_assistant.start()
         try:
             yield
         finally:
+            home_assistant.stop()
             printer_links.stop()
             engine.dispose()
 

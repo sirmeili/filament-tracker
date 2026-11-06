@@ -35,6 +35,7 @@ jobs:
         run: uv run pytest
         env:
           FT_FAKE_BROKER: 127.0.0.1:8883
+          FT_HA_BROKER: 127.0.0.1:11883
       - name: Audit dependencies
         run: |
           uv export --quiet --no-hashes --no-emit-project -o "$RUNNER_TEMP/requirements.txt"

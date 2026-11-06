@@ -109,6 +109,32 @@ The access code is on the printer's screen under the network settings. Put `PRIN
 - **Certificate pin**: on the first connection the server stores the SHA-256 fingerprint of the printer's TLS certificate, and from then on talks only to that certificate. If the printer's certificate changes (for example after a firmware update), the printer shows a pin mismatch and an admin forgets the pin from the Devices page.
 - **MQTT proxy**: to stay under the printer's connection limit, point `host` and `port` at a proxy such as `bambu-mqtt-proxy`, and use the proxy's alias as `serial` if it renames the printer. The pin is then the proxy's certificate.
 
+## Home Assistant
+
+The server publishes Home Assistant entities through MQTT discovery, under one device, **Filament Tracker**:
+
+- **Total spools** (sealed and open, not used up), **Total open** and **Total sealed**;
+- **Low filament**: on while any product's sealed count is at or below its low-stock threshold (set on the Products page; 0 turns it off). Its `products` attribute lists the low products with their name, type, color, sealed count and threshold, and `count` says how many;
+- **Spools in review**: the Review page's count.
+
+Entities from an earlier version of the server (such as per-product sensors) are removed automatically.
+
+Set these in `server/.env` and restart the server:
+
+```sh
+MQTT_URL=mqtt://homeassistant.local:1883   # Home Assistant's address, for the Mosquitto add-on
+MQTT_USER=filament-tracker
+MQTT_PASSWORD=...
+```
+
+- **The MQTT user**: the Mosquitto add-on accepts Home Assistant users (create one under Settings → People, for example `filament-tracker`) or the logins in the add-on's configuration.
+- **Updates**: changes reach Home Assistant within about 5 seconds, whatever made them (a scanner, the phone, the web app or the printer).
+- **Unavailable**: while the server is stopped or cannot reach the broker, the entities show as unavailable.
+- **Home Assistant restarts**: everything is published again when Home Assistant restarts.
+- **Status**: `GET /api/v1/health` reports the link as `off`, `connecting`, `connected` or `disconnected`.
+
+The password is never logged or shown, and `MQTT_URL` must not contain it. Use `mqtts://` for a broker with a certificate the server's system trusts.
+
 ## Fake printer
 
 Test the printer link without a printer: a Mosquitto broker in Docker stands in for the printer's MQTT server, and `ft-fakeprinter` plays the printer on it. Needs Docker and `openssl`; run from `server/` in Git Bash or WSL for the first command.
@@ -129,7 +155,7 @@ It publishes the full report, then each `--then` change every 5 seconds (`--inte
 $env:PRINTERS = '[{"name": "Fake", "host": "127.0.0.1", "serial": "FAKE01", "access_code": "fake-access-code"}]'
 ```
 
-The integration tests use the same broker: set `FT_FAKE_BROKER=127.0.0.1:8883` before `uv run pytest` to include them (CI does). Stop it with `docker compose -f fakeprinter/compose.yaml down`.
+The integration tests use the same broker: set `FT_FAKE_BROKER=127.0.0.1:8883` before `uv run pytest` to include them (CI does). The broker also listens for plain MQTT on `127.0.0.1:11883` (change it with `FAKE_HA_BROKER_PORT`), standing in for Home Assistant's broker: set `FT_HA_BROKER=127.0.0.1:11883` to include the Home Assistant broker tests. Stop it with `docker compose -f fakeprinter/compose.yaml down`.
 
 ## Check a real printer
 
