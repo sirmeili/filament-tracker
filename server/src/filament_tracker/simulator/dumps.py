@@ -26,15 +26,18 @@ class Dump:
 
 def load_dump(path: Path) -> Dump:
     """Load a `.bin` image or a BambuTagScanner ZIP export."""
+    return from_image(*load_image(path))
+
+
+def load_image(path: Path) -> tuple[str, bytes]:
+    """The full tag image, sector trailers (and so keys) included, and its name."""
     if not path.is_file():
         raise DumpError("not a file")
     if zipfile.is_zipfile(path):
-        name, image = _image_from_zip(path)
-    else:
-        if path.stat().st_size != IMAGE_SIZE:
-            raise DumpError(f"must be a {IMAGE_SIZE}-byte tag image")
-        name, image = path.name, path.read_bytes()
-    return from_image(name, image)
+        return _image_from_zip(path)
+    if path.stat().st_size != IMAGE_SIZE:
+        raise DumpError(f"must be a {IMAGE_SIZE}-byte tag image")
+    return path.name, path.read_bytes()
 
 
 def from_image(name: str, image: bytes) -> Dump:

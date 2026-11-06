@@ -105,7 +105,7 @@ Upon user acceptance of a completed feature or step, you must commit your code, 
 
   * Create a web app account: `uv run ft-admin create-user <username> --role viewer|editor|admin` (the password is prompted). Reset one with `uv run ft-admin reset-password <username>`.
 
-  * Scan simulator: `uv run ft-sim scan <dump.bin|export.zip> --action lookup|received|opened|empty` and `uv run ft-sim generate <out.bin>`. It needs `FT_TOKEN` (a registered device token); see `server/README.md`. Tag dumps never go in the repo.
+  * Scan simulator: `uv run ft-sim scan <dump.bin|export.zip> --action lookup|received|opened|empty` and `uv run ft-sim generate <out.bin>`. `uv run ft-sim check-salt <dumps>` checks `BAMBU_KDF_SALT` against saved dumps without printing keys. It needs `FT_TOKEN` (a registered device token); see `server/README.md`. Tag dumps never go in the repo.
 
   * Real printer check: `uv run ft-printer check [--dump <dump.zip>] [--save captures/<name>.jsonl]`, using `PRINTERS` from `server/.env`; see `server/README.md`. Captures stay out of the repo.
 

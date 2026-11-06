@@ -216,3 +216,44 @@ def test_generate_will_not_overwrite_without_force(tmp_path: Path, capsys) -> No
 def test_generate_rejects_values_that_do_not_fit(tmp_path: Path, capsys) -> None:
     assert main(["generate", str(tmp_path / "t.bin"), "--variant-id", "MUCH-TOO-LONG"]) == 2
     assert "cannot generate" in capsys.readouterr().err
+
+
+SALT = bytes(range(16))  # made up; the real constant is never in the repo
+
+
+def _salted(salt: str | None) -> Settings:
+    return Settings(bambu_kdf_salt=salt, _env_file=None)  # type: ignore[arg-type]
+
+
+def test_check_salt_confirms_a_matching_salt(tmp_path: Path, capsys) -> None:
+    tag = SyntheticTag()
+    path = tmp_path / f"{tag.tag_uid.hex().upper()}-PLA.bin"
+    path.write_bytes(tag.image(salt=SALT))
+
+    code = main(["check-salt", str(path)], settings=_salted(SALT.hex()))
+
+    out = capsys.readouterr().out
+    assert code == 0
+    assert out.splitlines() == ["dump 1: 16 of 16 sector keys match", "BAMBU_KDF_SALT is correct."]
+    assert tag.tag_uid.hex().upper() not in out
+    assert SALT.hex().upper() not in out.upper()
+
+
+def test_check_salt_reports_a_wrong_salt_and_unreadable_dumps(tmp_path: Path, capsys) -> None:
+    good = tmp_path / "a.bin"
+    good.write_bytes(SyntheticTag().image(salt=SALT))
+
+    code = main(
+        ["check-salt", str(good), str(tmp_path / "missing.bin")], settings=_salted("00" * 16)
+    )
+
+    captured = capsys.readouterr()
+    assert code == 1
+    assert "dump 1: 0 of 16 sector keys match" in captured.out
+    assert "dump 2: cannot read" in captured.err
+    assert "does not match" in captured.out
+
+
+def test_check_salt_needs_the_salt(tmp_path: Path, capsys) -> None:
+    assert main(["check-salt", str(tmp_path / "a.bin")], settings=_salted(None)) == 2
+    assert "Set BAMBU_KDF_SALT" in capsys.readouterr().err

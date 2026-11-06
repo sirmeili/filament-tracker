@@ -1,13 +1,29 @@
 from datetime import timedelta
 
-from api_helpers import admin, bearer, register, scan_body
+import pytest
+from api_helpers import (
+    ADMIN_TOKEN,
+    BASE_URL,
+    INTERNET_CLIENT,
+    LAN_CLIENT,
+    admin,
+    bearer,
+    browser,
+    register,
+    scan_body,
+    signed_in,
+)
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from filament_tracker.auth import TOKEN_PREFIX, hash_token
+from filament_tracker.config import Settings
 from filament_tracker.db.models import Device
 from filament_tracker.db.types import utcnow
 from filament_tracker.decoder.synthetic import SyntheticTag
+from filament_tracker.domain.enums import Role
+from filament_tracker.main import create_app
 
 
 def test_registration_returns_a_token_once_and_stores_only_its_hash(
@@ -178,3 +194,50 @@ def test_heartbeats_are_validated(client: TestClient, token: str) -> None:
     ):
         response = client.post("/api/v1/devices/heartbeat", json=body, headers=bearer(token))
         assert response.status_code == 422, body
+
+
+# --- Provisioning -------------------------------------------------------------------------
+
+SALT = "00112233445566778899AABBCCDDEEFF"  # made up; the real constant is never in the repo
+
+
+def salted_app(db_url: str, salt: str | None = SALT) -> FastAPI:
+    settings = Settings(
+        database_url=db_url, admin_token=ADMIN_TOKEN, bambu_kdf_salt=salt, _env_file=None
+    )
+    return create_app(settings)
+
+
+def test_a_device_gets_the_kdf_salt(db_url: str) -> None:
+    with TestClient(salted_app(db_url), base_url=BASE_URL, client=LAN_CLIENT) as client:
+        response = client.get("/api/v1/devices/provisioning", headers=bearer(register(client)))
+
+    assert response.status_code == 200
+    assert response.json() == {"kdf_salt": SALT}
+    assert response.headers["cache-control"] == "no-store"
+
+
+def test_the_salt_is_only_for_devices(db_url: str, caplog: pytest.LogCaptureFixture) -> None:
+    app = salted_app(db_url)
+    with TestClient(app, base_url=BASE_URL, client=LAN_CLIENT) as client:
+        token = register(client)
+        url = "/api/v1/devices/provisioning"
+        assert client.get(url).status_code == 401
+        assert client.get(url, headers=admin()).status_code == 403
+        assert signed_in(app, Role.ADMIN).get(url).status_code == 401
+        outside = browser(app, INTERNET_CLIENT)
+        assert outside.get(url, headers=bearer(token)).status_code == 403
+        client.delete("/api/v1/devices/scanner-1", headers=admin())
+        assert client.get(url, headers=bearer(token)).status_code == 401
+        for path in ("/api/v1/devices", "/api/v1/health"):
+            assert SALT not in client.get(path, headers=admin()).text
+
+    assert SALT not in caplog.text
+
+
+def test_without_a_salt_provisioning_is_unavailable(db_url: str) -> None:
+    with TestClient(salted_app(db_url, None), base_url=BASE_URL, client=LAN_CLIENT) as client:
+        response = client.get("/api/v1/devices/provisioning", headers=bearer(register(client)))
+
+    assert response.status_code == 503
+    assert "BAMBU_KDF_SALT" in response.json()["detail"]

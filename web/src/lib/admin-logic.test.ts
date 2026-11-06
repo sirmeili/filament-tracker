@@ -2,6 +2,13 @@ import { describe, expect, it } from "vitest";
 import { dayLabel, groupByDay, SOURCE_FILTERS, timeOfDay } from "#lib/activity.ts";
 import { ago, deviceId, DEVICE_ID_PATTERN, deviceStatus, seenText } from "#lib/devices.ts";
 import { blankIsNull, emptyEntry, entryProblem, rgbaOf } from "#lib/manual-entry.ts";
+import {
+  normalizeUrl,
+  PAIRING_VERSION,
+  pairingPayload,
+  qrPath,
+  serverUrlError,
+} from "#lib/pairing.ts";
 import { passwordMeterText, passwordOk, passwordProgress } from "#lib/password.ts";
 import { flaggedText, spoolName, tagText } from "#lib/review.ts";
 import {
@@ -221,5 +228,41 @@ describe("printers", () => {
       [0, 2],
       [1, 1],
     ]);
+  });
+});
+
+describe("pairing", () => {
+  it("accepts http and https addresses only", () => {
+    expect(serverUrlError("https://filament.example.com")).toBeNull();
+    expect(serverUrlError(" http://192.168.1.20:8000/ ")).toBeNull();
+    expect(serverUrlError("filament.example.com")).toMatch(/full address/);
+    expect(serverUrlError("ftp://host")).toMatch(/http:\/\/ or https:\/\//);
+    expect(serverUrlError("https://me:pw@host")).toMatch(/user name/);
+    expect(serverUrlError("https://host/?x=1")).toMatch(/\? or #/);
+    expect(serverUrlError("https://host/#a")).toMatch(/\? or #/);
+  });
+
+  it("stores the address without a trailing slash", () => {
+    expect(normalizeUrl("https://Host.example.com/")).toBe("https://host.example.com");
+    expect(normalizeUrl(" http://10.0.0.5:8000/tracker// ")).toBe("http://10.0.0.5:8000/tracker");
+  });
+
+  it("puts the version, address and token in the code", () => {
+    expect(JSON.parse(pairingPayload("https://host/", "ft_dev_x"))).toEqual({
+      v: PAIRING_VERSION,
+      url: "https://host",
+      token: "ft_dev_x",
+    });
+  });
+
+  it("draws the code as one path with a border", () => {
+    const small = qrPath("hi");
+    expect(small.size).toBe(21 + 4); // version 1 plus a 2-module border
+    expect(small.path).toMatch(/^(M\d+ \d+h1v1h-1z)+$/);
+    expect(small.path).not.toContain("M0 0"); // the border is light
+    expect(qrPath("hi")).toEqual(small);
+    expect(qrPath(pairingPayload("https://host", `ft_dev_${"a".repeat(43)}`)).size).toBeGreaterThan(
+      small.size,
+    );
   });
 });

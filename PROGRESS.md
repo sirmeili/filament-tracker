@@ -30,20 +30,20 @@
 - M5 part 1, reading AMS reports into spools, slots and likely-empty suggestions, merged (PR #20).
 - M5 part 2, the MQTT link with certificate pinning and the fake printer, merged (PR #21).
 - M5 part 3, the printer pages: Printers on Devices, likely-empty Dismiss on Review, the AMS slot on spools, merged (PR #22).
+- M5 part 4, checked against the real P1S, AMS HT units and `ft-printer check`, merged (PR #23). **M5 complete.**
 - M2 part 7, the Review, Activity, Devices, Users and Account pages, manual entry, Review Bring back, the scanner heartbeat and the Activity source filter, merged (PR #18). **M2 complete.**
 - M2 plan approved: seven branches (spec, users and auth, read API, write API, web foundation, stock pages, admin pages).
 - M1 plan approved: five branches merged in order (decoder, data model, event log, `/scans` API, scan simulator).
 
 ## In progress
 
-- M5, the printer link. Plan approved: four branches (AMS ingest, MQTT client with the fake printer, printer pages, check against the real P1S). Decisions: the printer certificate is pinned on first connect, data comes over direct MQTT (which also works through an MQTT proxy), and Spool detail and the Spools table show the AMS slot.
-- `feature/m5-p1s-check` (M5 part 4): checked against the real P1S. The link pins its certificate, reads every slot, and records Opened and remaining % for each tagged spool. The AMS `tray_uuid` equals the tag's tray UID (checked against a scanned spool). New: AMS HT units (unit IDs from 128, one slot) are read and shown as "AMS HT 1"; `ft-printer check` to inspect a real printer without printing identifiers; a P1S report captured with its identifiers replaced as a test fixture; `server/.env.example`; a manual checklist in `server/README.md`.
-  - Still open: how the AMS reports a non-Bambu spool (none was loaded).
-  - Next: review by the owner, then the PR. That completes M5; M8 (the phone scanner) is next.
+- M8, the phone scanner. Plan approved: four branches (provisioning and the pairing QR code, the app logic in the web app, the Android app with its NFC plugin, a check on the owner's phone). Android Studio is installed (winget, 2026.2.2.8, bundled JDK 25); its first-run setup downloads the Android SDK.
+- `feature/provisioning` (M8 part 1): the `BAMBU_KDF_SALT` setting (hex, never logged, and setting errors no longer echo their input), `GET /devices/provisioning` for device tokens from the LAN, `ft-sim check-salt` to confirm the salt against saved dumps without printing keys, and a pairing QR code on the Devices token panel (new dev dependency `uqr` 0.1.3: no dependencies, no known advisories).
+  - Next: review by the owner, then the PR. Then part 2, the app logic.
 
 ## Next
 
-- M8 needs JDK 21 and the Android SDK (Android Studio is the easiest way to get both); neither is installed on the development PC yet.
+- M8 part 3 needs the Android SDK: open Android Studio once so its setup wizard downloads it. The build will use Android Studio's bundled JDK (25) unless the Android Gradle plugin needs 21.
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
 
 ## Decisions
@@ -115,6 +115,8 @@
 - 2026-11-05: Web mockups decisions (user): build per-spool % left on Inventory, grams left, the AMS slot strip, Review "Bring back" for Accept and dismiss, a password length meter, role descriptions, and a Light/Dark/System theme choice. The nearly-out cutoff is per product (`nearly_out_pct`, default 15). No backdating field in the UI. Fonts are bundled because the CSP blocks Google Fonts.
 - 2026-11-06: On a P1S the AMS reports the tag's tray UID as `tray_uuid`, so spools are matched by tray UID as planned. Its `tag_uid` starts with the tag's 4-byte UID and is not used.
 - 2026-11-06: AMS HT units are supported (approved by the owner): unit IDs from 128 with one slot, shown as "AMS HT n". The external spool holder is not read.
+- 2026-11-06: The pairing QR code holds `{"v": 1, "url": ..., "token": ...}`, drawn as SVG from the `uqr` module matrix (no HTML strings, so the CSP is unchanged). The server address defaults to the one the admin is using.
+- 2026-11-06: `BAMBU_KDF_SALT` is not generated: it is the published key-derivation constant. `ft-sim check-salt` confirms it by re-deriving the keys stored in a dump's sector trailers.
 
 ## Open questions
 

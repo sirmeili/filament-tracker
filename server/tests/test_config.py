@@ -112,3 +112,48 @@ def test_bad_printers_are_refused(monkeypatch: pytest.MonkeyPatch, printers: str
 
     with pytest.raises((ValidationError, SettingsError)):
         Settings(_env_file=None)
+
+
+SALT = "00112233445566778899aabbccddeeff"  # made up; the real constant is never in the repo
+
+
+def test_the_kdf_salt_is_hex_normalised_and_hidden(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("BAMBU_KDF_SALT", f" {SALT} ")
+
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
+
+    assert settings.bambu_kdf_salt is not None
+    assert settings.bambu_kdf_salt.get_secret_value() == SALT.upper()
+    assert SALT.upper() not in repr(settings) and SALT not in repr(settings)
+
+
+def test_an_empty_kdf_salt_is_unset(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("BAMBU_KDF_SALT", "")
+
+    assert Settings(_env_file=None).bambu_kdf_salt is None  # type: ignore[call-arg]
+
+
+@pytest.mark.parametrize("value", ["xyz123", "abc", "ab" * 65])
+def test_a_bad_kdf_salt_is_refused_without_echoing_it(
+    monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    monkeypatch.setenv("BAMBU_KDF_SALT", value)
+
+    with pytest.raises(ValidationError) as error:
+        Settings(_env_file=None)  # type: ignore[call-arg]
+
+    assert "must be hex" in str(error.value)
+    assert value not in str(error.value)
+
+
+def test_a_bad_printer_entry_does_not_echo_the_access_code(monkeypatch: pytest.MonkeyPatch) -> None:
+    code = "secret-access-code"
+    monkeypatch.setenv(
+        "PRINTERS",
+        f'[{{"name": "P1S", "host": "h", "serial": "bad serial!", "access_code": "{code}"}}]',
+    )
+
+    with pytest.raises(ValidationError) as error:
+        Settings(_env_file=None)  # type: ignore[call-arg]
+
+    assert code not in str(error.value)

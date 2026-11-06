@@ -107,6 +107,10 @@ class Heartbeat(Strict):
     queue_length: Annotated[int, Field(ge=0, le=100_000)]
 
 
+class Provisioning(BaseModel):
+    kdf_salt: str = Field(description="The tag key-derivation constant, as upper-case hex")
+
+
 class DeviceCreated(DeviceOut):
     token: str = Field(description="Shown once; only a hash is stored.")
 

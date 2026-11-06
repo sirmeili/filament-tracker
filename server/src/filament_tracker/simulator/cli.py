@@ -3,6 +3,7 @@
     ft-sim generate black-pla.bin [--color 000000FF ...]
     ft-sim scan black-pla.bin --action received
     ft-sim scan C:\\tag-dumps\\*.zip --action lookup
+    ft-sim check-salt C:\\tag-dumps\\*.zip
 
 The server, token and device ID come from options or from the FT_SERVER, FT_TOKEN and
 FT_DEVICE_ID environment variables. Output never includes tag or tray UIDs.
@@ -19,9 +20,11 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
+from filament_tracker.config import Settings
+from filament_tracker.decoder.keys import SECTORS, matching_keys
 from filament_tracker.decoder.synthetic import SyntheticTag
 from filament_tracker.simulator.client import Transport, http_transport, post_scan, scan_payload
-from filament_tracker.simulator.dumps import DumpError, load_dump
+from filament_tracker.simulator.dumps import DumpError, load_dump, load_image
 
 ACTIONS = ["lookup", "received", "opened", "empty"]
 DEFAULT_SERVER = "http://localhost:8000"
@@ -53,14 +56,46 @@ def build_parser() -> argparse.ArgumentParser:
     generate.add_argument("--detailed-type", default="PLA Basic")
     generate.add_argument("--color", default="000000FF", help="RGBA hex")
     generate.add_argument("--force", action="store_true", help="overwrite an existing file")
+
+    salt = commands.add_parser(
+        "check-salt", help="check BAMBU_KDF_SALT against the keys in saved dumps"
+    )
+    salt.add_argument("dumps", nargs="+", type=Path, help=".bin images or BambuTagScanner ZIPs")
     return parser
 
 
-def main(argv: Sequence[str] | None = None, transport: Transport = http_transport) -> int:
+def main(
+    argv: Sequence[str] | None = None,
+    transport: Transport = http_transport,
+    settings: Settings | None = None,
+) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "generate":
         return _generate(args)
+    if args.command == "check-salt":
+        return _check_salt(args, settings or Settings())
     return _scan(args, transport)
+
+
+def _check_salt(args: argparse.Namespace, settings: Settings) -> int:
+    """Say whether the salt reproduces each dump's keys. Prints no keys, UIDs or names."""
+    if settings.bambu_kdf_salt is None:
+        print("Set BAMBU_KDF_SALT (in server/.env) first.", file=sys.stderr)
+        return 2
+    salt = bytes.fromhex(settings.bambu_kdf_salt.get_secret_value())
+    all_match = True
+    for number, path in enumerate(_expand(args.dumps), start=1):
+        try:
+            _, image = load_image(path)
+        except DumpError as exc:
+            print(f"dump {number}: cannot read: {exc}", file=sys.stderr)
+            all_match = False
+            continue
+        matched = matching_keys(image, salt)
+        all_match = all_match and matched == SECTORS
+        print(f"dump {number}: {matched} of {SECTORS} sector keys match")
+    print("BAMBU_KDF_SALT is correct." if all_match else "BAMBU_KDF_SALT does not match.")
+    return 0 if all_match else 1
 
 
 def _generate(args: argparse.Namespace) -> int:

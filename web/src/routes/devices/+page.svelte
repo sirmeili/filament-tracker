@@ -173,7 +173,12 @@
   {/if}
 
   {#if shown}
-    <TokenPanel name={shown.name} token={shown.token} ondone={() => (shown = null)} />
+    <TokenPanel
+      name={shown.name}
+      token={shown.token}
+      origin={window.location.origin}
+      ondone={() => (shown = null)}
+    />
   {/if}
   {#if message}<p role="status" class="muted">{message}</p>{/if}
 
