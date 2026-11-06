@@ -31,6 +31,7 @@
 - M5 part 2, the MQTT link with certificate pinning and the fake printer, merged (PR #21).
 - M5 part 3, the printer pages: Printers on Devices, likely-empty Dismiss on Review, the AMS slot on spools, merged (PR #22).
 - M5 part 4, checked against the real P1S, AMS HT units and `ft-printer check`, merged (PR #23). **M5 complete.**
+- M8 part 1, `BAMBU_KDF_SALT`, `/devices/provisioning`, `ft-sim check-salt` and the pairing QR code, merged (PR #24).
 - M2 part 7, the Review, Activity, Devices, Users and Account pages, manual entry, Review Bring back, the scanner heartbeat and the Activity source filter, merged (PR #18). **M2 complete.**
 - M2 plan approved: seven branches (spec, users and auth, read API, write API, web foundation, stock pages, admin pages).
 - M1 plan approved: five branches merged in order (decoder, data model, event log, `/scans` API, scan simulator).
@@ -38,8 +39,8 @@
 ## In progress
 
 - M8, the phone scanner. Plan approved: four branches (provisioning and the pairing QR code, the app logic in the web app, the Android app with its NFC plugin, a check on the owner's phone). Android Studio is installed (winget, 2026.2.2.8, bundled JDK 25); its first-run setup downloads the Android SDK.
-- `feature/provisioning` (M8 part 1): the `BAMBU_KDF_SALT` setting (hex, never logged, and setting errors no longer echo their input), `GET /devices/provisioning` for device tokens from the LAN, `ft-sim check-salt` to confirm the salt against saved dumps without printing keys, and a pairing QR code on the Devices token panel (new dev dependency `uqr` 0.1.3: no dependencies, no known advisories).
-  - Next: review by the owner, then the PR. Then part 2, the app logic.
+- `feature/phone-app-core` (M8 part 2): the phone app's logic in the web app, tested without Android. A bridge interface for the native parts (NFC, encrypted storage, camera) that part 3 implements; pairing from the QR code (now with the device ID) or typed details; the device API with the device token; an offline decoder ported from the server's (checked against fixtures the server's decoder generated); an offline queue (100 events, backoff from 5 s to 5 min); the Scan flow (15 s choice, one event for a repeat within 30 s, offline choices queued, Undo of the last scan); a heartbeat every 5 minutes; the Scan and Pairing pages; and the API client pointed at the paired server in the app.
+  - Next: review by the owner, then the PR. Then part 3, the Android app.
 
 ## Next
 
@@ -117,6 +118,8 @@
 - 2026-11-06: AMS HT units are supported (approved by the owner): unit IDs from 128 with one slot, shown as "AMS HT n". The external spool holder is not read.
 - 2026-11-06: The pairing QR code holds `{"v": 1, "url": ..., "token": ...}`, drawn as SVG from the `uqr` module matrix (no HTML strings, so the CSP is unchanged). The server address defaults to the one the admin is using.
 - 2026-11-06: `BAMBU_KDF_SALT` is not generated: it is the published key-derivation constant. `ft-sim check-salt` confirms it by re-deriving the keys stored in a dump's sector trailers.
+- 2026-11-06: The pairing QR code also holds the device ID (owner's choice over a new `/devices/me` route), because the server refuses a scan whose `device_id` does not match its token.
+- 2026-11-06: In the app, Scan and Pairing need no user sign-in (the phone is a scanner, and before pairing there is no server to sign in to); the rest of the web app signs in as usual against the paired server.
 
 ## Open questions
 

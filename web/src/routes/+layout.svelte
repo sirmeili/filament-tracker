@@ -10,6 +10,7 @@
   import Forbidden from "#lib/components/Forbidden.svelte";
   import Header from "#lib/components/Header.svelte";
   import { requiredRole } from "#lib/nav.ts";
+  import { isPhonePath, phone } from "#lib/phone/phone-state.svelte.ts";
   import { reviewBadge } from "#lib/review-badge.svelte.ts";
   import { theme } from "#lib/theme.svelte.ts";
 
@@ -27,12 +28,34 @@
     }
   }
 
+  // In the phone app, Scan and Pairing work without signing in (the phone is a scanner),
+  // and until the phone is paired there is no server to sign in to.
+  const phonePage = $derived(phone.app && (isPhonePath(page.url.pathname) || !phone.paired));
+  let openedAt = page.url.pathname;
+
   $effect(() => {
-    if (!session.loaded) void load();
+    if (phone.app && !phone.loaded) void phone.load();
+  });
+
+  $effect(() => {
+    if (!phone.app || !phone.loaded) return;
+    if (!phone.paired && page.url.pathname !== "/pair") {
+      void goto("/pair", { replaceState: true });
+    } else if (phone.paired && openedAt === "/") {
+      // The app opens on Scan; the rest of the web app is a link away.
+      openedAt = "";
+      void goto("/scan", { replaceState: true });
+    }
+  });
+
+  $effect(() => {
+    if (phone.app && !phone.loaded) return;
+    if (!phonePage && !session.loaded) void load();
   });
 
   // Send signed-out visitors to the sign-in page, and signed-in ones away from it.
   $effect(() => {
+    if (phonePage) return;
     const target = guardRedirect(page.url, session.user, session.loaded, session.expired);
     if (target) void goto(target, { replaceState: true });
   });
@@ -44,9 +67,14 @@
   });
 </script>
 
-{#if page.url.pathname === LOGIN_PATH}
+{#if phone.app && !phone.loaded}
+  <main class="centered"><p class="muted">Loading…</p></main>
+{:else if phonePage}
+  <main>{@render children()}</main>
+{:else if page.url.pathname === LOGIN_PATH}
   <main class="centered">{@render children()}</main>
 {:else if session.user}
+  {#if phone.app}<a class="to-scan" href="/scan">Back to Scan</a>{/if}
   <Header
     user={session.user}
     pathname={page.url.pathname}
@@ -70,6 +98,13 @@
 {/if}
 
 <style>
+  .to-scan {
+    display: block;
+    padding: 10px 24px;
+    font-weight: 600;
+    background: var(--chip);
+  }
+
   main {
     max-width: 1240px;
     margin: 0 auto;
