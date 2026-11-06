@@ -3,7 +3,7 @@ import { ApiError } from "#lib/api/client.ts";
 import { checkPairing, parsePairing } from "#lib/pairing.ts";
 import { browserBridge, bridge, setBridge } from "#lib/phone/bridge.ts";
 import { NFC_MESSAGES, stateText } from "#lib/phone/card-text.ts";
-import { DeviceApi, isOffline, scanEvent } from "#lib/phone/device-api.ts";
+import { DeviceApi, isOffline, REQUEST_TIMEOUT_MS, scanEvent } from "#lib/phone/device-api.ts";
 import { forgetPairing, loadPairing, loadSalt, savePairing } from "#lib/phone/pairing-store.ts";
 import { backoff, BACKOFF_MAX_MS, OfflineQueue, QUEUE_LIMIT } from "#lib/phone/queue.ts";
 import type { Card } from "#lib/phone/scan-flow.ts";
@@ -168,6 +168,40 @@ describe("device API", () => {
     });
     await expect(api.provisioning()).rejects.toMatchObject({ status: 503, message: "no salt" });
     await expect(api.heartbeat("1", 0)).rejects.toMatchObject({ status: 500 });
+  });
+
+  it("gives up on a server that never answers", async () => {
+    vi.useFakeTimers();
+    let signal: AbortSignal | undefined;
+    const hang = ((_url: RequestInfo | URL, init?: RequestInit) => {
+      signal = init?.signal ?? undefined;
+      return new Promise<Response>(() => {});
+    }) as typeof globalThis.fetch;
+
+    const lookup = new DeviceApi(PAIRING, hang).scan(scanEvent(PAIRING, tagRead(), "lookup", "1"));
+    const settled = expect(lookup).rejects.toMatchObject({ status: 0 });
+    await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS - 1);
+    expect(signal?.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await settled;
+    expect(signal?.aborted).toBe(true);
+    vi.useRealTimers();
+  });
+
+  it("gives up on an answer whose body never arrives", async () => {
+    vi.useFakeTimers();
+    const slowBody = (async () =>
+      ({
+        ok: true,
+        status: 200,
+        text: () => new Promise<string>(() => {}),
+      }) as Response) as typeof globalThis.fetch;
+
+    const heartbeat = new DeviceApi(PAIRING, slowBody).heartbeat("1", 0);
+    const settled = expect(heartbeat).rejects.toMatchObject({ status: 0 });
+    await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS);
+    await settled;
+    vi.useRealTimers();
   });
 
   it("reads non-JSON error bodies", async () => {

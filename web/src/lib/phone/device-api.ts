@@ -69,6 +69,9 @@ export function scanEvent(
   };
 }
 
+/** How long the phone waits for the server before treating it as offline. */
+export const REQUEST_TIMEOUT_MS = 5000;
+
 /** True when a request never got an answer, so it is worth queueing and retrying. */
 export function isOffline(error: unknown): boolean {
   return error instanceof ApiError && (error.status === 0 || error.status >= 500);
@@ -110,13 +113,7 @@ export class DeviceApi {
       headers["Content-Type"] = "application/json";
       init.body = JSON.stringify(body);
     }
-    let response: Response;
-    try {
-      response = await this.fetchFn(this.pairing.url + API_PREFIX + path, init);
-    } catch {
-      throw new ApiError(0, "Cannot reach the server");
-    }
-    const text = await response.text();
+    const { response, text } = await this.send(this.pairing.url + API_PREFIX + path, init);
     let parsed: unknown;
     try {
       parsed = text ? JSON.parse(text) : undefined;
@@ -130,5 +127,36 @@ export class DeviceApi {
       );
     }
     return parsed as T;
+  }
+
+  /**
+   * Fetch with a time limit. A server that is down behind a firewall, or a phone that has
+   * left the Wi-Fi, may never answer at all; the scan must still fall back to offline.
+   * Racing the timer works even where native HTTP ignores the abort signal.
+   */
+  private async send(
+    url: string,
+    init: RequestInit,
+  ): Promise<{ response: Response; text: string }> {
+    const abort = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        abort.abort();
+        reject(new Error("timed out"));
+      }, REQUEST_TIMEOUT_MS);
+    });
+    const answer = (async () => {
+      const response = await this.fetchFn(url, { ...init, signal: abort.signal });
+      return { response, text: await response.text() };
+    })();
+    try {
+      return await Promise.race([answer, timeout]);
+    } catch {
+      throw new ApiError(0, "Cannot reach the server");
+    } finally {
+      clearTimeout(timer);
+      answer.catch(() => {});
+    }
   }
 }

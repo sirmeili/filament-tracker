@@ -1,6 +1,8 @@
 package io.github.sirmeili.filamenttracker
 
 import android.app.Activity
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.nfc.tech.MifareClassic
@@ -33,6 +35,11 @@ class FilamentTrackerPlugin : Plugin() {
     private var pending: PluginCall? = null
     private var salt: ByteArray? = null
 
+    private companion object {
+        const val TONE_VOLUME = 80
+        const val TONE_MS = 150
+    }
+
     @PluginMethod
     fun appInfo(call: PluginCall) {
         val info = context.packageManager.getPackageInfo(context.packageName, 0)
@@ -57,6 +64,7 @@ class FilamentTrackerPlugin : Plugin() {
             runCatching { Hex.decode(call.getString("salt").orEmpty()) }.getOrNull()
                 ?.takeIf { it.isNotEmpty() }
                 ?: return call.reject("salt must be hex")
+        if (NfcAdapter.getDefaultAdapter(context) == null) return call.reject("no NFC")
         synchronized(this) {
             pending?.reject("replaced by a newer read")
             call.setKeepAlive(true)
@@ -68,20 +76,24 @@ class FilamentTrackerPlugin : Plugin() {
 
     @PluginMethod
     fun cancelRead(call: PluginCall) {
-        finish()?.reject("cancelled")
+        take()?.reject("cancelled")
         call.resolve()
     }
 
+    /**
+     * Reader mode stays on while the app is in front, and tags that arrive while no read is
+     * waiting are ignored. Android reports a tag once when it comes near, so a spool left on
+     * the phone is not read again; it has to be lifted and tapped. Reader mode also keeps
+     * Android's own tag handling away, and its "tag found" sound is off: that sound plays
+     * before the read is done, so the app beeps only once the whole tag has been read.
+     */
     private fun startReader(activity: Activity) {
-        val adapter = NfcAdapter.getDefaultAdapter(activity)
-        if (adapter == null) {
-            finish()?.reject("no NFC")
-            return
-        }
-        adapter.enableReaderMode(
+        NfcAdapter.getDefaultAdapter(activity)?.enableReaderMode(
             activity,
             ::onTag,
-            NfcAdapter.FLAG_READER_NFC_A or NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK,
+            NfcAdapter.FLAG_READER_NFC_A or
+                NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK or
+                NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS,
             null,
         )
     }
@@ -94,9 +106,10 @@ class FilamentTrackerPlugin : Plugin() {
                 TagReader.read(AndroidMifare(mifare), key)
             }
         // A failed read (tag pulled away, wrong tag) rejects; the Scan page asks again.
-        val call = finish() ?: return
+        val call = take() ?: return
         result.fold(
             onSuccess = { read ->
+                beep(ToneGenerator.TONE_PROP_ACK)
                 call.resolve(
                     JSObject()
                         .put("tagUid", read.tagUid)
@@ -104,12 +117,24 @@ class FilamentTrackerPlugin : Plugin() {
                         .put("readOk", read.readOk),
                 )
             },
-            onFailure = { call.reject("tag read failed") },
+            onFailure = {
+                beep(ToneGenerator.TONE_PROP_NACK)
+                call.reject("tag read failed")
+            },
         )
     }
 
-    /** Take the waiting call, if any, and stop listening for tags. */
-    private fun finish(): PluginCall? {
+    private var tones: ToneGenerator? = null
+
+    private fun beep(tone: Int) {
+        runCatching {
+            val generator = tones ?: ToneGenerator(AudioManager.STREAM_NOTIFICATION, TONE_VOLUME).also { tones = it }
+            generator.startTone(tone, TONE_MS)
+        }
+    }
+
+    /** Take the waiting call, if any. Reader mode stays on. */
+    private fun take(): PluginCall? {
         val call =
             synchronized(this) {
                 val current = pending
@@ -117,21 +142,24 @@ class FilamentTrackerPlugin : Plugin() {
                 salt = null
                 current
             }
-        activity?.let { a ->
-            a.runOnUiThread { NfcAdapter.getDefaultAdapter(a)?.disableReaderMode(a) }
-        }
         call?.setKeepAlive(false)
         return call
     }
 
     override fun handleOnResume() {
         super.handleOnResume()
-        if (synchronized(this) { pending } != null) startReader(activity)
+        startReader(activity)
     }
 
     override fun handleOnPause() {
         NfcAdapter.getDefaultAdapter(activity)?.disableReaderMode(activity)
         super.handleOnPause()
+    }
+
+    override fun handleOnDestroy() {
+        tones?.release()
+        tones = null
+        super.handleOnDestroy()
     }
 
     @PluginMethod

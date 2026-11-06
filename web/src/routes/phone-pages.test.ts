@@ -174,7 +174,7 @@ describe("pairing page", () => {
     await userEvent.click(screen.getByRole("button", { name: "Pair" }));
 
     await waitFor(() => expect(phone.paired).toBe(true));
-  });
+  }, 15_000); // types a full token
 
   it("explains a server that has no tag key constant", async () => {
     vi.stubGlobal(
@@ -269,6 +269,42 @@ describe("scan page", () => {
     native.fail();
 
     await waitFor(() => expect(native.reads).toBe(before + 1));
+  });
+
+  it("reads one spool at a time, listening again once it is dealt with", async () => {
+    await paired();
+    render(ScanPage);
+    await screen.findByText("Tap a spool on the back of the phone.");
+    expect(native.reads).toBe(1);
+
+    native.tap(tagRead(tags[0].blocks));
+    await userEvent.click(await screen.findByRole("button", { name: "Opened" }));
+    await screen.findByText("Recorded Opened.");
+    expect(native.reads).toBe(1); // not listening while the spool is on screen
+
+    await userEvent.click(screen.getByRole("button", { name: "Done" }));
+    await waitFor(() => expect(native.reads).toBe(2));
+  });
+
+  it("notices NFC being turned on without a restart", async () => {
+    native.status = "nfc_off";
+    await paired();
+    render(ScanPage);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/NFC/);
+
+    native.status = "ready";
+    document.dispatchEvent(new Event("visibilitychange")); // back from Android settings
+    expect(await screen.findByText("Tap a spool on the back of the phone.")).toBeInTheDocument();
+  });
+
+  it("starts a fresh read when the app comes back to the front", async () => {
+    await paired();
+    render(ScanPage);
+    await screen.findByText("Tap a spool on the back of the phone.");
+
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    await waitFor(() => expect(native.reads).toBe(2));
   });
 
   it("explains a phone that cannot read Bambu tags", async () => {

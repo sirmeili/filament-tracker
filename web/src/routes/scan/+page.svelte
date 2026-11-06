@@ -4,28 +4,46 @@
   import { bridge, type NfcStatus } from "#lib/phone/bridge.ts";
   import { NFC_MESSAGES } from "#lib/phone/card-text.ts";
   import { phone } from "#lib/phone/phone-state.svelte.ts";
+  import { pause } from "#lib/phone/pause.ts";
   import type { FlowView } from "#lib/phone/scan-flow.ts";
+
+  /** How often to check NFC again while it is off. */
+  const NFC_RECHECK_MS = 2000;
 
   let nfc = $state<NfcStatus | null>(null);
   let view = $state<FlowView | null>(null);
 
-  // Keep the phone listening for tags while this screen is open.
+  // Listen for one tag at a time: after a read, wait until the spool has been dealt with
+  // (an action chosen, Done, or the timeout) before listening again, so a spool left on the
+  // phone is not read over and over. While NFC is off, check again every few seconds, and
+  // whenever the app comes back to the front, so turning NFC on needs no restart.
   $effect(() => {
     const session = phone.session;
     if (!session) return;
     const stop = new AbortController();
+    let attempt = new AbortController();
     const unsubscribe = session.flow.subscribe((next) => (view = next));
+    const onVisible = () => {
+      if (document.visibilityState === "visible") attempt.abort();
+    };
+    document.addEventListener("visibilitychange", onVisible);
 
     async function listen(): Promise<void> {
-      nfc = await bridge().nfcStatus();
-      while (nfc === "ready" && !stop.signal.aborted) {
+      while (!stop.signal.aborted) {
+        attempt = new AbortController();
+        const signal = AbortSignal.any([stop.signal, attempt.signal]);
+        nfc = await bridge().nfcStatus();
+        if (nfc !== "ready") {
+          await pause(NFC_RECHECK_MS, signal);
+          continue;
+        }
         try {
-          const read = await bridge().readTag(session!.salt, stop.signal);
-          if (!stop.signal.aborted) await session!.flow.tapped(read);
-        } catch {
+          const read = await bridge().readTag(session!.salt, signal);
           if (stop.signal.aborted) return;
-          // A tag pulled away mid-read: keep listening for the next tap.
-          nfc = await bridge().nfcStatus();
+          await session!.flow.tapped(read);
+          await session!.flow.whenIdle(stop.signal);
+        } catch {
+          // A tag pulled away mid-read, or the app came back to the front: listen again.
         }
       }
     }
@@ -34,6 +52,7 @@
     return () => {
       stop.abort();
       unsubscribe();
+      document.removeEventListener("visibilitychange", onVisible);
     };
   });
 

@@ -295,6 +295,29 @@ describe("scan flow", () => {
     expect(listener).not.toHaveBeenCalled();
   });
 
+  it("says when the screen is back to waiting for a tap", async () => {
+    const { flow } = await setup(async () => result());
+    const never = new AbortController();
+    await flow.whenIdle(never.signal); // already idle
+
+    await flow.tapped(blackTag());
+    let idle = false;
+    const waiting = flow.whenIdle(never.signal).then(() => (idle = true));
+    await flow.choose("opened");
+    await Promise.resolve();
+    expect(idle).toBe(false); // showing the result
+    vi.advanceTimersByTime(RESULT_MS);
+    await waiting;
+    expect(idle).toBe(true);
+
+    await flow.tapped(blackTag());
+    const stop = new AbortController();
+    const stopped = flow.whenIdle(stop.signal);
+    stop.abort();
+    await stopped;
+    await flow.whenIdle(stop.signal); // already aborted
+  });
+
   it("shows an unknown spool from its lookup", async () => {
     const { flow } = await setup(async () =>
       result({ product: null, spool: null, state: "unknown", suggested: "received" }),
