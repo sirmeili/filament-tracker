@@ -32,7 +32,9 @@
 
 - `feature/web-pages-stock` (M2 part 6): the Inventory, Spools, Spool detail and Products pages, built from `docs/mockups/web/`. Plan approved, including a new `type` filter on `GET /spools` (now in the spec).
   - Done: backend. A migration adds `product.nearly_out_pct` (default 15, 0–100), which product create and edit accept. `GET /inventory` and `GET /products/{id}` list each open spool with its remaining % and a nearly-out flag. `GET /spools/{id}` adds `spool_weight_g` and `grams_left`. `GET /spools` filters by `type`.
-  - Next: theme tokens, bundled fonts, header with the theme control and account button, then the four pages.
+  - Done: web app look and pages. Mockup tokens in `app.css`; Space Grotesk, Inter and JetBrains Mono bundled from `@fontsource` (OFL, no advisories, no dependencies); a Light/Dark/System theme saved in the browser and applied before the page draws by a small script in `app.html` (its hash goes into the CSP like SvelteKit's); a header with pill nav, the Review count and an account button (Account left the nav links). Pages: Inventory (totals, type filter, low stock first, cards or list, a % bar per open spool), Spools (search, state and type filters, pages of 50, bulk move for Editors), Spool detail (actions, history with undo, % and grams left, location and notes, tag data) and Products (name, low-stock threshold and nearly-out %, saved together). Editor controls are hidden from Viewers.
+  - Tests: 8 new server tests (559 in all, 99.8% coverage); web unit tests 169 at 99.6% statements, 91.6% branches; 5 new end-to-end tests on seeded stock (11 in all).
+  - Next: the user's review, then the PR.
 
 ## Next
 
