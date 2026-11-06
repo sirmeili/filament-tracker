@@ -80,6 +80,8 @@ def handle_scan(session: Session, device: Device, scan: ScanEvent, now: datetime
     elif spool is None:
         spool = Spool(tray_uid=record.tray_uid, product=product)
         session.add(spool)
+    elif spool.product is not product:
+        _move_to_tag_product(session, spool, product)
     _keep_tag(session, scan, record, spool)
 
     result = append_event(
@@ -175,6 +177,17 @@ def _ensure_product(session: Session, product: Product | None, record: TagRecord
         product.color_rgba = record.color_rgba
         product.provisional = False
     return product
+
+
+def _move_to_tag_product(session: Session, spool: Spool, product: Product) -> None:
+    """A tag wins over the AMS's guess: the spool moves to the tag's product, and a
+    provisional product left with no spools is removed."""
+    previous = spool.product
+    spool.product = product
+    session.flush()
+    if previous.provisional and not previous.spools:
+        session.delete(previous)
+    logger.info("spool %s moved to product %s from its tag", spool.id, product.id)
 
 
 def _keep_tag(session: Session, scan: ScanEvent, record: TagRecord, spool: Spool) -> None:

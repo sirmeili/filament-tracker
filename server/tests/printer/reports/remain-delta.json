@@ -1,0 +1,10 @@
+{
+  "print": {
+    "command": "push_status",
+    "sequence_id": "2002",
+    "ams": {
+      "ams": [{ "id": "0", "tray": [{ "id": "0", "remain": 80 }] }],
+      "tray_exist_bits": "d"
+    }
+  }
+}

@@ -211,3 +211,18 @@ def unidentified_tags(session: Session) -> list[Tag]:
         .order_by(Tag.first_seen_at.desc(), Tag.id)
     )
     return list(session.scalars(query))
+
+
+def likely_empty(session: Session) -> list[Spool]:
+    """Open spools the AMS reports at 0%, unless the suggestion was dismissed."""
+    query = (
+        select(Spool)
+        .where(
+            Spool.state == SpoolState.OPEN,
+            Spool.remaining_pct == 0,
+            Spool.likely_empty_dismissed_at.is_(None),
+        )
+        .options(selectinload(Spool.product))
+        .order_by(Spool.opened_at, Spool.id)
+    )
+    return list(session.scalars(query))
