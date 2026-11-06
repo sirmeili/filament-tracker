@@ -31,6 +31,7 @@
 - M5 part 2, the MQTT link with certificate pinning and the fake printer, merged (PR #21).
 - M5 part 3, the printer pages: Printers on Devices, likely-empty Dismiss on Review, the AMS slot on spools, merged (PR #22).
 - M5 part 4, checked against the real P1S, AMS HT units and `ft-printer check`, merged (PR #23). **M5 complete.**
+- M6 part 1, Home Assistant entities through MQTT discovery (Total spools, Total open, Total sealed, Spools in review, Low filament), merged (PR #28).
 - M8 part 1, `BAMBU_KDF_SALT`, `/devices/provisioning`, `ft-sim check-salt` and the pairing QR code, merged (PR #24).
 - M8 part 4, the phone checklist on a Pixel 9 Pro XL and the fixes it found (no plugin data in the phone's log, loopback addresses refused, a 5 s request limit, one read at a time, a beep and buzz after a full read), merged (PR #27). **M8 complete.**
 - M8 part 3, the Android app with its Kotlin NFC plugin, Keystore storage, QR scanning and the Android CI job, merged (PR #26).
@@ -42,8 +43,8 @@
 ## In progress
 
 - M6, Home Assistant. Plan approved (2026-11-06): four branches (MQTT discovery entities; HA events and an example automation; an Admin Settings page for the Home Assistant settings, with secrets encrypted in the database; a check against the owner's Home Assistant, which uses the Mosquitto add-on).
-- `feature/ha-mqtt` (M6 part 1): `MQTT_URL`, `MQTT_USER`, `MQTT_PASSWORD` and `HA_DISCOVERY_PREFIX`; a publisher on its own thread that reads the stock every 5 s and publishes only what changed, retained, under one device "Filament Tracker": Total spools, Total open, Total sealed, Spools in review, and a Low filament binary sensor whose attributes list the low products (the owner chose these over per-product entities after trying them in Home Assistant). Retained entities the server no longer publishes are cleared. An availability topic with an `offline` will, so entities are unavailable while the server is down; everything is republished when Home Assistant restarts; reconnects with backoff; `/health` reports the link. Tested with a fake client and against a real Mosquitto (the test broker's new plain listener on 127.0.0.1:11883, `FT_HA_BROKER`, run in CI).
-  - Next: review by the owner, then the PR. Then part 2, HA events.
+- `feature/ha-events` (M6 part 2): `HA_URL` and `HA_TOKEN`; a sender on its own thread that reads the database every 5 s and fires `filament_tracker_spool_received`, `_spool_opened`, `_spool_emptied` (any source) and `filament_tracker_low_stock` (a product going low) through Home Assistant's REST API. Only events after the server starts; undone-before-fired events skipped; retries after 1, 4 and 15 s, then a warning; a refused token is not retried; redirects are not followed so the token only goes to `HA_URL`; `/health` reports events as `off`, `ready` or `failing`. Example automation in `docs/home-assistant/low-stock-automation.yaml` (shopping list and phone notification).
+  - Next: review by the owner, then the PR. Then part 3, the Admin Settings page.
 
 ## Next
 
@@ -52,6 +53,7 @@
 
 ## Decisions
 
+- 2026-11-06: Home Assistant events are found by reading new events from the database every 5 seconds, like the entities, so every source is covered; only events after the server starts are fired, so a restart never replays history into automations.
 - 2026-11-06: Home Assistant entities come from a 5-second snapshot of the database, published only when changed, because it covers every way stock changes without hooking each write path.
 - 2026-11-06: Home Assistant settings will also be editable on an Admin Settings page (owner's choice), with secrets encrypted in the database and `.env` values taking precedence.
 - 2026-11-06: Build the Android app with JDK 21, because Gradle 8.14 cannot run on Android Studio's bundled JDK 25.

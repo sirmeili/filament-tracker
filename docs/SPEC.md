@@ -347,8 +347,13 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 - While the server is stopped or cannot reach the broker, the entities are unavailable: the server publishes `online` and `offline` on an availability topic, with `offline` as its MQTT will.
 - When Home Assistant restarts (its `online` birth message), everything is published again.
 - `/health` reports the MQTT link as `off`, `connecting`, `connected` or `disconnected`.
-- Fire HA events through the REST API for automations: `filament_tracker_spool_received`, `_opened`, `_emptied`, `_low_stock`.
-- Example automation the user can build: on low stock, add the product to the shopping list and notify a phone.
+- Fire HA events through the REST API (`POST /api/events/<type>` with `HA_TOKEN`) for automations:
+  - `filament_tracker_spool_received`, `filament_tracker_spool_opened` and `filament_tracker_spool_emptied`, for each such event from any source (scanner, phone, web app, printer), with `event_id`, `spool_id`, `product_id`, `product`, `filament_type`, `color` (`#RRGGBB`), `state`, `source`, `flagged` and `occurred_at`;
+  - `filament_tracker_low_stock`, when a product goes from not low to low, with `product_id`, `product`, `filament_type`, `color`, `sealed` and `threshold`. It fires again only after the product has recovered and gone low again.
+- Events are read from the database every 5 seconds. Only events recorded after the server started are fired, so a restart never replays history. An event undone before it is fired is skipped; one undone later stays fired. Products already low when the server starts do not fire.
+- A failed request is retried after 1, 4 and 15 seconds and then dropped with a warning; a refused token (401 or 403) is not retried. Redirects are not followed, so the token is sent only to `HA_URL`.
+- `/health` reports events as `off` (no `HA_URL` and `HA_TOKEN`), `ready` or `failing` (the last event could not be sent).
+- Example automation, in `docs/home-assistant/low-stock-automation.yaml`: on low stock, add the product to the shopping list and notify a phone.
 - Any automations or scripts created for this project get the `Claude` label.
 
 **Spoolman (optional, later)**
@@ -373,7 +378,7 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 | `PRINTERS` | `[{"name": "P1S", "host": "192.168.1.40", "serial": "01P00A...", "access_code": "..."}]` | Printers to watch over MQTT, as a JSON list; each entry may also set `port` (default 8883). `host` and `port` may be an MQTT proxy's |
 | `MQTT_URL`, `MQTT_USER`, `MQTT_PASSWORD` | `mqtt://homeassistant.local:1883` | Home Assistant's MQTT broker, for discovery and state publishing; `mqtts://` for TLS. Unset: nothing is published. The URL must not hold the password |
 | `HA_DISCOVERY_PREFIX` | `homeassistant` | Home Assistant's MQTT discovery prefix |
-| `HA_URL`, `HA_TOKEN` | long-lived token | Firing HA events |
+| `HA_URL`, `HA_TOKEN` | `http://homeassistant.local:8123`, long-lived token | Home Assistant's address and a long-lived access token, for firing events. Unset: no events are fired. The URL must not hold a user name or password |
 | `TZ` | `America/New_York` | Timestamps in the UI |
 | `TRUSTED_NETWORKS` | `192.168.0.0/16,10.0.0.0/8` | LAN ranges allowed to use bearer tokens, scanner routes and API docs; defaults to the private ranges |
 | `FORWARDED_ALLOW_IPS` | `192.168.1.5` | Address of the reverse proxy whose `X-Forwarded-For` is trusted |

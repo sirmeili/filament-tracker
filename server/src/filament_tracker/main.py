@@ -22,7 +22,9 @@ from filament_tracker.config import Settings
 from filament_tracker.db.engine import create_db_engine, create_session_factory
 from filament_tracker.db.migrate import upgrade
 from filament_tracker.ha.broker import broker_config
+from filament_tracker.ha.events import HaEventSender
 from filament_tracker.ha.publisher import HaPublisher
+from filament_tracker.ha.rest import ha_rest
 from filament_tracker.printer.manager import PrinterManager
 from filament_tracker.services.throttle import LoginThrottle
 from filament_tracker.webapp import default_web_dir, mount_web_app
@@ -48,9 +50,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         app.state.home_assistant = home_assistant
         home_assistant.start()
+        ha_events = HaEventSender(ha_rest(settings), app.state.session_factory)
+        app.state.ha_events = ha_events
+        ha_events.start()
         try:
             yield
         finally:
+            ha_events.stop()
             home_assistant.stop()
             printer_links.stop()
             engine.dispose()

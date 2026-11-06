@@ -61,6 +61,27 @@ class Settings(BaseSettings):
         default="homeassistant", pattern=r"^[A-Za-z0-9_-]{1,64}(/[A-Za-z0-9_-]{1,64}){0,3}$"
     )
 
+    # Home Assistant itself, for firing events through its REST API, with a long-lived
+    # access token. Unset: no events are fired. The token is never logged.
+    ha_url: str | None = None
+    ha_token: SecretStr | None = None
+
+    @field_validator("ha_url")
+    @classmethod
+    def _ha_url(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        from filament_tracker.ha.rest import parse_ha_url
+
+        return parse_ha_url(value.strip())
+
+    @field_validator("ha_token")
+    @classmethod
+    def _blank_token(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is None or not value.get_secret_value().strip():
+            return None
+        return SecretStr(value.get_secret_value().strip())
+
     @field_validator("mqtt_url")
     @classmethod
     def _mqtt_url(cls, value: str | None) -> str | None:
