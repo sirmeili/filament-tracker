@@ -1,0 +1,362 @@
+/** The phone's Scan screen logic, mirroring the scanner (docs/SPEC.md, User workflows).
+ *
+ * Tap a spool: look it up, show the card and the actions for its state, wait up to 15
+ * seconds for a choice, send it, show the result for 3 seconds, then go back to waiting for
+ * a tap. The same action confirmed for the same spool within 30 seconds is sent once. When
+ * the server cannot be reached, the card comes from the phone's own decode, New, Opened and
+ * Empty are offered, and the choice is queued.
+ */
+
+import { ApiError } from "#lib/api/client.ts";
+import type { TagRead } from "#lib/phone/bridge.ts";
+import {
+  isOffline,
+  scanEvent,
+  type DeviceApi,
+  type Feedback,
+  type ScanAction,
+  type ScanResult,
+  type ScreenAction,
+} from "#lib/phone/device-api.ts";
+import type { Pairing } from "#lib/phone/pairing-store.ts";
+import type { OfflineQueue } from "#lib/phone/queue.ts";
+import { decodeOffline, offlineName } from "#lib/phone/tag-decode.ts";
+
+export const CHOICE_TIMEOUT_MS = 15_000;
+export const RESULT_MS = 3_000;
+export const REPEAT_WINDOW_MS = 30_000;
+const OFFLINE_ACTIONS: ScreenAction[] = ["received", "opened", "empty"];
+
+export type Phase = "idle" | "looking_up" | "choosing" | "sending" | "result";
+export type Tone = "ok" | "warn" | "error";
+
+export interface Card {
+  name: string;
+  colorRgba: string | null;
+  /** The spool's state, or null when unknown (a new tag, or offline). */
+  state: string | null;
+  receivedAt: string | null;
+  openedAt: string | null;
+  emptiedAt: string | null;
+  remainingPct: number | null;
+  spoolId: number | null;
+  placeholder: boolean;
+  offline: boolean;
+}
+
+export interface LastScan {
+  card: Card;
+  tagUid: string;
+  action: ScanAction;
+  eventId: string;
+  at: number;
+  queued: boolean;
+  undone: boolean;
+}
+
+export interface FlowView {
+  phase: Phase;
+  card: Card | null;
+  actions: (ScreenAction | null)[];
+  suggested: ScreenAction | null;
+  message: string | null;
+  tone: Tone;
+  last: LastScan | null;
+}
+
+type Api = Pick<DeviceApi, "scan" | "revert">;
+
+export interface FlowDeps {
+  api: Api;
+  queue: OfflineQueue;
+  pairing: Pairing;
+  appVersion: string;
+  now?: () => number;
+  newId?: () => string;
+}
+
+const ACTION_NAMES: Record<ScanAction, string> = {
+  received: "New",
+  opened: "Opened",
+  empty: "Empty",
+  lookup: "Lookup",
+};
+
+export function actionLabel(action: ScreenAction): string {
+  return action === "received" ? "New" : action[0].toUpperCase() + action.slice(1);
+}
+
+export function feedbackText(feedback: Feedback, action: ScanAction, state: string): string {
+  const name = ACTION_NAMES[action];
+  switch (feedback) {
+    case "ok":
+      return `Recorded ${name}.`;
+    case "ok_created":
+      return `Added as a new spool and recorded ${name}.`;
+    case "already_in_state":
+      return `Already ${state}. Nothing changed.`;
+    case "flagged":
+      return `Recorded ${name}, flagged for review.`;
+    case "unreadable":
+      return "Couldn't read this tag. Hold the phone still on it and try again.";
+    default:
+      return "The server couldn't record that.";
+  }
+}
+
+/** Why the server refused the phone, in words; null for anything else. */
+export function refusalText(error: unknown): string | null {
+  if (!(error instanceof ApiError)) return null;
+  if (error.status === 401) return "This phone's token is no longer valid. Pair it again.";
+  if (error.status === 403) return "The server accepts scans only from your home network.";
+  return null;
+}
+
+function cardFrom(result: ScanResult): Card {
+  return {
+    name: result.product?.display_name ?? "Unknown spool",
+    colorRgba: result.product?.color_rgba ?? null,
+    state: result.spool ? result.state : null,
+    receivedAt: result.spool?.received_at ?? null,
+    openedAt: result.spool?.opened_at ?? null,
+    emptiedAt: result.spool?.emptied_at ?? null,
+    remainingPct: result.spool?.remaining_pct ?? null,
+    spoolId: result.spool?.id ?? null,
+    placeholder: result.placeholder,
+    offline: false,
+  };
+}
+
+const IDLE: FlowView = {
+  phase: "idle",
+  card: null,
+  actions: [],
+  suggested: null,
+  message: null,
+  tone: "ok",
+  last: null,
+};
+
+export class ScanFlow {
+  private current: FlowView = IDLE;
+  private read: TagRead | null = null;
+  private timer: ReturnType<typeof setTimeout> | null = null;
+  private listeners = new Set<(view: FlowView) => void>();
+  private readonly now: () => number;
+  private readonly newId: () => string;
+
+  constructor(private readonly deps: FlowDeps) {
+    this.now = deps.now ?? Date.now;
+    this.newId = deps.newId ?? (() => crypto.randomUUID());
+  }
+
+  get view(): FlowView {
+    return this.current;
+  }
+
+  subscribe(listener: (view: FlowView) => void): () => void {
+    this.listeners.add(listener);
+    listener(this.current);
+    return () => this.listeners.delete(listener);
+  }
+
+  /** A tag was tapped: look it up and offer its actions. */
+  async tapped(read: TagRead): Promise<void> {
+    if (this.current.phase === "sending" || this.current.phase === "looking_up") return;
+    this.clearTimer();
+    this.read = read;
+    this.set({ phase: "looking_up", card: null, actions: [], suggested: null, message: null });
+    let result: ScanResult;
+    try {
+      result = await this.deps.api.scan(this.event(read, "lookup"));
+    } catch (error) {
+      this.lookupFailed(read, error);
+      return;
+    }
+    if (result.feedback === "unreadable" || result.feedback === "error") {
+      this.showResult(feedbackText(result.feedback, "lookup", result.state), "error", null);
+      return;
+    }
+    this.offer(cardFrom(result), result.actions, result.suggested);
+  }
+
+  /** The user chose an action from the card. */
+  async choose(action: ScreenAction): Promise<void> {
+    const read = this.read;
+    const card = this.current.card;
+    if (this.current.phase !== "choosing" || !read || !card) return;
+    this.clearTimer();
+    if (action === "cancel") {
+      this.toIdle();
+      return;
+    }
+    if (action === "info") {
+      this.set({ phase: "result", message: null, tone: "ok" });
+      return;
+    }
+    const last = this.current.last;
+    if (
+      last &&
+      !last.undone &&
+      last.tagUid === read.tagUid &&
+      last.action === action &&
+      this.now() - last.at < REPEAT_WINDOW_MS
+    ) {
+      this.showResult(`${ACTION_NAMES[action]} was already recorded.`, "ok", card);
+      return;
+    }
+    const event = this.event(read, action);
+    const remember = (queued: boolean): LastScan => ({
+      card,
+      tagUid: read.tagUid,
+      action,
+      eventId: event.event_id,
+      at: this.now(),
+      queued,
+      undone: false,
+    });
+    if (card.offline) {
+      await this.enqueue(event, remember(true), card);
+      return;
+    }
+    this.set({ phase: "sending" });
+    try {
+      const result = await this.deps.api.scan(event);
+      const tone: Tone = result.feedback === "flagged" ? "warn" : "ok";
+      this.set({ last: remember(false) });
+      this.showResult(feedbackText(result.feedback, action, result.state), tone, cardFrom(result));
+    } catch (error) {
+      if (isOffline(error)) {
+        await this.enqueue(event, remember(true), card);
+      } else {
+        this.showResult(refusalText(error) ?? "The server couldn't record that.", "error", card);
+      }
+    }
+  }
+
+  /** Undo the last recorded scan: revert it, or take it out of the queue if not sent yet. */
+  async undoLast(): Promise<void> {
+    const last = this.current.last;
+    if (!last || last.undone || this.current.phase === "sending") return;
+    let message: string;
+    if (last.queued && (await this.deps.queue.remove(last.eventId))) {
+      message = `Removed the queued ${ACTION_NAMES[last.action]}.`;
+    } else {
+      try {
+        await this.deps.api.revert(last.eventId);
+        message = `Undid ${ACTION_NAMES[last.action]}.`;
+      } catch (error) {
+        this.set({ message: refusalText(error) ?? "Couldn't undo it. Try again.", tone: "error" });
+        return;
+      }
+    }
+    this.set({ last: { ...last, undone: true }, message, tone: "ok" });
+  }
+
+  /** Close the card or result now. */
+  dismiss(): void {
+    this.clearTimer();
+    this.toIdle();
+  }
+
+  stop(): void {
+    this.clearTimer();
+    this.listeners.clear();
+  }
+
+  private lookupFailed(read: TagRead, error: unknown): void {
+    const refusal = refusalText(error);
+    if (refusal || !isOffline(error)) {
+      this.showResult(refusal ?? "The server couldn't look up this spool.", "error", null);
+      return;
+    }
+    const tag = decodeOffline(read.blocks);
+    if (!tag) {
+      this.showResult(
+        "Can't reach the server, and this tag couldn't be read on the phone.",
+        "error",
+        null,
+      );
+      return;
+    }
+    const card: Card = {
+      name: offlineName(tag),
+      colorRgba: tag.colorRgba,
+      state: null,
+      receivedAt: null,
+      openedAt: null,
+      emptiedAt: null,
+      remainingPct: null,
+      spoolId: null,
+      placeholder: false,
+      offline: true,
+    };
+    this.offer(card, OFFLINE_ACTIONS, null, "Can't reach the server. Your choice will be queued.");
+  }
+
+  private offer(
+    card: Card,
+    actions: (ScreenAction | null)[],
+    suggested: ScreenAction | null,
+    message: string | null = null,
+  ): void {
+    this.set({
+      phase: "choosing",
+      card,
+      actions,
+      suggested,
+      message,
+      tone: message ? "warn" : "ok",
+    });
+    this.timer = setTimeout(() => this.toIdle(), CHOICE_TIMEOUT_MS);
+  }
+
+  private async enqueue(
+    event: ReturnType<ScanFlow["event"]>,
+    last: LastScan,
+    card: Card,
+  ): Promise<void> {
+    if (await this.deps.queue.add(event, this.now())) {
+      this.set({ last });
+      this.showResult(
+        `Queued ${ACTION_NAMES[last.action]}. It will be sent when the server is back.`,
+        "warn",
+        card,
+      );
+    } else {
+      this.showResult("The queue is full. Connect to the server, then scan again.", "error", card);
+    }
+  }
+
+  private showResult(message: string, tone: Tone, card: Card | null): void {
+    this.set({ phase: "result", card, actions: [], suggested: null, message, tone });
+    this.timer = setTimeout(() => this.toIdle(), RESULT_MS);
+  }
+
+  private toIdle(): void {
+    this.timer = null;
+    this.read = null;
+    this.set({ ...IDLE, last: this.current.last, message: null });
+  }
+
+  private clearTimer(): void {
+    if (this.timer !== null) clearTimeout(this.timer);
+    this.timer = null;
+  }
+
+  private event(read: TagRead, action: ScanAction) {
+    return scanEvent(
+      this.deps.pairing,
+      read,
+      action,
+      this.deps.appVersion,
+      new Date(this.now()),
+      this.newId(),
+    );
+  }
+
+  private set(changes: Partial<FlowView>): void {
+    this.current = { ...this.current, ...changes };
+    this.listeners.forEach((listener) => listener(this.current));
+  }
+}

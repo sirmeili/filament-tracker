@@ -24,6 +24,20 @@ export interface RequestOptions {
   signal?: AbortSignal;
 }
 
+// In a browser the API is on the same site. In the phone app the pages come from the app
+// itself, so requests go to the paired server's address instead (Capacitor's native HTTP
+// keeps the session cookie for it).
+let apiBase = "";
+
+/** Send API requests to another server ("" for this site). */
+export function setApiBase(url: string): void {
+  apiBase = url.replace(/\/+$/, "");
+}
+
+export function apiUrl(path: string): string {
+  return apiBase + API_PREFIX + path;
+}
+
 type Listener = () => void;
 const unauthorizedListeners = new Set<Listener>();
 
@@ -66,7 +80,7 @@ export async function api<T>(
   const headers: Record<string, string> = { Accept: "application/json", ...CSRF_HEADER };
   const init: RequestInit = {
     method: options.method ?? "GET",
-    credentials: "same-origin",
+    credentials: apiBase ? "include" : "same-origin",
     headers,
     signal: options.signal,
   };
@@ -77,7 +91,7 @@ export async function api<T>(
 
   let response: Response;
   try {
-    response = await fetchFn(API_PREFIX + path, init);
+    response = await fetchFn(apiUrl(path), init);
   } catch {
     throw new ApiError(0, "Cannot reach the server");
   }

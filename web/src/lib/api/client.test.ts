@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { api, ApiError, errorMessage, onUnauthorized } from "#lib/api/client.ts";
+import {
+  api,
+  ApiError,
+  apiUrl,
+  errorMessage,
+  onUnauthorized,
+  setApiBase,
+} from "#lib/api/client.ts";
 
 function reply(status: number, body?: unknown): Response {
   const text = body === undefined ? "" : typeof body === "string" ? body : JSON.stringify(body);
@@ -101,5 +108,22 @@ describe("errorMessage", () => {
 
   it.each([null, "text", {}, { detail: 5 }, { detail: [{}] }])("falls back for %j", (body) => {
     expect(errorMessage(body, "fallback")).toBe("fallback");
+  });
+});
+
+describe("api in the phone app", () => {
+  afterEach(() => setApiBase(""));
+
+  it("sends requests, with the session cookie, to the paired server", async () => {
+    const fetchFn = vi.fn(async () => new Response("{}", { status: 200 }));
+    setApiBase("https://filament.example.com/");
+
+    await api("/me", {}, fetchFn as unknown as typeof fetch);
+
+    expect(apiUrl("/me")).toBe("https://filament.example.com/api/v1/me");
+    expect(fetchFn).toHaveBeenCalledWith(
+      "https://filament.example.com/api/v1/me",
+      expect.objectContaining({ credentials: "include" }),
+    );
   });
 });
