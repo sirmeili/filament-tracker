@@ -61,6 +61,18 @@ $env:FT_DEVICE_ID = "simulator"
 
 To revoke it later: `Invoke-RestMethod -Method Delete -Uri http://localhost:8000/api/v1/devices/simulator -Headers $headers`.
 
+On the Devices page, registering a scanner or rotating its token also offers a QR code for the phone app, holding the server address and the token. The address defaults to the one in the browser and can be changed first.
+
+## Tag key constant
+
+Scanners and the phone app read tags with keys derived from each tag's UID and a published constant. The server keeps the constant in `BAMBU_KDF_SALT` (hex) and hands it to a device at `GET /api/v1/devices/provisioning` (device token, LAN only). It is not generated: it is the constant documented by the Bambu Research Group's RFID-Tag-Guide, and it is never committed. Put it in `.env`, then check it against your own dumps, which still hold the real keys:
+
+```powershell
+uv run ft-sim check-salt C:\tag-dumps\*.zip
+```
+
+It prints how many of each dump's 16 sector keys the constant reproduces, and nothing else.
+
 ## Scan simulator
 
 `ft-sim` sends scans exactly as a scanner would. It reads the server from `FT_SERVER` (default `http://localhost:8000`), the token from `FT_TOKEN` and the device ID from `FT_DEVICE_ID`.
