@@ -192,6 +192,8 @@ An Android phone can act as one more scanner, so spools can be scanned before th
 
 - **Scan**: a screen shown only in the app that mirrors the scanner flow: tap a spool, see the spool card (name, color swatch, state with its date), choose from the same actions with the suggested one highlighted (see User workflows), and see the result. No choice within 15 seconds cancels with no event sent, and the same action confirmed twice for a spool within 30 seconds sends one event.
 - **The full web app**: every page, after a normal user sign-in. Scanning uses the device token, not the user's session.
+- Scan and Pairing work without a user sign-in, and Scan works without the server (offline). The app opens on Scan once paired, and on Pairing until then. In a browser these two screens only say they belong to the app.
+- Like the scanner's "Last scan", Scan keeps the last scan with an Undo: it reverts the event, or takes it out of the queue if it has not been sent yet. Info shows the AMS remaining % and links to the spool's page.
 
 **Device behavior**
 
@@ -200,7 +202,7 @@ An Android phone can act as one more scanner, so spools can be scanned before th
 
 **Pairing**
 
-- Registering a device or rotating its token on the Devices page also shows a QR code, once, holding the server URL and the token. The URL defaults to the address the admin is using and can be changed before the code is shown. The code holds JSON, `{"v": 1, "url": "...", "token": "..."}`, so the format can change later.
+- Registering a device or rotating its token on the Devices page also shows a QR code, once, holding the server URL, the token and the device ID (scans must name their device). The URL defaults to the address the admin is using and can be changed before the code is shown. The code holds JSON, `{"v": 1, "url": "...", "token": "...", "device_id": "..."}`, so the format can change later.
 - The app scans the QR code with the camera; typing the URL and token is the fallback.
 - The token and the key-derivation constant are stored encrypted with the Android Keystore. The constant comes from `GET /devices/provisioning` after pairing and is never bundled in the app.
 

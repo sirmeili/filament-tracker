@@ -5,13 +5,14 @@
 
   interface Props {
     name: string;
+    deviceId: string;
     token: string;
     /** The address the admin is using; the default server address for the phone. */
     origin: string;
     ondone: () => void;
   }
 
-  let { name, token, origin, ondone }: Props = $props();
+  let { name, deviceId, token, origin, ondone }: Props = $props();
   let copied = $state<string | null>(null);
   // svelte-ignore state_referenced_locally
   let serverUrl = $state(origin);
@@ -21,7 +22,7 @@
   function showQr(event: SubmitEvent): void {
     event.preventDefault();
     urlError = serverUrlError(serverUrl);
-    payload = urlError ? null : pairingPayload(serverUrl, token);
+    payload = urlError ? null : pairingPayload(serverUrl, token, deviceId);
   }
 
   async function copy(): Promise<void> {

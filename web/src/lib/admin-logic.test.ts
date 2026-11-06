@@ -248,10 +248,11 @@ describe("pairing", () => {
   });
 
   it("puts the version, address and token in the code", () => {
-    expect(JSON.parse(pairingPayload("https://host/", "ft_dev_x"))).toEqual({
+    expect(JSON.parse(pairingPayload("https://host/", "ft_dev_x", "phone-1"))).toEqual({
       v: PAIRING_VERSION,
       url: "https://host",
       token: "ft_dev_x",
+      device_id: "phone-1",
     });
   });
 
@@ -261,8 +262,8 @@ describe("pairing", () => {
     expect(small.path).toMatch(/^(M\d+ \d+h1v1h-1z)+$/);
     expect(small.path).not.toContain("M0 0"); // the border is light
     expect(qrPath("hi")).toEqual(small);
-    expect(qrPath(pairingPayload("https://host", `ft_dev_${"a".repeat(43)}`)).size).toBeGreaterThan(
-      small.size,
-    );
+    expect(
+      qrPath(pairingPayload("https://host", `ft_dev_${"a".repeat(43)}`, "phone-1")).size,
+    ).toBeGreaterThan(small.size);
   });
 });

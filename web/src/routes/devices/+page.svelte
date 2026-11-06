@@ -27,7 +27,7 @@
   let idEdited = $state(false);
   let formProblem = $state<string | null>(null);
   /** A token to show once: after registering or rotating. */
-  let shown = $state<{ name: string; token: string } | null>(null);
+  let shown = $state<{ id: string; name: string; token: string } | null>(null);
 
   async function load(): Promise<void> {
     try {
@@ -75,7 +75,7 @@
     busy = true;
     try {
       const created = await registerDevice(id, name.trim());
-      shown = { name: created.name, token: created.token };
+      shown = { id: created.id, name: created.name, token: created.token };
       closeForm();
       await load();
     } catch (error) {
@@ -101,7 +101,7 @@
   function rotate(device: DeviceOut): Promise<void> {
     return change(async () => {
       const created = await rotateToken(device.id);
-      shown = { name: created.name, token: created.token };
+      shown = { id: created.id, name: created.name, token: created.token };
     });
   }
 
@@ -175,6 +175,7 @@
   {#if shown}
     <TokenPanel
       name={shown.name}
+      deviceId={shown.id}
       token={shown.token}
       origin={window.location.origin}
       ondone={() => (shown = null)}
