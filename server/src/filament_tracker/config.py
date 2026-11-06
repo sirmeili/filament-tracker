@@ -8,13 +8,26 @@ from ipaddress import IPv4Network, IPv6Network, ip_network
 from pathlib import Path
 from typing import Annotated, Any
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 Network = IPv4Network | IPv6Network
 Networks = Annotated[tuple[Network, ...], NoDecode]
 
 PRIVATE_NETWORKS = "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8,::1/128,fc00::/7,fe80::/10"
+
+
+class PrinterConfig(BaseModel):
+    """One entry of PRINTERS: a printer, or an MQTT proxy in front of it."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    name: str = Field(min_length=1, max_length=100)
+    host: str = Field(min_length=1, max_length=255)
+    port: int = Field(default=8883, ge=1, le=65535)
+    # The printer's serial, or the alias a proxy uses in its topics.
+    serial: str = Field(pattern=r"^[A-Za-z0-9_-]{1,32}$")
+    access_code: SecretStr = Field(min_length=1, max_length=64)
 
 
 class Settings(BaseSettings):
@@ -31,6 +44,16 @@ class Settings(BaseSettings):
     cookie_secure: bool = True
     # The built web app. Unset: web/build in a source checkout, if it has been built.
     web_dir: Path | None = None
+    # Printers to watch over MQTT, as a JSON list (see PrinterConfig).
+    printers: list[PrinterConfig] = Field(default_factory=list)
+
+    @field_validator("printers")
+    @classmethod
+    def _unique_serials(cls, value: list[PrinterConfig]) -> list[PrinterConfig]:
+        serials = [p.serial for p in value]
+        if len(set(serials)) != len(serials):
+            raise ValueError("each printer needs its own serial")
+        return value
 
     @field_validator("trusted_networks", "forwarded_allow_ips", mode="before")
     @classmethod

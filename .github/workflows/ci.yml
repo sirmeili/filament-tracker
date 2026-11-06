@@ -27,8 +27,14 @@ jobs:
         run: uv run ruff check .
       - name: Check formatting
         run: uv run ruff format --check .
+      - name: Start the fake printer's MQTT broker
+        run: |
+          sh fakeprinter/make-cert.sh
+          docker compose -f fakeprinter/compose.yaml up -d --wait
       - name: Run tests with coverage gate
         run: uv run pytest
+        env:
+          FT_FAKE_BROKER: 127.0.0.1:8883
       - name: Audit dependencies
         run: |
           uv export --quiet --no-hashes --no-emit-project -o "$RUNNER_TEMP/requirements.txt"

@@ -4,9 +4,11 @@ version = "0.1.0"
 description = "Self-hosted server that tracks Bambu Lab filament spools from delivery to empty"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "aiomqtt>=2.5.1,<3",
     "alembic>=1.20,<2",
     "argon2-cffi>=25.1,<26",
     "fastapi>=0.162,<1",
+    "paho-mqtt>=2.1,<2.2",
     "pydantic-settings>=2.16,<3",
     "sqlalchemy>=2.1,<3",
     "uvicorn>=0.54,<1",
@@ -15,6 +17,7 @@ dependencies = [
 [project.scripts]
 ft-admin = "filament_tracker.admin_cli:main"
 ft-sim = "filament_tracker.simulator.cli:main"
+ft-fakeprinter = "filament_tracker.simulator.fakeprinter:main"
 
 [dependency-groups]
 dev = [

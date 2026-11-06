@@ -27,6 +27,7 @@
 - Web app mockups (direction A, "Workshop") and the owner's decisions on them, merged (PR #16).
 - M2 part 6, the Inventory, Spools, Spool detail and Products pages with the mockup look and a Light/Dark/System theme, merged (PR #17).
 - Phone scanner (M8) added to the spec, merged (PR #19).
+- M5 part 1, reading AMS reports into spools, slots and likely-empty suggestions, merged (PR #20).
 - M2 part 7, the Review, Activity, Devices, Users and Account pages, manual entry, Review Bring back, the scanner heartbeat and the Activity source filter, merged (PR #18). **M2 complete.**
 - M2 plan approved: seven branches (spec, users and auth, read API, write API, web foundation, stock pages, admin pages).
 - M1 plan approved: five branches merged in order (decoder, data model, event log, `/scans` API, scan simulator).
@@ -34,8 +35,8 @@
 ## In progress
 
 - M5, the printer link. Plan approved: four branches (AMS ingest, MQTT client with the fake printer, printer pages, check against the real P1S). Decisions: the printer certificate is pinned on first connect, data comes over direct MQTT (which also works through an MQTT proxy), and Spool detail and the Spools table show the AMS slot.
-- `feature/ams-ingest` (M5 part 1): spec for M5, the `printer_slot` table and new printer and spool columns, the report parser that merges P1 partial reports, the ingest service (first sighting opens a spool, product matching, remaining %, slots, likely empty), a scanned tag winning over the AMS's product, and Review's likely-empty list. Tests use report fixtures based on the documented message format.
-  - Next: review by the owner, then the PR. Then part 2, the MQTT client.
+- `feature/printer-mqtt` (M5 part 2): the MQTT link. `PRINTERS` setting (JSON list, optional port, proxies supported), certificate pinned on first connect and checked right after the TLS handshake (before the access code is sent), one link per printer in a background thread with reconnect backoff, `pushall` on connect and every 30 minutes, the last report time written at most once a minute, and reports applied through the part 1 ingest. New dependencies `aiomqtt` 2.5.1 and `paho-mqtt` 2.1.0 (no known vulnerabilities; 2.2.0 held back as it is two days old). A fake printer: Mosquitto in Docker (`server/fakeprinter/`) plus `ft-fakeprinter`, with integration tests run in CI.
+  - Next: review by the owner, then the PR. Then part 3, the printer pages.
 
 ## Next
 

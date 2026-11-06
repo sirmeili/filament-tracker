@@ -20,6 +20,7 @@ from filament_tracker.api.security import SecurityHeadersMiddleware
 from filament_tracker.config import Settings
 from filament_tracker.db.engine import create_db_engine, create_session_factory
 from filament_tracker.db.migrate import upgrade
+from filament_tracker.printer.manager import PrinterManager
 from filament_tracker.services.throttle import LoginThrottle
 from filament_tracker.webapp import default_web_dir, mount_web_app
 
@@ -34,9 +35,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         upgrade(settings.database_url)
         engine = create_db_engine(settings.database_url)
         app.state.session_factory = create_session_factory(engine)
+        printers = PrinterManager(settings.printers, app.state.session_factory)
+        app.state.printers = printers
+        printers.start()
         try:
             yield
         finally:
+            printers.stop()
             engine.dispose()
 
     app = FastAPI(title="Filament Tracker", lifespan=lifespan)

@@ -2,6 +2,7 @@ from ipaddress import ip_network
 
 import pytest
 from pydantic import ValidationError
+from pydantic_settings import SettingsError
 
 from filament_tracker.config import Settings
 
@@ -67,4 +68,47 @@ def test_bad_values_are_refused(monkeypatch: pytest.MonkeyPatch, name: str, valu
     monkeypatch.setenv(name, value)
 
     with pytest.raises(ValidationError):
+        Settings(_env_file=None)
+
+
+def test_printers_come_from_a_json_list(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(
+        "PRINTERS",
+        '[{"name": "P1S", "host": "192.168.1.40", "serial": "01P00A1", "access_code": "12345678"},'
+        ' {"name": "Via proxy", "host": "proxy.lan", "port": 18883, "serial": "garage",'
+        ' "access_code": "abc"}]',
+    )
+
+    printers = Settings(_env_file=None).printers
+
+    assert [(p.name, p.host, p.port, p.serial) for p in printers] == [
+        ("P1S", "192.168.1.40", 8883, "01P00A1"),
+        ("Via proxy", "proxy.lan", 18883, "garage"),
+    ]
+    assert printers[0].access_code.get_secret_value() == "12345678"
+    assert "12345678" not in repr(printers)
+
+
+def test_no_printers_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("PRINTERS", raising=False)
+
+    assert Settings(_env_file=None).printers == []
+
+
+@pytest.mark.parametrize(
+    "printers",
+    [
+        '[{"name": "P1S", "host": "h", "serial": "bad serial!", "access_code": "x"}]',
+        '[{"name": "P1S", "host": "h", "serial": "s", "access_code": ""}]',
+        '[{"name": "P1S", "host": "h", "port": 70000, "serial": "s", "access_code": "x"}]',
+        '[{"name": "P1S", "host": "h", "serial": "s", "access_code": "x", "extra": 1}]',
+        '[{"name": "A", "host": "h", "serial": "s", "access_code": "x"},'
+        ' {"name": "B", "host": "h", "serial": "s", "access_code": "y"}]',
+        "not json",
+    ],
+)
+def test_bad_printers_are_refused(monkeypatch: pytest.MonkeyPatch, printers: str) -> None:
+    monkeypatch.setenv("PRINTERS", printers)
+
+    with pytest.raises((ValidationError, SettingsError)):
         Settings(_env_file=None)
