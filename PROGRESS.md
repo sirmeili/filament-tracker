@@ -26,18 +26,18 @@
 - M2 part 5, the SvelteKit web foundation (sign-in, layout, navigation by role, served by FastAPI), merged (PR #15).
 - Web app mockups (direction A, "Workshop") and the owner's decisions on them, merged (PR #16).
 - M2 part 6, the Inventory, Spools, Spool detail and Products pages with the mockup look and a Light/Dark/System theme, merged (PR #17).
+- M2 part 7, the Review, Activity, Devices, Users and Account pages, manual entry, Review Bring back, the scanner heartbeat and the Activity source filter, merged (PR #18). **M2 complete.**
 - M2 plan approved: seven branches (spec, users and auth, read API, write API, web foundation, stock pages, admin pages).
 - M1 plan approved: five branches merged in order (decoder, data model, event log, `/scans` API, scan simulator).
 
 ## In progress
 
-- `feature/web-pages-admin` (M2 part 7): the Review, Activity, Devices, Users and Account pages and manual entry, built from `docs/mockups/web/`. Plan approved: scanners count as online when seen in the last 15 minutes, and Activity gets a source filter (both now in the spec). "Scans today" (Devices) and "signed in since" (Account) from the mockups are left out.
-  - Done: backend. Review Bring back (`POST /review/events/{id}/unaccept`, `POST /review/tags/{uid}/restore`); the scanner heartbeat `POST /devices/heartbeat` (firmware version and queue length; a migration adds `device.queue_length`), with `online` and `queue_length` in `GET /devices`; `GET /events` filters by `source`.
-  - Done: web. Review (Accept, Undo, Open spool, Dismiss, Bring back, header count kept current), Activity (grouped by day, source filter, Load older, Undo), Add a spool by hand (existing or new provisional product), Devices (register with the token shown once, rotate, revoke, online status, firmware and queue), Users (create, role, disable, reset password) and Account (change password, sign out). Unit tests at 90% branch coverage and end-to-end tests for Accept then Bring back, manual entry, registering a scanner, and a new user changing their password.
-  - Next: review by the owner, then the PR. This completes the M2 pages.
+- `feature/phone-scanner-spec`: the spec for M8, an Android phone app that works as a LAN-only scanner. It is a Capacitor wrapper around the web app with a Kotlin NFC plugin (`MifareClassic`), the full web app after sign-in, QR pairing from the Devices page, and an offline queue like the scanner's. M8 is placed right after M5.
 
 ## Next
 
+- M5, the printer link: plan to be presented once the phone scanner spec is merged.
+- M8 needs JDK 21 and the Android SDK (Android Studio is the easiest way to get both); neither is installed on the development PC yet.
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
 
 ## Decisions
@@ -58,6 +58,7 @@
 - 2026-11-05: Spools whose tags cannot be read yet (for example TPU in a foil bag) are added by hand in the web UI as placeholders with no tray UID; the first scan of that product's tag links to the oldest placeholder and is flagged for review. Unknown products are created by hand as provisional. The data model in M1 allows this; the UI comes in M2.
 - 2026-11-05: Lookups do not write events; only actions are logged.
 - 2026-11-05: The scan simulator reads BambuTagScanner's export (a ZIP or a 1024-byte `.bin` image with sector trailers) and strips the trailers so keys are never sent.
+- 2026-11-06: An Android phone can be a scanner (M8, after M5). Browser NFC reads only NDEF, so it cannot read MIFARE Classic blocks; the app is a Capacitor wrapper around the web app with a Kotlin `MifareClassic` plugin. It also holds the full web app, uses Capacitor's native HTTP so the server needs no CORS, pairs by a QR code shown once on the Devices page, queues offline like the scanner, and allows plain HTTP on the LAN (signing in over plain HTTP needs `COOKIE_SECURE=false`, so pairing with the proxy's HTTPS address is recommended).
 - 2026-11-05: The decoder rejects a tag with no material ID or an all-zero tray UID as unreadable. Fields the RFID guide marks as uncertain decode to null when their bytes are unusable.
 - 2026-11-05: The synthetic tag generator lives in the package (`decoder/synthetic.py`), not in `tests/`, because the scan simulator's `generate` command uses it too.
 

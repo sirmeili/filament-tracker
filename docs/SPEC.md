@@ -4,7 +4,7 @@ Oct 31, 2026 · @Frank
 
 ## Overview
 
-A self-hosted system that tracks every Bambu Lab filament spool from delivery to empty, using the RFID tags already on the spools. You tap a spool on a small touchscreen scanner; it shows what the spool is and asks whether it is new, just opened or empty. A central server keeps the inventory, feeds Home Assistant and serves a web app that a few people can use, some only to view.
+A self-hosted system that tracks every Bambu Lab filament spool from delivery to empty, using the RFID tags already on the spools. You tap a spool on a small touchscreen scanner, or on an Android phone running the companion app; it shows what the spool is and asks whether it is new, just opened or empty. A central server keeps the inventory, feeds Home Assistant and serves a web app that a few people can use, some only to view.
 
 **Goals**
 
@@ -33,7 +33,7 @@ Bambu spools carry MIFARE Classic 1K tags whose sector keys can be derived from 
 - **Same product, different bytes**: two rolls of Black PLA Basic share the material and color fields but differ in UID, tray UID, production date and signature.
 - **Read-only**: the signature prevents creating valid new tags. This system only reads.
 
-iPhones cannot read MIFARE Classic; all readers in this project are PN532-class or PC/SC devices.
+iPhones cannot read MIFARE Classic. The readers in this project are PN532-class or PC/SC devices, plus Android phones whose NFC chip supports MIFARE Classic (see Phone scanner).
 
 ## User workflows
 
@@ -174,6 +174,39 @@ The firmware stays dumb: it reads the UID, derives the keys, dumps the raw block
 - A **screen simulator** runs the firmware's real LVGL screens on a PC at 320×240, with the keyboard as the three buttons and saved tag dumps as taps, against a real or test server.
 - Firmware logic reaches the reader, buttons, screen and storage through interfaces, so it can run in PC unit tests with fakes.
 
+## Phone scanner (Android app)
+
+An Android phone can act as one more scanner, so spools can be scanned before the scanner hardware exists, or where it is not at hand. It is a registered device like any scanner, LAN-only, and posts the same scan payload.
+
+**Supported phones**: Android only, and only phones whose NFC chip supports MIFARE Classic (mostly NXP-based, such as Google Pixel phones). Many phones with other NFC chips cannot read these tags; the app checks for MIFARE Classic support and says so plainly when it is missing. iPhones are not supported.
+
+**Build**
+
+- A Capacitor wrapper around the same SvelteKit build as the web app, in a top-level `android/` project.
+- A small Kotlin plugin reads a tag with Android's `MifareClassic` API: it reads the UID, derives the 16 keys, authenticates and reads every data block, and returns the UID, the blocks (sector trailers excluded) and `read_ok`. Keys never leave the plugin.
+- API requests go through Capacitor's native HTTP, so the server needs no CORS and the web security model is unchanged: the same session cookie and CSRF header.
+
+**What the app shows**
+
+- **Scan**: a screen shown only in the app that mirrors the scanner flow: tap a spool, see the spool card (name, color swatch, state with its date), choose from the same actions with the suggested one highlighted (see User workflows), and see the result. No choice within 15 seconds cancels with no event sent, and the same action confirmed twice for a spool within 30 seconds sends one event.
+- **The full web app**: every page, after a normal user sign-in. Scanning uses the device token, not the user's session.
+
+**Device behavior**
+
+- Scans and undo of its own events use the device token, exactly as the scanner does. A heartbeat is sent every 5 minutes while the app is open.
+- Offline, as on the scanner: if the lookup fails, the product, type and color are decoded on the phone from the raw tag, New, Opened and Empty are offered, and chosen actions are queued (at least 50) and retried with backoff. The `event_id` makes retries idempotent. The Scan screen shows the queue size.
+
+**Pairing**
+
+- Registering a device or rotating its token on the Devices page also shows a QR code, once, holding the server URL and the token. The URL defaults to the address the admin is using and can be changed before the code is shown.
+- The app scans the QR code with the camera; typing the URL and token is the fallback.
+- The token and the key-derivation constant are stored encrypted with the Android Keystore. The constant comes from `GET /devices/provisioning` after pairing and is never bundled in the app.
+
+**Network**
+
+- The app allows plain HTTP for LAN addresses, like the scanner, and HTTPS everywhere.
+- The session cookie is `Secure`, so signing in over a plain `http://` address works only with `COOKIE_SECURE=false`. Pairing with the HTTPS address of the reverse proxy is recommended: scanning still works on the LAN, because the proxy forwards the phone's LAN address.
+
 ## Server: data model
 
 The server is event-sourced: every scan, AMS observation and UI edit is an immutable event, and each spool's current state is derived from its events. This makes undo and audit trivial.
@@ -223,7 +256,7 @@ A versioned REST API under `/api/v1`, documented by FastAPI's generated OpenAPI 
 | POST | `/auth/password` | Viewer | Change own password; ends the user's other sessions |
 | POST | `/scans` | Scanner | Submit a scan event; a lookup returns spool, product, state, allowed and suggested actions; an action returns the new state and a `feedback` code for the screen |
 | POST | `/devices/heartbeat` | Scanner | Online status, firmware version, queue length |
-| GET | `/devices/provisioning` | Scanner | Returns the key-derivation constant to an authenticated device |
+| GET | `/devices/provisioning` | Scanner | Returns the key-derivation constant to an authenticated device (scanner firmware and the phone app) |
 | GET | `/inventory` | Viewer, HA | Counts by product and state, low-stock flags, and each open spool's remaining % with a nearly-out flag |
 | GET | `/spools` | Viewer | List with filters (state, product, filament type, location) and search |
 | POST | `/spools` | Editor | Manual entry: create a placeholder spool for a product, with a `received` event |
@@ -272,7 +305,7 @@ A small, mobile-friendly web app for checking stock and fixing mistakes; day-to-
 | Spool detail | Tag data, AMS remaining % and grams left (remaining % of the tag's spool weight), event timeline | Manual action, undo, edit notes and location |
 | Products | Decoded product IDs and colors | Set display name, low-stock threshold and nearly-out % |
 | Review | Flagged events, `unidentified` tags, "likely empty" suggestions | Flagged event: Accept (it was right), Undo (revert it) or Open spool (fix by hand). Unidentified tag: dismiss. Likely empty: mark empty or dismiss. After an Accept or a dismiss, Bring back returns the item to Review |
-| Devices | Scanners and printers with online status, firmware, queue; each printer shows its AMS slots and the spool in each (from M5) | Register device (token shown once), rotate token, revoke |
+| Devices | Scanners (including phones) and printers with online status, firmware, queue; each printer shows its AMS slots and the spool in each (from M5) | Register device (token shown once, with a QR code for the phone app), rotate token, revoke |
 | Users | Accounts and roles (Admin only), with a short description of what each role can do | Create, change role, reset password, disable |
 | Account | The signed-in user | Change password (with a meter showing progress to the 12-character minimum), sign out |
 | Activity | Global event log, newest first, grouped by day | Filter by source (scanners, web app, printer); undo |
@@ -353,6 +386,9 @@ The server is fully testable without hardware. Firmware logic is unit tested on 
 | Security | Unauthenticated access refused, role checked on every route, revoked tokens and ended sessions refused, sign-in throttling, bearer tokens refused from outside the LAN, CSRF header, security headers, oversized payloads rejected | pytest security suite, run in CI |
 | Web app | Components, API client, role-based visibility | Vitest with Testing Library; 90% coverage; `svelte-check` and `npm audit` in CI |
 | Web end to end | Sign in as each role, inventory, record and undo an action, review | Playwright against the real server with a database seeded by the scan simulator |
+| Phone app | Scan flow, offline queue, on-phone decode, pairing | Vitest; 90% coverage |
+| Phone NFC plugin | Key derivation, block assembly, trailer stripping | Kotlin unit tests with a fake tag; 90% coverage, excluding the `MifareClassic` and camera code |
+| Phone on hardware | Reading on a real phone, MIFARE Classic detection, QR pairing, offline queue, sign-in | Manual checklist per release |
 | AMS ingest | Report messages produce the right events | Fake printer replaying recorded or documentation-based messages |
 | End to end | Scan simulator drives Received, Opened, Empty for a spool; HA entities update | Docker Compose test stack with a Mosquitto container |
 | Firmware logic | Screen flow, tag parsing, offline queue, dedupe, button thresholds | PC unit tests with fakes; 90% coverage, excluding a named list of hardware drivers |
@@ -371,12 +407,13 @@ Each milestone ends with something usable. Reading is proved first with a phone,
 2. **M1 Server core**: decoder, data model, event log, `/scans` API, scan simulator, tests.
 3. **M2 Web UI**: user accounts and roles, inventory, spools, spool detail, products, review, activity, devices, users, manual entry.
 4. **M5 Printer link**: P1S MQTT ingest, automatic Opened, remaining %, likely-empty suggestions, built against the fake printer and checked against the real P1S.
-5. **M6 Home Assistant**: MQTT discovery entities, events, low-stock automation.
-6. **M3a Firmware without hardware**: scan flow, offline queue and dedupe logic with PC tests, screen simulator.
-7. **M0b Prove reading, PN532**: repeat the read tests on the bench rig and measure reading through the 1 mm lid and shipping box.
-8. **M3b Firmware on hardware**: breadboard build, real drivers, provisioning, OTA.
-9. **M4 Enclosure**: printed case, button labels, antenna placement, final wiring.
-10. **M7 Later**: see Future enhancements.
+5. **M8 Phone scanner**: Android app (Capacitor around the web app, with a Kotlin NFC plugin), QR pairing on the Devices page, `/devices/provisioning`, offline queue.
+6. **M6 Home Assistant**: MQTT discovery entities, events, low-stock automation.
+7. **M3a Firmware without hardware**: scan flow, offline queue and dedupe logic with PC tests, screen simulator.
+8. **M0b Prove reading, PN532**: repeat the read tests on the bench rig and measure reading through the 1 mm lid and shipping box.
+9. **M3b Firmware on hardware**: breadboard build, real drivers, provisioning, OTA.
+10. **M4 Enclosure**: printed case, button labels, antenna placement, final wiring.
+11. **M7 Later**: see Future enhancements.
 
 ## Future enhancements
 
