@@ -100,10 +100,42 @@ export interface SpoolDetail extends SpoolRow {
   events: EventOut[];
 }
 
+export type EventSource = "scanner" | "ui" | "ams";
+
+export interface UnidentifiedTag {
+  uid: string;
+  first_seen_at: string;
+  /** False if the tag's blocks could not be decoded */
+  readable: boolean;
+  decoded: Record<string, unknown> | null;
+}
+
 export interface ReviewOut {
   flagged_events: EventOut[];
-  unidentified_tags: { uid: string }[];
+  unidentified_tags: UnidentifiedTag[];
   likely_empty: SpoolRow[];
+}
+
+export interface DeviceOut {
+  id: string;
+  name: string;
+  created_at: string;
+  last_seen_at: string | null;
+  fw_version: string | null;
+  queue_length: number | null;
+  online: boolean;
+  revoked: boolean;
+}
+
+/** A device with its token, shown once. */
+export interface DeviceCreated extends DeviceOut {
+  token: string;
+}
+
+export interface UserOut extends Me {
+  disabled: boolean;
+  created_at: string;
+  last_login_at: string | null;
 }
 
 export type ManualAction = "received" | "opened" | "empty";

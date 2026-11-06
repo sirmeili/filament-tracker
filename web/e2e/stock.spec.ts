@@ -21,7 +21,8 @@ test("viewers see inventory and spools without edit controls", async ({ page }) 
     .getByRole("navigation", { name: "Main" })
     .getByRole("link", { name: "Spools" })
     .click();
-  await expect(page.getByText("Showing 1–3 of 3")).toBeVisible();
+  // Other test files may add spools, so the total is not fixed.
+  await expect(page.getByText(/^Showing 1–\d+ of \d+$/)).toBeVisible();
   await expect(page.getByRole("checkbox")).toHaveCount(0);
 
   await page.getByRole("link", { name: /Black PLA Basic #2/ }).click();

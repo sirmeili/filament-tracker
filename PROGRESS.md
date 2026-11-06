@@ -25,21 +25,20 @@
 - M2 part 4, the write API (edits, manual entry, review, token rotation), merged (PR #14).
 - M2 part 5, the SvelteKit web foundation (sign-in, layout, navigation by role, served by FastAPI), merged (PR #15).
 - Web app mockups (direction A, "Workshop") and the owner's decisions on them, merged (PR #16).
+- M2 part 6, the Inventory, Spools, Spool detail and Products pages with the mockup look and a Light/Dark/System theme, merged (PR #17).
 - M2 plan approved: seven branches (spec, users and auth, read API, write API, web foundation, stock pages, admin pages).
 - M1 plan approved: five branches merged in order (decoder, data model, event log, `/scans` API, scan simulator).
 
 ## In progress
 
-- `feature/web-pages-stock` (M2 part 6): the Inventory, Spools, Spool detail and Products pages, built from `docs/mockups/web/`. Plan approved, including a new `type` filter on `GET /spools` (now in the spec).
-  - Done: backend. A migration adds `product.nearly_out_pct` (default 15, 0–100), which product create and edit accept. `GET /inventory` and `GET /products/{id}` list each open spool with its remaining % and a nearly-out flag. `GET /spools/{id}` adds `spool_weight_g` and `grams_left`. `GET /spools` filters by `type`.
-  - Done: web app look and pages. Mockup tokens in `app.css`; Space Grotesk, Inter and JetBrains Mono bundled from `@fontsource` (OFL, no advisories, no dependencies); a Light/Dark/System theme saved in the browser and applied before the page draws by a small script in `app.html` (its hash goes into the CSP like SvelteKit's); a header with pill nav, the Review count and an account button (Account left the nav links). Pages: Inventory (totals, type filter, low stock first, cards or list, a % bar per open spool), Spools (search, state and type filters, pages of 50, bulk move for Editors), Spool detail (actions, history with undo, % and grams left, location and notes, tag data) and Products (name, low-stock threshold and nearly-out %, saved together). Editor controls are hidden from Viewers.
-  - Tests: 8 new server tests (559 in all, 99.8% coverage); web unit tests 169 at 99.6% statements, 91.6% branches; 5 new end-to-end tests on seeded stock (11 in all).
-  - Next: the user's review, then the PR.
+- `feature/web-pages-admin` (M2 part 7): the Review, Activity, Devices, Users and Account pages and manual entry, built from `docs/mockups/web/`. Plan approved: scanners count as online when seen in the last 15 minutes, and Activity gets a source filter (both now in the spec). "Scans today" (Devices) and "signed in since" (Account) from the mockups are left out.
+  - Done: backend. Review Bring back (`POST /review/events/{id}/unaccept`, `POST /review/tags/{uid}/restore`); the scanner heartbeat `POST /devices/heartbeat` (firmware version and queue length; a migration adds `device.queue_length`), with `online` and `queue_length` in `GET /devices`; `GET /events` filters by `source`.
+  - Done: web. Review (Accept, Undo, Open spool, Dismiss, Bring back, header count kept current), Activity (grouped by day, source filter, Load older, Undo), Add a spool by hand (existing or new provisional product), Devices (register with the token shown once, rotate, revoke, online status, firmware and queue), Users (create, role, disable, reset password) and Account (change password, sign out). Unit tests at 90% branch coverage and end-to-end tests for Accept then Bring back, manual entry, registering a scanner, and a new user changing their password.
+  - Next: review by the owner, then the PR. This completes the M2 pages.
 
 ## Next
 
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
-- M2 part 7: admin pages (Review with Bring back, Activity, manual entry, Devices, Users, Account).
 
 ## Decisions
 

@@ -44,6 +44,8 @@ ROUTES = [
     ("patch", "/api/v1/products/99", Role.EDITOR),
     ("post", f"/api/v1/review/events/{uuid4()}/accept", Role.EDITOR),
     ("post", "/api/v1/review/tags/DEADBEEF/dismiss", Role.EDITOR),
+    ("post", f"/api/v1/review/events/{uuid4()}/unaccept", Role.EDITOR),
+    ("post", "/api/v1/review/tags/DEADBEEF/restore", Role.EDITOR),
     ("post", "/api/v1/devices/scanner-9/rotate", Role.ADMIN),
     ("get", "/api/v1/devices", Role.ADMIN),
     ("post", "/api/v1/devices", Role.ADMIN),

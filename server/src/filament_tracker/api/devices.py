@@ -1,5 +1,7 @@
-"""Register scanners and issue or revoke their tokens (Admin role or the admin token)."""
+"""Register scanners and issue or revoke their tokens (Admin role or the admin token), and
+receive their heartbeats."""
 
+from datetime import datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -7,13 +9,24 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from filament_tracker.api.deps import get_session
-from filament_tracker.api.schemas import DeviceCreate, DeviceCreated, DeviceOut
-from filament_tracker.auth import Admin, hash_token, new_device_token
+from filament_tracker.api.schemas import DeviceCreate, DeviceCreated, DeviceOut, Heartbeat
+from filament_tracker.auth import Admin, ScannerDevice, hash_token, new_device_token
 from filament_tracker.db.models import Device
 from filament_tracker.db.types import utcnow
 
 router = APIRouter(tags=["devices"])
 SessionDep = Annotated[Session, Depends(get_session)]
+
+# Scanners send a heartbeat every 5 minutes; three missed ones mark a scanner offline.
+ONLINE_WINDOW = timedelta(minutes=15)
+
+
+def is_online(device: Device, now: datetime) -> bool:
+    return (
+        device.revoked_at is None
+        and device.last_seen_at is not None
+        and now - device.last_seen_at <= ONLINE_WINDOW
+    )
 
 
 def _out(device: Device) -> DeviceOut:
@@ -23,8 +36,20 @@ def _out(device: Device) -> DeviceOut:
         created_at=device.created_at,
         last_seen_at=device.last_seen_at,
         fw_version=device.fw_version,
+        queue_length=device.queue_length,
+        online=is_online(device, utcnow()),
         revoked=device.revoked_at is not None,
     )
+
+
+@router.post("/devices/heartbeat", status_code=status.HTTP_204_NO_CONTENT)
+def heartbeat(body: Heartbeat, device: ScannerDevice, session: SessionDep) -> Response:
+    """A scanner reports that it is online, its firmware version and its queue length."""
+    device.last_seen_at = utcnow()
+    device.fw_version = body.fw_version
+    device.queue_length = body.queue_length
+    session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/devices", response_model=list[DeviceOut])

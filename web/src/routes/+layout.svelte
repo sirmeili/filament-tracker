@@ -5,19 +5,18 @@
   import type { Snippet } from "svelte";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import { reviewCount } from "#lib/api/stock.ts";
   import { guardRedirect, LOGIN_PATH } from "#lib/auth/redirect.ts";
   import { session } from "#lib/auth/session.svelte.ts";
   import Forbidden from "#lib/components/Forbidden.svelte";
   import Header from "#lib/components/Header.svelte";
   import { requiredRole } from "#lib/nav.ts";
+  import { reviewBadge } from "#lib/review-badge.svelte.ts";
   import { theme } from "#lib/theme.svelte.ts";
 
   let { children }: { children: Snippet } = $props();
 
   const appTheme = theme();
   let loadError = $state<string | null>(null);
-  let waiting = $state(0);
 
   async function load(): Promise<void> {
     loadError = null;
@@ -41,18 +40,19 @@
   // The Review badge, refreshed on every page change.
   $effect(() => {
     void page.url.pathname;
-    if (!session.user) return;
-    reviewCount().then(
-      (count) => (waiting = count),
-      () => {}, // the badge is a hint; a failed refresh keeps the last count
-    );
+    if (session.user) void reviewBadge.refresh();
   });
 </script>
 
 {#if page.url.pathname === LOGIN_PATH}
   <main class="centered">{@render children()}</main>
 {:else if session.user}
-  <Header user={session.user} pathname={page.url.pathname} theme={appTheme} reviewCount={waiting} />
+  <Header
+    user={session.user}
+    pathname={page.url.pathname}
+    theme={appTheme}
+    reviewCount={reviewBadge.count}
+  />
   <main>
     {#if session.can(requiredRole(page.url.pathname))}
       {@render children()}

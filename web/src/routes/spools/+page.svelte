@@ -103,6 +103,22 @@
       <h1>Spools</h1>
       {#if inventory.length}<p>{countText(inventory)}</p>{/if}
     </div>
+    {#if canEdit}
+      <a class="button primary" href="/spools/new">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.4"
+          aria-hidden="true"
+        >
+          <path d="M12 5v14M5 12h14"></path>
+        </svg>
+        Add spool by hand
+      </a>
+    {/if}
   </div>
 
   <div class="toolbar">

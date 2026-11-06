@@ -1,9 +1,12 @@
+from datetime import timedelta
+
 from api_helpers import admin, bearer, register, scan_body
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from filament_tracker.auth import TOKEN_PREFIX, hash_token
 from filament_tracker.db.models import Device
+from filament_tracker.db.types import utcnow
 from filament_tracker.decoder.synthetic import SyntheticTag
 
 
@@ -104,3 +107,74 @@ def test_rotating_re_enables_a_revoked_device(client: TestClient, token: str) ->
 
 def test_rotating_an_unknown_device(client: TestClient) -> None:
     assert client.post("/api/v1/devices/nope/rotate", headers=admin()).status_code == 404
+
+
+# --- Heartbeat and online status -------------------------------------------------------------
+
+HEARTBEAT = {"fw_version": "0.3.1", "queue_length": 2}
+
+
+def _listed(client: TestClient, device_id: str = "scanner-1") -> dict:
+    return next(
+        d for d in client.get("/api/v1/devices", headers=admin()).json() if d["id"] == device_id
+    )
+
+
+def test_a_new_device_is_offline_with_no_queue(client: TestClient, token: str) -> None:
+    device = _listed(client)
+
+    assert (device["online"], device["queue_length"], device["fw_version"]) == (False, None, None)
+
+
+def test_a_heartbeat_records_firmware_queue_and_last_seen(client: TestClient, token: str) -> None:
+    response = client.post("/api/v1/devices/heartbeat", json=HEARTBEAT, headers=bearer(token))
+
+    assert response.status_code == 204
+    device = _listed(client)
+    assert (device["fw_version"], device["queue_length"], device["online"]) == ("0.3.1", 2, True)
+    assert device["last_seen_at"] is not None
+
+
+def test_a_device_is_offline_after_fifteen_minutes(
+    client: TestClient, token: str, db: Session
+) -> None:
+    client.post("/api/v1/devices/heartbeat", json=HEARTBEAT, headers=bearer(token))
+    device = db.get(Device, "scanner-1")
+
+    device.last_seen_at = utcnow() - timedelta(minutes=14, seconds=50)
+    db.commit()
+    assert _listed(client)["online"] is True
+
+    device.last_seen_at = utcnow() - timedelta(minutes=15, seconds=10)
+    db.commit()
+    assert _listed(client)["online"] is False
+
+
+def test_a_revoked_device_is_offline_and_cannot_send_heartbeats(
+    client: TestClient, token: str
+) -> None:
+    client.post("/api/v1/devices/heartbeat", json=HEARTBEAT, headers=bearer(token))
+    client.delete("/api/v1/devices/scanner-1", headers=admin())
+
+    assert _listed(client)["online"] is False
+    response = client.post("/api/v1/devices/heartbeat", json=HEARTBEAT, headers=bearer(token))
+    assert response.status_code == 401
+
+
+def test_heartbeats_need_a_device_token(client: TestClient) -> None:
+    assert client.post("/api/v1/devices/heartbeat", json=HEARTBEAT).status_code == 401
+    response = client.post("/api/v1/devices/heartbeat", json=HEARTBEAT, headers=admin())
+    assert response.status_code in (401, 403)
+
+
+def test_heartbeats_are_validated(client: TestClient, token: str) -> None:
+    for body in (
+        {},
+        {**HEARTBEAT, "queue_length": -1},
+        {**HEARTBEAT, "queue_length": 100_001},
+        {**HEARTBEAT, "fw_version": ""},
+        {**HEARTBEAT, "fw_version": "x" * 33},
+        {**HEARTBEAT, "device_id": "scanner-2"},
+    ):
+        response = client.post("/api/v1/devices/heartbeat", json=body, headers=bearer(token))
+        assert response.status_code == 422, body

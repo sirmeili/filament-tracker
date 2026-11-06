@@ -11,16 +11,17 @@ from sqlalchemy.orm import Session
 from filament_tracker.db.engine import create_db_engine, create_session_factory
 from filament_tracker.db.migrate import upgrade
 from filament_tracker.db.models import Product
-from filament_tracker.domain.enums import EventType, Role
+from filament_tracker.domain.enums import EventSource, EventType, Role
 from filament_tracker.services.accounts import create_user
 from filament_tracker.services.edits import add_placeholder, record_action
+from filament_tracker.services.events import append_event
 
 PASSWORD = "e2e password 123"  # noqa: S105 - test value for a throwaway database
 
 
 def add_stock(session: Session) -> None:
     """Black PLA: spool 1 sealed, spool 2 open at 12% (low stock, nearly out).
-    Gray PETG: spool 3 sealed."""
+    Gray PETG: spool 3 sealed. Spool 1 also has a second Received flagged for Review."""
     start = datetime.now(UTC) - timedelta(days=10)
     black = Product(
         material_id="GFA00",
@@ -36,7 +37,10 @@ def add_stock(session: Session) -> None:
         display_name="Dark Gray PETG HF",
         provisional=True,
     )
-    add_placeholder(session, black, start, user_id=None, location="Shelf A")
+    sealed = add_placeholder(session, black, start, user_id=None, location="Shelf A")
+    append_event(
+        session, sealed, EventType.RECEIVED, EventSource.UI, start + timedelta(days=2), flag=True
+    )
     opened = add_placeholder(session, black, start, user_id=None, location="AMS slot 1")
     record_action(session, opened, EventType.OPENED, start + timedelta(days=1), user_id=None)
     opened.remaining_pct = 12

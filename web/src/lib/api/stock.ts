@@ -75,10 +75,15 @@ export function updateProduct(id: number, changes: ProductChanges): Promise<Prod
   return api<Product>(`/products/${id}`, { method: "PATCH", body: changes });
 }
 
-/** How many items are waiting in Review, for the badge in the header. */
-export async function reviewCount(): Promise<number> {
-  const review = await api<ReviewOut>("/review");
+/** How many items a Review answer holds. */
+export function waitingIn(review: ReviewOut): number {
   return (
     review.flagged_events.length + review.unidentified_tags.length + review.likely_empty.length
   );
+}
+
+/** How many items are waiting in Review, for the badge in the header. */
+export async function reviewCount(): Promise<number> {
+  const review = await api<ReviewOut>("/review");
+  return waitingIn(review);
 }
