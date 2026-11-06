@@ -69,16 +69,17 @@ Select the image above to open the interactive 3D mockup. The source is in [hard
 ## Repository layout
 
 ```text
-docs/SPEC.md         Full specification: the source of truth
-docs/mockups/web/    Web app page mockups and design tokens
-hardware/BOM.md      Bill of materials for one scanner
-hardware/enclosure/  3D model of the scanner case
-server/              FastAPI server: decoder, database, event log, API, scan simulator
-web/                 SvelteKit web app (TypeScript), built to static files the server serves
-android/             Android phone app: Capacitor around the web app, Kotlin NFC plugin
-.github/workflows/   CI: lint, tests, 90% coverage gates, dependency audits, end-to-end tests
-AGENTS.md            Rules for AI agents working in this repo
-PROGRESS.md          Current status, next steps and decisions
+docs/SPEC.md                  Full specification: the source of truth
+docs/mockups/web/             Web app page mockups and design tokens
+docs/mockups/mobile-scanner/  Phone app Scan screen mockups
+hardware/BOM.md               Bill of materials for one scanner
+hardware/enclosure/           3D model of the scanner case
+server/                       FastAPI server: decoder, database, event log, API, scan simulator
+web/                          SvelteKit web app (TypeScript), built to static files the server serves
+android/                      Android phone app: Capacitor around the web app, Kotlin NFC plugin
+.github/workflows/            CI: lint, tests, 90% coverage gates, dependency audits, end-to-end tests
+AGENTS.md                     Rules for AI agents working in this repo
+PROGRESS.md                   Current status, next steps and decisions
 ```
 
 ## Documentation
