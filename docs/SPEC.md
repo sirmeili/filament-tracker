@@ -204,7 +204,7 @@ An Android phone can act as one more scanner, so spools can be scanned before th
 
 - Registering a device or rotating its token on the Devices page also shows a QR code, once, holding the server URL, the token and the device ID (scans must name their device). The URL defaults to the address the admin is using and can be changed before the code is shown. The code holds JSON, `{"v": 1, "url": "...", "token": "...", "device_id": "..."}`, so the format can change later.
 - The app scans the QR code with the camera; typing the URL and token is the fallback.
-- The token and the key-derivation constant are stored encrypted with the Android Keystore. The constant comes from `GET /devices/provisioning` after pairing and is never bundled in the app.
+- The token and the key-derivation constant are stored encrypted with the Android Keystore. The constant comes from `GET /devices/provisioning` after pairing and is never bundled in the app. The app opts out of Android backup, because the Keystore key cannot be restored on another phone; a restored or damaged value reads as missing and the phone pairs again.
 
 **Network**
 
@@ -398,7 +398,7 @@ The server is fully testable without hardware. Firmware logic is unit tested on 
 | Web app | Components, API client, role-based visibility | Vitest with Testing Library; 90% coverage; `svelte-check` and `npm audit` in CI |
 | Web end to end | Sign in as each role, inventory, record and undo an action, review | Playwright against the real server with a database seeded by the scan simulator |
 | Phone app | Scan flow, offline queue, on-phone decode, pairing | Vitest; 90% coverage |
-| Phone NFC plugin | Key derivation, block assembly, trailer stripping | Kotlin unit tests with a fake tag; 90% coverage, excluding the `MifareClassic` and camera code |
+| Phone NFC plugin | Key derivation (matching the server), block assembly, trailer stripping, encrypted storage | Kotlin unit tests with a fake tag; 90% line coverage (JaCoCo), excluding the Android glue that needs a phone: `FilamentTrackerPlugin` (NFC reader mode, camera, Capacitor calls), `AndroidMifare`, `KeystoreKey`, `PrefsValues` and `MainActivity` |
 | Phone on hardware | Reading on a real phone, MIFARE Classic detection, QR pairing, offline queue, sign-in | Manual checklist per release |
 | AMS ingest | Report messages produce the right events | Fake printer replaying recorded or documentation-based messages, including a report captured from a P1S with its identifiers replaced |
 | Printer on hardware | Connection and pin, every AMS and AMS HT slot, tray UID matching a scanned tag, automatic Opened, remaining % | `ft-printer check` and a manual checklist, before a release that changes the printer link |

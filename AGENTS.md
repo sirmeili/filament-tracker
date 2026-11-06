@@ -130,3 +130,13 @@ Upon user acceptance of a completed feature or step, you must commit your code, 
   * Develop with live reload: start the server on port 8000, then `npm run dev` (Vite proxies `/api` to it).
 
   * End-to-end tests: `npx playwright install chromium` once, then `npm run build` and `npm run test:e2e`. They start the real server on a scratch database.
+
+* **Android Commands:** The phone app in `android/` needs JDK 21 (newer JDKs fail with Gradle 8.14) with `JAVA_HOME` pointing at it, and the Android SDK in `ANDROID_HOME`. CI runs the same checks on every PR.
+
+  * Copy the web app in: from `web/`, `npm run build`, then `npx cap sync android`. Run it again after any web change before building the app.
+
+  * Run Kotlin tests with the 90% coverage gate: from `android/`, `./gradlew coverageCheck`. The Android glue that needs a phone is excluded and listed in `app/build.gradle` and the Testing table in `docs/SPEC.md`.
+
+  * Build the debug APK: `./gradlew assembleDebug`, which writes `app/build/outputs/apk/debug/app-debug.apk`.
+
+  * New Android dependencies follow the same rules as npm ones: a release at least 7 days old, checked for advisories (OSV, GitHub Advisories) first.
