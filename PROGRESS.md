@@ -28,6 +28,7 @@
 - M2 part 6, the Inventory, Spools, Spool detail and Products pages with the mockup look and a Light/Dark/System theme, merged (PR #17).
 - Phone scanner (M8) added to the spec, merged (PR #19).
 - M5 part 1, reading AMS reports into spools, slots and likely-empty suggestions, merged (PR #20).
+- M5 part 2, the MQTT link with certificate pinning and the fake printer, merged (PR #21).
 - M2 part 7, the Review, Activity, Devices, Users and Account pages, manual entry, Review Bring back, the scanner heartbeat and the Activity source filter, merged (PR #18). **M2 complete.**
 - M2 plan approved: seven branches (spec, users and auth, read API, write API, web foundation, stock pages, admin pages).
 - M1 plan approved: five branches merged in order (decoder, data model, event log, `/scans` API, scan simulator).
@@ -35,8 +36,8 @@
 ## In progress
 
 - M5, the printer link. Plan approved: four branches (AMS ingest, MQTT client with the fake printer, printer pages, check against the real P1S). Decisions: the printer certificate is pinned on first connect, data comes over direct MQTT (which also works through an MQTT proxy), and Spool detail and the Spools table show the AMS slot.
-- `feature/printer-mqtt` (M5 part 2): the MQTT link. `PRINTERS` setting (JSON list, optional port, proxies supported), certificate pinned on first connect and checked right after the TLS handshake (before the access code is sent), one link per printer in a background thread with reconnect backoff, `pushall` on connect and every 30 minutes, the last report time written at most once a minute, and reports applied through the part 1 ingest. New dependencies `aiomqtt` 2.5.1 and `paho-mqtt` 2.1.0 (no known vulnerabilities; 2.2.0 held back as it is two days old). A fake printer: Mosquitto in Docker (`server/fakeprinter/`) plus `ft-fakeprinter`, with integration tests run in CI.
-  - Next: review by the owner, then the PR. Then part 3, the printer pages.
+- `feature/printer-ui` (M5 part 3): the printer pages. API: `GET /printers` (Admin) with connection status, online (a report in the last 5 minutes), the pinned and presented certificate fingerprints and each AMS slot; `POST /printers/{id}/unpin`; `POST /review/spools/{id}/dismiss` and `/restore` for likely-empty suggestions; spools carry the AMS slot they are loaded in. Web: a Printers section on Devices (status, pin mismatch warning, slots with the spool or "No Bambu tag", Forget pin with a confirm step), Dismiss and Bring back for likely-empty suggestions on Review, and the slot shown in the Spools table and on Spool detail. The end-to-end seed adds a printer with slots and a spool at 0%.
+  - Next: review by the owner, then the PR. Then part 4, the check against the real P1S (needs its IP, serial and access code in the local `.env`).
 
 ## Next
 

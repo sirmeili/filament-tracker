@@ -3,6 +3,7 @@
 from uuid import UUID
 
 from filament_tracker.api.read_schemas import (
+    AmsSlotRef,
     Counts,
     EventOut,
     OpenSpool,
@@ -34,6 +35,19 @@ def product_summary(item: ProductCounts) -> ProductSummary:
     )
 
 
+def ams_slot(spool: Spool) -> AmsSlotRef | None:
+    # Normally at most one; if a stale slot lingers, the latest report wins.
+    slot = max(spool.slots, key=lambda s: s.updated_at, default=None)
+    if slot is None:
+        return None
+    return AmsSlotRef(
+        printer_id=slot.printer_id,
+        printer_name=slot.printer.name,
+        ams_index=slot.ams_index,
+        tray_index=slot.tray_index,
+    )
+
+
 def spool_row(spool: Spool) -> SpoolRow:
     return SpoolRow(
         id=spool.id,
@@ -45,6 +59,7 @@ def spool_row(spool: Spool) -> SpoolRow:
         received_at=spool.received_at,
         opened_at=spool.opened_at,
         emptied_at=spool.emptied_at,
+        ams_slot=ams_slot(spool),
     )
 
 

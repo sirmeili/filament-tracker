@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from filament_tracker.db.models import Event, Product, Spool, Tag
-from filament_tracker.domain.enums import EventSource, EventType
+from filament_tracker.domain.enums import EventSource, EventType, SpoolState
 from filament_tracker.services.events import AppendResult, append_event
 
 
@@ -108,3 +108,30 @@ def dismiss_tag(session: Session, uid: str, now: datetime) -> Tag:
     if tag.dismissed_at is None:
         tag.dismissed_at = now
     return tag
+
+
+def _likely_empty_spool(session: Session, spool_id: int) -> Spool:
+    spool = session.get(Spool, spool_id)
+    if spool is None:
+        raise NotFound("no such spool")
+    return spool
+
+
+def dismiss_likely_empty(session: Session, spool_id: int, now: datetime) -> Spool:
+    """Review: hide a spool's "Likely empty" suggestion. A report above 0% clears this."""
+    spool = _likely_empty_spool(session, spool_id)
+    if spool.likely_empty_dismissed_at is not None:
+        return spool
+    if spool.state is not SpoolState.OPEN or spool.remaining_pct != 0:
+        raise EditError("the spool is not likely empty")
+    spool.likely_empty_dismissed_at = now
+    return spool
+
+
+def restore_likely_empty(session: Session, spool_id: int) -> Spool:
+    """Review, Bring back: show a dismissed "Likely empty" suggestion again."""
+    spool = _likely_empty_spool(session, spool_id)
+    if spool.likely_empty_dismissed_at is None:
+        raise EditError("the suggestion was not dismissed")
+    spool.likely_empty_dismissed_at = None
+    return spool

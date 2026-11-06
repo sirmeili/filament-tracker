@@ -48,6 +48,13 @@ class ProductSummary(BaseModel):
     open_spools: list[OpenSpool] = Field(description="Open spools, oldest opened first")
 
 
+class AmsSlotRef(BaseModel):
+    printer_id: int
+    printer_name: str
+    ams_index: int = Field(description="0-based; shown as AMS 1, 2...")
+    tray_index: int = Field(description="0-based; shown as slot 1 to 4")
+
+
 class SpoolRow(BaseModel):
     id: int
     state: str = Field(description="sealed, open, empty or unknown")
@@ -58,6 +65,7 @@ class SpoolRow(BaseModel):
     received_at: datetime | None
     opened_at: datetime | None
     emptied_at: datetime | None
+    ams_slot: AmsSlotRef | None = Field(description="Where the spool is loaded, if anywhere")
 
 
 class TagOut(BaseModel):
