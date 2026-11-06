@@ -135,6 +135,24 @@ MQTT_PASSWORD=...
 
 The password is never logged or shown, and `MQTT_URL` must not contain it. Use `mqtts://` for a broker with a certificate the server's system trusts.
 
+### Events for automations
+
+With these set, the server also fires Home Assistant events:
+
+```sh
+HA_URL=http://homeassistant.local:8123
+HA_TOKEN=...   # a long-lived access token: your Home Assistant profile → Security
+```
+
+- `filament_tracker_spool_received`, `filament_tracker_spool_opened` and `filament_tracker_spool_emptied`, for every such action from any source, with the spool, product, type, color, new state, source and time in the event data.
+- `filament_tracker_low_stock`, once when a product goes low, with its name, type, color, sealed count and threshold.
+
+Only actions after the server starts are fired (a restart replays nothing), within about 5 seconds. An action undone before then is not fired. A failed request is retried three times and then dropped with a warning in the log; `GET /api/v1/health` reports events as `off`, `ready` or `failing`. The token is never logged, and redirects are not followed so it only goes to `HA_URL`.
+
+To see them, open Developer tools → Events in Home Assistant, listen to `filament_tracker_low_stock` (or another), and record an action.
+
+**Example automation**: [docs/home-assistant/low-stock-automation.yaml](../docs/home-assistant/low-stock-automation.yaml) adds a low product to the shopping list and notifies your phone. Paste it into a new automation's YAML editor, set your phone's notify action, save, and give it the `Claude` label.
+
 ## Fake printer
 
 Test the printer link without a printer: a Mosquitto broker in Docker stands in for the printer's MQTT server, and `ft-fakeprinter` plays the printer on it. Needs Docker and `openssl`; run from `server/` in Git Bash or WSL for the first command.
