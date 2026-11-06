@@ -144,3 +144,51 @@ describe("phone state", () => {
     expect(isPhonePath("/")).toBe(false);
   });
 });
+
+describe("online status", () => {
+  it("follows the heartbeat and scans", async () => {
+    await savePairing(PAIRING, "AA");
+    let up = true;
+    const fetch = fakeFetch({
+      "POST /api/v1/devices/heartbeat": () => (up ? { status: 204 } : new TypeError("down")),
+    });
+    const session = (await PhoneSession.open(native, fetch))!;
+    const seen: boolean[] = [];
+    expect(session.online).toBeNull();
+
+    session.subscribeOnline((online) => seen.push(online));
+    await session.beat();
+    up = false;
+    await session.beat();
+    await session.beat(); // no change, not repeated
+    const late: boolean[] = [];
+    const stop = session.subscribeOnline((online) => late.push(online));
+    stop();
+
+    expect(seen).toEqual([true, false]);
+    expect(late).toEqual([false]); // told the current status at once
+    session.stop();
+  });
+
+  it("counts a refused heartbeat as online", async () => {
+    await savePairing(PAIRING, "AA");
+    const fetch = fakeFetch({ "POST /api/v1/devices/heartbeat": () => ({ status: 401 }) });
+    const session = (await PhoneSession.open(native, fetch))!;
+    await session.beat();
+    expect(session.online).toBe(true);
+  });
+
+  it("is shown on the phone state", async () => {
+    await savePairing(PAIRING, "AA");
+    vi.stubGlobal(
+      "fetch",
+      fakeFetch({ "POST /api/v1/devices/heartbeat": () => ({ status: 204 }) }),
+    );
+    await phone.load();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(phone.online).toBe(true);
+    await phone.unpair();
+    expect(phone.online).toBeNull();
+    vi.unstubAllGlobals();
+  });
+});

@@ -30,6 +30,8 @@ class PhoneState {
   loaded = $state(false);
   session = $state<PhoneSession | null>(null);
   queueSize = $state(0);
+  /** Whether the server answered the last request; null until it is known. */
+  online = $state<boolean | null>(null);
   private unsubscribe: (() => void) | null = null;
 
   get app(): boolean {
@@ -64,8 +66,14 @@ class PhoneState {
     this.session = session;
     setApiBase(session ? session.pairing.url : "");
     this.queueSize = session ? session.queue.size : 0;
+    this.online = null;
     if (session) {
-      this.unsubscribe = session.queue.subscribe((size) => (this.queueSize = size));
+      const queue = session.queue.subscribe((size) => (this.queueSize = size));
+      const online = session.subscribeOnline((value) => (this.online = value));
+      this.unsubscribe = () => {
+        queue();
+        online();
+      };
       session.start();
     }
   }

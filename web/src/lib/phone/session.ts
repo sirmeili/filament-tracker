@@ -6,7 +6,7 @@
  */
 
 import { bridge, type PhoneBridge } from "#lib/phone/bridge.ts";
-import { DeviceApi } from "#lib/phone/device-api.ts";
+import { DeviceApi, isOffline } from "#lib/phone/device-api.ts";
 import { loadPairing, loadSalt, type Pairing } from "#lib/phone/pairing-store.ts";
 import { OfflineQueue, type QueueStore } from "#lib/phone/queue.ts";
 import { ScanFlow } from "#lib/phone/scan-flow.ts";
@@ -23,6 +23,9 @@ export function queueStore(native: PhoneBridge): QueueStore {
 
 export class PhoneSession {
   readonly flow: ScanFlow;
+  /** Whether the server answered the last request; null until the first answer. */
+  online: boolean | null = null;
+  private onlineListeners = new Set<(online: boolean) => void>();
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private unsubscribe: (() => void) | null = null;
@@ -34,7 +37,26 @@ export class PhoneSession {
     readonly queue: OfflineQueue,
     private readonly native: PhoneBridge,
   ) {
-    this.flow = new ScanFlow({ api, queue, pairing, appVersion: native.appVersion });
+    this.flow = new ScanFlow({
+      api,
+      queue,
+      pairing,
+      appVersion: native.appVersion,
+      onReach: (online) => this.reached(online),
+    });
+  }
+
+  /** Follow the Online / Offline status; called at once with the current one, if known. */
+  subscribeOnline(listener: (online: boolean) => void): () => void {
+    this.onlineListeners.add(listener);
+    if (this.online !== null) listener(this.online);
+    return () => this.onlineListeners.delete(listener);
+  }
+
+  private reached(online: boolean): void {
+    if (this.online === online) return;
+    this.online = online;
+    this.onlineListeners.forEach((listener) => listener(online));
   }
 
   /** The session for this phone, or null if it has not been paired. */
@@ -68,9 +90,11 @@ export class PhoneSession {
   async beat(): Promise<void> {
     try {
       await this.api.heartbeat(this.native.appVersion, this.queue.size);
-    } catch {
-      return; // Offline: the next heartbeat tries again.
+    } catch (error) {
+      this.reached(!isOffline(error));
+      return; // The next heartbeat tries again.
     }
+    this.reached(true);
     await this.retry();
   }
 

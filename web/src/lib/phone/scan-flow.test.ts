@@ -349,3 +349,82 @@ describe("scan wording", () => {
     expect(refusalText(new ApiError(500, "x"))).toBeNull();
   });
 });
+
+describe("scan flow, for the screen", () => {
+  it("starts a fresh countdown for each timer and names the outcome", async () => {
+    const { flow } = await setup(async (event) =>
+      event.action === "lookup" ? result({ actions: ["opened", "info", "cancel"] }) : result(),
+    );
+
+    await flow.tapped(blackTag());
+    const choosing = flow.view.countdown;
+    expect(choosing).toMatchObject({ ms: CHOICE_TIMEOUT_MS });
+    expect(flow.view.outcome).toBeNull();
+
+    await flow.choose("opened");
+    expect(flow.view).toMatchObject({ outcome: "recorded", countdown: { ms: RESULT_MS } });
+    expect(flow.view.countdown!.id).toBeGreaterThan(choosing!.id);
+
+    flow.dismiss();
+    expect(flow.view).toMatchObject({ phase: "idle", countdown: null, outcome: null });
+
+    await flow.tapped(blackTag());
+    await flow.choose("info");
+    expect(flow.view).toMatchObject({ phase: "result", outcome: "info", countdown: null });
+  });
+
+  it("calls an unchanged state a notice, but keeps it for Undo", async () => {
+    const { flow } = await setup(async (event) =>
+      event.action === "lookup" ? result() : result({ feedback: "already_in_state" }),
+    );
+    await flow.tapped(blackTag());
+    await flow.choose("opened");
+    expect(flow.view.outcome).toBe("notice");
+    expect(flow.view.last?.action).toBe("opened");
+  });
+
+  it("calls a queued choice queued, and an error a notice", async () => {
+    const { flow } = await setup(async () => {
+      throw new ApiError(0, "offline");
+    });
+    await flow.tapped(blackTag());
+    await flow.choose("received");
+    expect(flow.view.outcome).toBe("queued");
+
+    const refused = await setup(async () => {
+      throw new ApiError(403, "LAN only");
+    });
+    await refused.flow.tapped(blackTag());
+    expect(refused.flow.view.outcome).toBe("notice");
+  });
+
+  it("tells whether the server answered", async () => {
+    const reached: boolean[] = [];
+    let mode: "up" | "down" | "refused" = "up";
+    const api = {
+      scan: vi.fn(async () => {
+        if (mode === "down") throw new ApiError(0, "offline");
+        if (mode === "refused") throw new ApiError(401, "token");
+        return result();
+      }),
+      revert: vi.fn().mockResolvedValue({}),
+    };
+    const flow = new ScanFlow({
+      api,
+      queue: await OfflineQueue.open(memory()),
+      pairing: PAIRING,
+      appVersion: "app-1",
+      onReach: (online) => reached.push(online),
+    });
+
+    await flow.tapped(blackTag());
+    flow.dismiss();
+    mode = "down";
+    await flow.tapped(blackTag());
+    flow.dismiss();
+    mode = "refused";
+    await flow.tapped(blackTag());
+
+    expect(reached).toEqual([true, false, true]); // a refusal is still an answer
+  });
+});
