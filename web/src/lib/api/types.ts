@@ -52,6 +52,14 @@ export interface ProductSummary {
 
 export type SpoolState = "sealed" | "open" | "empty" | "unknown";
 
+/** Where a spool is loaded. Indexes are 0-based; show them as AMS 1, slot 1. */
+export interface AmsSlotRef {
+  printer_id: number;
+  printer_name: string;
+  ams_index: number;
+  tray_index: number;
+}
+
 export interface SpoolRow {
   id: number;
   state: SpoolState;
@@ -62,6 +70,7 @@ export interface SpoolRow {
   received_at: string | null;
   opened_at: string | null;
   emptied_at: string | null;
+  ams_slot: AmsSlotRef | null;
 }
 
 export interface TagOut {
@@ -144,4 +153,31 @@ export interface ActionResult {
   outcome: "applied" | "already_in_state" | "flagged";
   event: EventOut;
   spool: SpoolDetail;
+}
+
+export type PrinterConnection =
+  "starting" | "connected" | "disconnected" | "pin_mismatch" | "not_configured";
+
+export interface SlotOut {
+  ams_index: number;
+  tray_index: number;
+  filament_type: string | null;
+  color_rgba: string | null;
+  remaining_pct: number | null;
+  spool: { id: number; state: SpoolState; product: Product } | null;
+  updated_at: string;
+}
+
+export interface PrinterOut {
+  id: number;
+  name: string;
+  host: string;
+  port: number;
+  configured: boolean;
+  connection: PrinterConnection;
+  online: boolean;
+  last_report_at: string | null;
+  pinned_sha256: string | null;
+  presented_sha256: string | null;
+  slots: SlotOut[];
 }

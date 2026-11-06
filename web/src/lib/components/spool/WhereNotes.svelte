@@ -1,6 +1,7 @@
 <script lang="ts">
   import { describeError } from "#lib/api/errors.ts";
   import type { SpoolDetail } from "#lib/api/types.ts";
+  import { slotText } from "#lib/printers.ts";
 
   interface Props {
     spool: SpoolDetail;
@@ -40,6 +41,9 @@
 
 <section class="card" aria-labelledby="det-h">
   <h2 id="det-h" class="label">Where and notes</h2>
+  {#if spool.ams_slot}
+    <p class="loaded">Loaded in {slotText(spool.ams_slot)}</p>
+  {/if}
   {#if canEdit}
     <form onsubmit={save}>
       <label>Location<input type="text" maxlength="100" bind:value={location} /></label>
@@ -60,6 +64,11 @@
 </section>
 
 <style>
+  .loaded {
+    margin: 0 0 12px;
+    font-weight: 600;
+  }
+
   form,
   dl {
     display: flex;

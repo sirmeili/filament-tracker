@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "#lib/api/client.ts";
-import type { DeviceOut, ReviewOut, UserOut } from "#lib/api/types.ts";
+import type { DeviceOut, PrinterOut, ReviewOut, UserOut } from "#lib/api/types.ts";
 import type { Role } from "#lib/roles.ts";
 import { event, product, spoolDetail, spoolRow } from "../test/fixtures.ts";
 
@@ -27,6 +27,10 @@ const admin = vi.hoisted(() => ({
   createUser: vi.fn(),
   updateUser: vi.fn(),
   changePassword: vi.fn(),
+  dismissLikelyEmpty: vi.fn(),
+  restoreLikelyEmpty: vi.fn(),
+  listPrinters: vi.fn(),
+  unpinPrinter: vi.fn(),
 }));
 vi.mock("#lib/api/admin.ts", () => admin);
 
@@ -79,7 +83,7 @@ describe("Review page", () => {
 
     expect(await screen.findByRole("heading", { name: "Used up, flagged" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Unreadable tag" })).toBeInTheDocument();
-    expect(screen.getByText(/No suggestions from the printer/)).toBeInTheDocument();
+    expect(screen.getByText(/No suggestions\./)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open spool" })).toHaveAttribute("href", "/spools/10");
     expect(reviewBadge.count).toBe(2);
   });
@@ -112,7 +116,7 @@ describe("Review page", () => {
     admin.restoreTag.mockResolvedValue(undefined);
     render(ReviewPage);
 
-    await userEvent.click(await screen.findByRole("button", { name: /^Dismiss/ }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Dismiss the tag/ }));
     expect(admin.dismissTag).toHaveBeenCalledWith("A1B2");
     expect(await screen.findByText("Dismissed the unreadable tag.")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Bring back" }));
@@ -173,11 +177,30 @@ describe("Review page", () => {
     admin.dismissTag.mockResolvedValue(undefined);
     render(ReviewPage);
 
-    await userEvent.click(await screen.findByRole("button", { name: /^Dismiss/ }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Dismiss the tag/ }));
 
     expect(await screen.findByText("Unknown tag (PLA)")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Opened, flagged" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "AMS reports 2% left" })).toBeInTheDocument();
+  });
+
+  it("dismisses a likely-empty suggestion and can bring it back", async () => {
+    admin.getReview.mockResolvedValue(
+      review({ likely_empty: [spoolRow({ id: 16, remaining_pct: 0 })] }),
+    );
+    admin.dismissLikelyEmpty.mockResolvedValue(undefined);
+    admin.restoreLikelyEmpty.mockResolvedValue(undefined);
+    render(ReviewPage);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Dismiss the suggestion for Black PLA Basic #16" }),
+    );
+    expect(admin.dismissLikelyEmpty).toHaveBeenCalledWith(16);
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Dismissed the suggestion for Black PLA Basic #16.",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Bring back" }));
+    expect(admin.restoreLikelyEmpty).toHaveBeenCalledWith(16);
   });
 
   it("lets viewers look but not resolve", async () => {
@@ -360,6 +383,8 @@ function scanner(overrides: Partial<DeviceOut> = {}): DeviceOut {
 }
 
 describe("Devices page", () => {
+  beforeEach(() => admin.listPrinters.mockResolvedValue([]));
+
   it("lists scanners with their status", async () => {
     admin.listDevices.mockResolvedValue([
       scanner(),
@@ -383,7 +408,7 @@ describe("Devices page", () => {
     const old = screen.getByRole("article", { name: "Old" });
     expect(within(old).queryByRole("button", { name: "Revoke" })).toBeNull();
     expect(within(old).getByRole("button", { name: "New token (re-enable)" })).toBeInTheDocument();
-    expect(screen.getByText(/Printers connect over MQTT/)).toBeInTheDocument();
+    expect(await screen.findByText(/No printers yet/)).toBeInTheDocument();
   });
 
   it("registers a scanner and shows its token once", async () => {
@@ -670,5 +695,126 @@ describe("Account page", () => {
       "6",
     );
     expect(screen.getByText("6 more characters")).toBeInTheDocument();
+  });
+});
+
+function printer(overrides: Partial<PrinterOut> = {}): PrinterOut {
+  return {
+    id: 1,
+    name: "P1S",
+    host: "192.168.1.40",
+    port: 8883,
+    configured: true,
+    connection: "connected",
+    online: true,
+    last_report_at: new Date().toISOString(),
+    pinned_sha256: "ab".repeat(32),
+    presented_sha256: null,
+    slots: [
+      {
+        ams_index: 0,
+        tray_index: 0,
+        filament_type: "PLA",
+        color_rgba: "000000FF",
+        remaining_pct: 85,
+        spool: { id: 7, state: "open", product: product() },
+        updated_at: "2026-11-06T09:00:00Z",
+      },
+      {
+        ams_index: 0,
+        tray_index: 1,
+        filament_type: null,
+        color_rgba: null,
+        remaining_pct: null,
+        spool: null,
+        updated_at: "2026-11-06T09:00:00Z",
+      },
+      {
+        ams_index: 0,
+        tray_index: 2,
+        filament_type: "PETG",
+        color_rgba: "FF6A13FF",
+        remaining_pct: null,
+        spool: null,
+        updated_at: "2026-11-06T09:00:00Z",
+      },
+    ],
+    ...overrides,
+  };
+}
+
+describe("Devices page, printers", () => {
+  beforeEach(() => admin.listDevices.mockResolvedValue([]));
+
+  it("shows each printer with its AMS slots", async () => {
+    admin.listPrinters.mockResolvedValue([printer()]);
+    render(DevicesPage);
+
+    const card = await screen.findByRole("article", { name: "P1S" });
+    expect(within(card).getByText("Online")).toBeInTheDocument();
+    expect(within(card).getByText(/192\.168\.1\.40:8883/)).toBeInTheDocument();
+    expect(within(card).getByRole("heading", { name: "AMS 1" })).toBeInTheDocument();
+    const first = within(card).getByRole("listitem", { name: "AMS 1, slot 1" });
+    expect(within(first).getByRole("link", { name: /Black PLA Basic #7/ })).toHaveAttribute(
+      "href",
+      "/spools/7",
+    );
+    expect(within(first).getByText("85%")).toBeInTheDocument();
+    expect(within(card).getByRole("listitem", { name: "AMS 1, slot 2" })).toHaveTextContent(
+      "Empty",
+    );
+    expect(within(card).getByRole("listitem", { name: "AMS 1, slot 3" })).toHaveTextContent(
+      /PETG.*No Bambu tag/,
+    );
+    expect(within(card).getByText("ABAB ABAB ABAB ABAB")).toBeInTheDocument();
+  });
+
+  it("warns about a pin mismatch and forgets the pin after confirming", async () => {
+    admin.listPrinters
+      .mockResolvedValueOnce([
+        printer({ connection: "pin_mismatch", online: false, presented_sha256: "cd".repeat(32) }),
+      ])
+      .mockResolvedValue([printer({ pinned_sha256: null, slots: [], last_report_at: null })]);
+    admin.unpinPrinter.mockResolvedValue(printer({ pinned_sha256: null }));
+    render(DevicesPage);
+
+    const card = await screen.findByRole("article", { name: "P1S" });
+    expect(within(card).getByText("Pin mismatch")).toBeInTheDocument();
+    expect(within(card).getByRole("alert")).toHaveTextContent("CDCD CDCD CDCD CDCD");
+    await userEvent.click(within(card).getByRole("button", { name: "Forget pin" }));
+    await userEvent.click(within(card).getByRole("button", { name: "Cancel" }));
+    expect(admin.unpinPrinter).not.toHaveBeenCalled();
+
+    await userEvent.click(within(card).getByRole("button", { name: "Forget pin" }));
+    await userEvent.click(within(card).getByRole("button", { name: "Forget pin" }));
+
+    expect(admin.unpinPrinter).toHaveBeenCalledWith(1);
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Forgot the certificate pin for P1S.",
+    );
+    const after = screen.getByRole("article", { name: "P1S" });
+    expect(within(after).getByText(/No certificate pinned yet/)).toBeInTheDocument();
+    expect(within(after).getByText("No AMS reported yet.")).toBeInTheDocument();
+    expect(within(after).getByText(/No report yet/)).toBeInTheDocument();
+    expect(within(after).queryByRole("button", { name: "Forget pin" })).toBeNull();
+  });
+
+  it("shows printers no longer configured, offline ones, and a load failure", async () => {
+    admin.listPrinters.mockResolvedValueOnce([
+      printer({ id: 1, name: "Old", configured: false, connection: "not_configured" }),
+      printer({ id: 2, name: "Garage", online: false, presented_sha256: null }),
+    ]);
+    const { unmount } = render(DevicesPage);
+    expect(
+      within(await screen.findByRole("article", { name: "Old" })).getByText("Not configured"),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("article", { name: "Garage" })).getByText("Offline"),
+    ).toBeInTheDocument();
+    unmount();
+
+    admin.listPrinters.mockRejectedValue(new ApiError(0, "down"));
+    render(DevicesPage);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Cannot reach the server.");
   });
 });

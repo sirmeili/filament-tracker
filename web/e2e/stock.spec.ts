@@ -1,5 +1,6 @@
 // The stock pages against the real server and the seeded stock in e2e/seed.py:
-// Black PLA (spool 1 sealed, spool 2 open at 12%) and Dark Gray PETG (spool 3 sealed).
+// Black PLA (spool 1 sealed, spool 2 open at 12%), Dark Gray PETG (spool 3 sealed) and
+// White PLA (spool 4 open at 0%). Spools 2 and 4 are in the seeded printer's AMS.
 
 import { expect, test } from "@playwright/test";
 import { failOnBrowserErrors, signInAt } from "./helpers.ts";
@@ -10,7 +11,7 @@ test("viewers see inventory and spools without edit controls", async ({ page }) 
   await signInAt(page, "/", "e2e-viewer");
 
   await expect(page.getByRole("heading", { name: "Black PLA Basic" })).toBeVisible();
-  await expect(page.getByText("Open, nearly out").locator("..")).toContainText("1");
+  await expect(page.getByText("Open, nearly out").locator("..")).toContainText("2");
   await expect(page.getByText("LOW", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open spool, 12 percent left" })).toBeVisible();
 
@@ -27,6 +28,7 @@ test("viewers see inventory and spools without edit controls", async ({ page }) 
 
   await page.getByRole("link", { name: /Black PLA Basic #2/ }).click();
   await expect(page.getByText("12%", { exact: true })).toBeVisible();
+  await expect(page.getByText("Loaded in AMS 1, slot 1 on E2E P1S")).toBeVisible();
   await expect(page.getByRole("button", { name: /Mark|Undo|Save/ })).toHaveCount(0);
 });
 

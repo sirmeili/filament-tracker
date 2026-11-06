@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from filament_tracker.db.engine import create_db_engine, create_session_factory
 from filament_tracker.db.migrate import upgrade
-from filament_tracker.db.models import Product
+from filament_tracker.db.models import Printer, PrinterSlot, Product, Spool
 from filament_tracker.domain.enums import EventSource, EventType, Role
 from filament_tracker.services.accounts import create_user
 from filament_tracker.services.edits import add_placeholder, record_action
@@ -45,6 +45,48 @@ def add_stock(session: Session) -> None:
     record_action(session, opened, EventType.OPENED, start + timedelta(days=1), user_id=None)
     opened.remaining_pct = 12
     add_placeholder(session, petg, start, user_id=None, location="Shelf B")
+    add_printer(session, opened, add_used_up(session, start))
+
+
+def add_used_up(session: Session, start: datetime) -> Spool:
+    """White PLA: spool 4 open at 0%, so Review suggests marking it used up."""
+    white = Product(
+        material_id="GFA00",
+        variant_id="A00-W01",
+        filament_type="PLA",
+        color_rgba="FFFFFFFF",
+        display_name="White PLA Basic",
+    )
+    spool = add_placeholder(session, white, start, user_id=None, location=None)
+    record_action(session, spool, EventType.OPENED, start + timedelta(days=3), user_id=None)
+    spool.remaining_pct = 0
+    return spool
+
+
+def add_printer(session: Session, *loaded: Spool) -> None:
+    """A printer that is not in PRINTERS (so not connected): its AMS has spool 2 in slot 1,
+    spool 4 in slot 2, a filament without a Bambu tag in slot 3 and nothing in slot 4."""
+    now = datetime.now(UTC)
+    printer = Printer(name="E2E P1S", serial="E2E0001", host="192.0.2.10", port=8883)
+    printer.slots = [
+        PrinterSlot(
+            ams_index=0,
+            tray_index=i,
+            spool=spool,
+            filament_type="PLA",
+            color_rgba=spool.product.color_rgba,
+            remaining_pct=spool.remaining_pct,
+            updated_at=now,
+        )
+        for i, spool in enumerate(loaded)
+    ]
+    printer.slots += [
+        PrinterSlot(
+            ams_index=0, tray_index=2, filament_type="PETG", color_rgba="FF0000FF", updated_at=now
+        ),
+        PrinterSlot(ams_index=0, tray_index=3, updated_at=now),
+    ]
+    session.add(printer)
 
 
 def main(url: str) -> None:

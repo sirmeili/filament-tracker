@@ -90,6 +90,8 @@ class Spool(Base):
     product: Mapped[Product] = relationship(back_populates="spools")
     tags: Mapped[list["Tag"]] = relationship(back_populates="spool")
     events: Mapped[list["Event"]] = relationship(back_populates="spool")
+    # The AMS slot the spool is loaded in, if any (normally at most one).
+    slots: Mapped[list["PrinterSlot"]] = relationship(viewonly=True)
 
 
 class Tag(Base):

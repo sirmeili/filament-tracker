@@ -1,5 +1,13 @@
 <script lang="ts">
-  import { acceptEvent, dismissTag, getReview, restoreTag, unacceptEvent } from "#lib/api/admin.ts";
+  import {
+    acceptEvent,
+    dismissLikelyEmpty,
+    dismissTag,
+    getReview,
+    restoreLikelyEmpty,
+    restoreTag,
+    unacceptEvent,
+  } from "#lib/api/admin.ts";
   import { describeError } from "#lib/api/errors.ts";
   import { recordAction, undoEvent, waitingIn } from "#lib/api/stock.ts";
   import type { EventOut, ReviewOut, SpoolRow, UnidentifiedTag } from "#lib/api/types.ts";
@@ -78,6 +86,13 @@
   function markUsedUp(spool: SpoolRow): Promise<void> {
     return act(() => recordAction(spool.id, "empty"), {
       message: `Marked ${spool.product.display_name} #${spool.id} used up.`,
+    });
+  }
+
+  function dismissSuggestion(spool: SpoolRow): Promise<void> {
+    return act(() => dismissLikelyEmpty(spool.id), {
+      message: `Dismissed the suggestion for ${spool.product.display_name} #${spool.id}.`,
+      bringBack: () => restoreLikelyEmpty(spool.id),
     });
   }
 
@@ -178,7 +193,7 @@
       id="likely-h"
       title="Likely empty"
       count={review.likely_empty.length}
-      empty="No suggestions from the printer. They arrive once printers are connected (M5)."
+      empty="No suggestions. The printer suggests a spool here when its AMS reports 0% left."
     >
       {#each review.likely_empty as spool (spool.id)}
         <ReviewItem
@@ -197,6 +212,12 @@
                 class="primary"
                 disabled={busy}
                 onclick={() => markUsedUp(spool)}>Mark used up</button
+              >
+              <button
+                type="button"
+                disabled={busy}
+                aria-label="Dismiss the suggestion for {spool.product.display_name} #{spool.id}"
+                onclick={() => dismissSuggestion(spool)}>Dismiss</button
               >
             {/if}
           {/snippet}

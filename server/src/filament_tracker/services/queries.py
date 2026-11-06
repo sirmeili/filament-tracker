@@ -7,7 +7,7 @@ from enum import StrEnum
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from filament_tracker.db.models import Event, Product, Spool, Tag
+from filament_tracker.db.models import Event, PrinterSlot, Product, Spool, Tag
 from filament_tracker.domain.enums import EventSource, EventType, SpoolState
 
 UNKNOWN = "unknown"
@@ -148,7 +148,10 @@ def spools(
     query = _filtered_spools(spool_filter)
     total = session.scalar(select(func.count()).select_from(query.subquery())) or 0
     page = session.scalars(
-        query.options(selectinload(Spool.product))
+        query.options(
+            selectinload(Spool.product),
+            selectinload(Spool.slots).selectinload(PrinterSlot.printer),
+        )
         .order_by(Spool.id.desc())
         .limit(limit)
         .offset(offset)

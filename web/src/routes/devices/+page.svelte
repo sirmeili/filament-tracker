@@ -1,13 +1,23 @@
 <script lang="ts">
-  import { listDevices, registerDevice, revokeDevice, rotateToken } from "#lib/api/admin.ts";
+  import {
+    listDevices,
+    listPrinters,
+    registerDevice,
+    revokeDevice,
+    rotateToken,
+    unpinPrinter,
+  } from "#lib/api/admin.ts";
   import { describeError } from "#lib/api/errors.ts";
-  import type { DeviceOut } from "#lib/api/types.ts";
+  import type { DeviceOut, PrinterOut } from "#lib/api/types.ts";
   import DeviceCard from "#lib/components/devices/DeviceCard.svelte";
+  import PrinterCard from "#lib/components/devices/PrinterCard.svelte";
   import TokenPanel from "#lib/components/devices/TokenPanel.svelte";
   import { DEVICE_ID_PATTERN, deviceId } from "#lib/devices.ts";
 
   let devices = $state<DeviceOut[] | null>(null);
   let failure = $state<string | null>(null);
+  let printers = $state<PrinterOut[] | null>(null);
+  let printerFailure = $state<string | null>(null);
   let message = $state<string | null>(null);
   let busy = $state(false);
 
@@ -28,8 +38,18 @@
     }
   }
 
+  async function loadPrinters(): Promise<void> {
+    try {
+      printers = await listPrinters();
+      printerFailure = null;
+    } catch (error) {
+      printerFailure = describeError(error);
+    }
+  }
+
   $effect(() => {
     void load();
+    void loadPrinters();
   });
 
   function typedName(value: string): void {
@@ -82,6 +102,14 @@
     return change(async () => {
       const created = await rotateToken(device.id);
       shown = { name: created.name, token: created.token };
+    });
+  }
+
+  function unpin(printer: PrinterOut): Promise<void> {
+    return change(async () => {
+      await unpinPrinter(printer.id);
+      message = `Forgot the certificate pin for ${printer.name}. The next connection pins a new one.`;
+      await loadPrinters();
     });
   }
 
@@ -168,10 +196,21 @@
 
   <section aria-labelledby="pr-h">
     <h2 id="pr-h">Printers</h2>
-    <p class="muted">
-      Printers connect over MQTT on your LAN from M5. Each will show its online status and its AMS
-      slots with the spool in each.
-    </p>
+    {#if printerFailure}
+      <p role="alert" class="error">{printerFailure}</p>
+    {:else if !printers}
+      <p class="muted">Loading…</p>
+    {:else if printers.length === 0}
+      <p class="muted">
+        No printers yet. Add them with the <span class="mono">PRINTERS</span> setting on the server.
+      </p>
+    {:else}
+      <div class="grid">
+        {#each printers as printer (printer.id)}
+          <PrinterCard {printer} {busy} onunpin={unpin} />
+        {/each}
+      </div>
+    {/if}
   </section>
 </div>
 

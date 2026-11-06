@@ -10,6 +10,7 @@ from filament_tracker.api import (
     edits,
     events,
     health,
+    printers,
     review,
     scans,
     stock,
@@ -35,13 +36,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         upgrade(settings.database_url)
         engine = create_db_engine(settings.database_url)
         app.state.session_factory = create_session_factory(engine)
-        printers = PrinterManager(settings.printers, app.state.session_factory)
-        app.state.printers = printers
-        printers.start()
+        printer_links = PrinterManager(settings.printers, app.state.session_factory)
+        app.state.printers = printer_links
+        printer_links.start()
         try:
             yield
         finally:
-            printers.stop()
+            printer_links.stop()
             engine.dispose()
 
     app = FastAPI(title="Filament Tracker", lifespan=lifespan)
@@ -50,7 +51,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(BodySizeLimitMiddleware)
     # Added last, so it runs first: headers go on every response, including a 413.
     app.add_middleware(SecurityHeadersMiddleware, settings=settings)
-    for module in (health, auth, scans, stock, edits, activity, review, devices, events, users):
+    for module in (
+        health,
+        auth,
+        scans,
+        stock,
+        edits,
+        activity,
+        review,
+        devices,
+        printers,
+        events,
+        users,
+    ):
         app.include_router(module.router, prefix=API_PREFIX)
     mount_web_app(app, settings.web_dir or default_web_dir())
     return app
