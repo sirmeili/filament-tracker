@@ -18,6 +18,7 @@ dependencies = [
 ft-admin = "filament_tracker.admin_cli:main"
 ft-sim = "filament_tracker.simulator.cli:main"
 ft-fakeprinter = "filament_tracker.simulator.fakeprinter:main"
+ft-printer = "filament_tracker.printer.check:main"
 
 [dependency-groups]
 dev = [
