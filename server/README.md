@@ -11,6 +11,8 @@ $env:ADMIN_TOKEN = "choose-a-long-random-value"
 uv run uvicorn filament_tracker.main:create_app --factory
 ```
 
+Settings can also go in `server/.env`; copy [`.env.example`](.env.example), which lists every one. `.env` is never committed.
+
 If the web app has been built (`npm ci` and `npm run build` in `web/`), it is served at `http://localhost:8000/`; set `WEB_DIR` to serve a build from elsewhere. The API is under `http://localhost:8000/api/v1`, with interactive docs at `http://localhost:8000/docs`. The docs, the scanner routes and bearer tokens (device and admin) work only from the LAN (`TRUSTED_NETWORKS`, by default the private address ranges); from anywhere else they get 404 or 403.
 
 ## Accounts
@@ -116,3 +118,23 @@ $env:PRINTERS = '[{"name": "Fake", "host": "127.0.0.1", "serial": "FAKE01", "acc
 ```
 
 The integration tests use the same broker: set `FT_FAKE_BROKER=127.0.0.1:8883` before `uv run pytest` to include them (CI does). Stop it with `docker compose -f fakeprinter/compose.yaml down`.
+
+## Check a real printer
+
+`ft-printer check` connects to a printer in `PRINTERS` once and prints what each AMS and AMS HT slot reports. It pins the certificate it finds for that connection only and does not touch the database. Stop the server first if the printer is near its MQTT connection limit.
+
+```powershell
+uv run ft-printer check --dump C:\tag-dumps\spool.zip --save captures\p1s.jsonl
+```
+
+- `--dump` (one or more tag dumps) says whether each tag's tray UID or UID is what a slot reports. Tags are labelled by position and product, and no UID is printed.
+- `--save` writes only the AMS parts of each message, with every tray UUID, tag UID and unit serial replaced. `captures/` is ignored by git; check a capture before using it as a test fixture.
+
+Checklist before a release that changes the printer link:
+
+1. `ft-printer check` lists every loaded slot with its material, color and remaining %, and the AMS HT as "AMS HT 1".
+2. With a dump of a loaded spool, it reports that the tray UUID equals the tag's tray UID.
+3. Start the server: Devices shows the printer Online with its certificate pinned and every slot.
+4. A tagged spool loaded without a scan becomes Open, flagged for Review, and Spool detail shows "Loaded in".
+5. Remaining % on Spool detail follows the AMS after a print.
+6. Forget pin on Devices; the next connection pins the certificate again.

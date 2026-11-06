@@ -45,6 +45,8 @@ const uvicorn = spawn(
       // The tests use plain HTTP on 127.0.0.1.
       COOKIE_SECURE: "false",
       ADMIN_TOKEN: "",
+      // Never watch a real printer from a developer's server/.env; the seed has its own.
+      PRINTERS: "[]",
     },
   },
 );

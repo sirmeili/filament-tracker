@@ -27,3 +27,6 @@ htmlcov/
 .ruff_cache/
 dist/
 requirements-audit.txt
+
+# Redacted printer captures (ft-printer check --save)
+server/captures/

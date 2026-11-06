@@ -3,9 +3,18 @@
 import type { AmsSlotRef, PrinterOut } from "#lib/api/types.ts";
 import { ago } from "#lib/devices.ts";
 
-/** "AMS 1, slot 2" from 0-based indexes. */
+// AMS units are 0 to 3; an AMS HT (one slot) is numbered from 128.
+const HT_FIRST = 128;
+
+/** "AMS 1", or "AMS HT 1" for the first AMS HT. */
+export function amsName(amsIndex: number): string {
+  return amsIndex >= HT_FIRST ? `AMS HT ${amsIndex - HT_FIRST + 1}` : `AMS ${amsIndex + 1}`;
+}
+
+/** "AMS 1, slot 2" from 0-based indexes; just "AMS HT 1" for its only slot. */
 export function slotName(amsIndex: number, trayIndex: number): string {
-  return `AMS ${amsIndex + 1}, slot ${trayIndex + 1}`;
+  const name = amsName(amsIndex);
+  return amsIndex >= HT_FIRST ? name : `${name}, slot ${trayIndex + 1}`;
 }
 
 /** "AMS 1, slot 2 on P1S". */

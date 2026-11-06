@@ -29,6 +29,7 @@
 - Phone scanner (M8) added to the spec, merged (PR #19).
 - M5 part 1, reading AMS reports into spools, slots and likely-empty suggestions, merged (PR #20).
 - M5 part 2, the MQTT link with certificate pinning and the fake printer, merged (PR #21).
+- M5 part 3, the printer pages: Printers on Devices, likely-empty Dismiss on Review, the AMS slot on spools, merged (PR #22).
 - M2 part 7, the Review, Activity, Devices, Users and Account pages, manual entry, Review Bring back, the scanner heartbeat and the Activity source filter, merged (PR #18). **M2 complete.**
 - M2 plan approved: seven branches (spec, users and auth, read API, write API, web foundation, stock pages, admin pages).
 - M1 plan approved: five branches merged in order (decoder, data model, event log, `/scans` API, scan simulator).
@@ -36,8 +37,9 @@
 ## In progress
 
 - M5, the printer link. Plan approved: four branches (AMS ingest, MQTT client with the fake printer, printer pages, check against the real P1S). Decisions: the printer certificate is pinned on first connect, data comes over direct MQTT (which also works through an MQTT proxy), and Spool detail and the Spools table show the AMS slot.
-- `feature/printer-ui` (M5 part 3): the printer pages. API: `GET /printers` (Admin) with connection status, online (a report in the last 5 minutes), the pinned and presented certificate fingerprints and each AMS slot; `POST /printers/{id}/unpin`; `POST /review/spools/{id}/dismiss` and `/restore` for likely-empty suggestions; spools carry the AMS slot they are loaded in. Web: a Printers section on Devices (status, pin mismatch warning, slots with the spool or "No Bambu tag", Forget pin with a confirm step), Dismiss and Bring back for likely-empty suggestions on Review, and the slot shown in the Spools table and on Spool detail. The end-to-end seed adds a printer with slots and a spool at 0%.
-  - Next: review by the owner, then the PR. Then part 4, the check against the real P1S (needs its IP, serial and access code in the local `.env`).
+- `feature/m5-p1s-check` (M5 part 4): checked against the real P1S. The link pins its certificate, reads every slot, and records Opened and remaining % for each tagged spool. The AMS `tray_uuid` equals the tag's tray UID (checked against a scanned spool). New: AMS HT units (unit IDs from 128, one slot) are read and shown as "AMS HT 1"; `ft-printer check` to inspect a real printer without printing identifiers; a P1S report captured with its identifiers replaced as a test fixture; `server/.env.example`; a manual checklist in `server/README.md`.
+  - Still open: how the AMS reports a non-Bambu spool (none was loaded).
+  - Next: review by the owner, then the PR. That completes M5; M8 (the phone scanner) is next.
 
 ## Next
 
@@ -93,16 +95,6 @@
 - 2026-11-05: Browser sign-in uses a server-side session (cookie HttpOnly, Secure, SameSite=Strict, 30 days); state-changing cookie requests also need an `X-Requested-With: filament-tracker` header.
 - 2026-11-05: Review actions for a flagged event: Accept (correct), Undo (revert) or Open spool (fix by hand). Low stock means the sealed count is at or below the product's threshold; 0 turns it off.
 - 2026-11-05: `ADMIN_TOKEN` stays for machine access (Home Assistant, scripts) and is accepted only from the LAN; people use accounts.
-
-## Open questions
-
-- The case model must be adjusted for the speaker that was ordered: a 15 × 10 × 3.5 mm rectangular cavity speaker (8 Ω, JST PH 1.25 mm plug, 80 mm lead) instead of the 20 mm round one in `filament-scanner-case.scad`. Replace the round holder with a rectangular one and resize the grille. Before changing it, check on the real parts which face the sound opening is on and where the CYD's speaker socket is. The lead may need an extension or a splice to reach the socket. Update BOM item 5 at the same time. Due by M4.
-- The user will confirm on the real parts and report back: JST connector sizes, the CN1 pinout, CC pull-downs on the USB-C breakout, two-supply protection on the CYD, and whether the CYD's 3.3 V supply can power the PN532.
-- `fastapi.testclient` warns that using httpx with Starlette's test client is deprecated and suggests `httpx2`. Tests pass. Vet `httpx2` and get approval before switching.
-- `.env.example` was not added because agent permission settings block writing it. Settings are documented in the spec's Configuration table.
-
-See also the Open questions section of docs/SPEC.md.
-
 - 2026-11-05: A valid token or session on a route it may not use now gets 403 (it was 401); 401 means not signed in or an invalid token. Bearer tokens from outside `TRUSTED_NETWORKS` get 403.
 - 2026-11-05: `ADMIN_TOKEN` acts as an Admin (devices, users, undo) from the LAN. Undo is open to Editors, the admin token, and a scanner for its own events; a web undo records the user.
 - 2026-11-05: Added `COOKIE_SECURE` (default true) for signing in over plain HTTP during development, and `ft-admin reset-password` to recover a locked-out Admin. `/auth/logout` needs no session: without one it just clears the cookie.
@@ -121,3 +113,13 @@ See also the Open questions section of docs/SPEC.md.
 - 2026-11-05: The web app's CSP allows SvelteKit's one inline bootstrap script by its SHA-256 hash, computed by the server from `index.html` at startup, instead of `'unsafe-inline'`. Unknown paths under `/api` stay JSON 404s rather than the app.
 - 2026-11-05: Added the `WEB_DIR` setting (defaults to `web/build` in a checkout) so the Docker image can point at its copy of the build. Server tests point it at a missing folder so they do not depend on a local build.
 - 2026-11-05: Web mockups decisions (user): build per-spool % left on Inventory, grams left, the AMS slot strip, Review "Bring back" for Accept and dismiss, a password length meter, role descriptions, and a Light/Dark/System theme choice. The nearly-out cutoff is per product (`nearly_out_pct`, default 15). No backdating field in the UI. Fonts are bundled because the CSP blocks Google Fonts.
+- 2026-11-06: On a P1S the AMS reports the tag's tray UID as `tray_uuid`, so spools are matched by tray UID as planned. Its `tag_uid` starts with the tag's 4-byte UID and is not used.
+- 2026-11-06: AMS HT units are supported (approved by the owner): unit IDs from 128 with one slot, shown as "AMS HT n". The external spool holder is not read.
+
+## Open questions
+
+- The case model must be adjusted for the speaker that was ordered: a 15 × 10 × 3.5 mm rectangular cavity speaker (8 Ω, JST PH 1.25 mm plug, 80 mm lead) instead of the 20 mm round one in `filament-scanner-case.scad`. Replace the round holder with a rectangular one and resize the grille. Before changing it, check on the real parts which face the sound opening is on and where the CYD's speaker socket is. The lead may need an extension or a splice to reach the socket. Update BOM item 5 at the same time. Due by M4.
+- The user will confirm on the real parts and report back: JST connector sizes, the CN1 pinout, CC pull-downs on the USB-C breakout, two-supply protection on the CYD, and whether the CYD's 3.3 V supply can power the PN532.
+- `fastapi.testclient` warns that using httpx with Starlette's test client is deprecated and suggests `httpx2`. Tests pass. Vet `httpx2` and get approval before switching.
+
+See also the Open questions section of docs/SPEC.md.

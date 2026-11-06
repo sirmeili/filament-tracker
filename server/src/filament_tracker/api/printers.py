@@ -30,7 +30,7 @@ class SlotSpool(BaseModel):
 
 
 class SlotOut(BaseModel):
-    ams_index: int = Field(description="0-based; shown as AMS 1, 2...")
+    ams_index: int = Field(description="0-3: AMS 1 to 4; 128 and up: AMS HT 1, 2...")
     tray_index: int = Field(description="0-based; shown as slot 1 to 4")
     filament_type: str | None
     color_rgba: str | None

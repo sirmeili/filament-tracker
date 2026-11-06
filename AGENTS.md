@@ -107,6 +107,8 @@ Upon user acceptance of a completed feature or step, you must commit your code, 
 
   * Scan simulator: `uv run ft-sim scan <dump.bin|export.zip> --action lookup|received|opened|empty` and `uv run ft-sim generate <out.bin>`. It needs `FT_TOKEN` (a registered device token); see `server/README.md`. Tag dumps never go in the repo.
 
+  * Real printer check: `uv run ft-printer check [--dump <dump.zip>] [--save captures/<name>.jsonl]`, using `PRINTERS` from `server/.env`; see `server/README.md`. Captures stay out of the repo.
+
   * Fake printer: `./fakeprinter/make-cert.sh`, then `docker compose -f fakeprinter/compose.yaml up -d --wait`, then `uv run ft-fakeprinter --serial FAKE01 --report tests/printer/reports/pushall.json` with `FT_ACCESS_CODE=fake-access-code`. Set `FT_FAKE_BROKER=127.0.0.1:8883` to include the broker tests in `uv run pytest`; see `server/README.md`.
 
   * Audit dependencies: `uv export --quiet --no-hashes --no-emit-project -o requirements-audit.txt`, then `uv run pip-audit --disable-pip --no-deps -r requirements-audit.txt`. The exported file is ignored by git.
