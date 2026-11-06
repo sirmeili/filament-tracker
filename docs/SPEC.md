@@ -200,7 +200,7 @@ An Android phone can act as one more scanner, so spools can be scanned before th
 
 **Pairing**
 
-- Registering a device or rotating its token on the Devices page also shows a QR code, once, holding the server URL and the token. The URL defaults to the address the admin is using and can be changed before the code is shown.
+- Registering a device or rotating its token on the Devices page also shows a QR code, once, holding the server URL and the token. The URL defaults to the address the admin is using and can be changed before the code is shown. The code holds JSON, `{"v": 1, "url": "...", "token": "..."}`, so the format can change later.
 - The app scans the QR code with the camera; typing the URL and token is the fallback.
 - The token and the key-derivation constant are stored encrypted with the Android Keystore. The constant comes from `GET /devices/provisioning` after pairing and is never bundled in the app.
 
@@ -380,6 +380,7 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 - Device tokens are stored hashed, revocable, and scoped to `/scans`, `/devices/heartbeat`, `/devices/provisioning` and `/events/{id}/revert` for events from that same device.
 - Input validation on all payloads (Pydantic); block arrays capped in size.
 - No tag UIDs or derived keys in logs above debug level, in line with the RFID guide's request not to publish UID/key pairs.
+- The printer access code, HA token and `BAMBU_KDF_SALT` never appear in logs, and a rejected setting's error message does not repeat its value. The salt is returned only by `/devices/provisioning`, to a device token from the LAN.
 - The printer access code and HA token never leave the server or appear in API responses or logs. The access code is sent only to a printer (or proxy) whose certificate matches the pin.
 
 ## Testing

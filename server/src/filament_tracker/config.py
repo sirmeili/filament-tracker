@@ -4,6 +4,7 @@ The full list is in the Configuration table of docs/SPEC.md. Settings are added 
 the milestone that first uses them.
 """
 
+import re
 from ipaddress import IPv4Network, IPv6Network, ip_network
 from pathlib import Path
 from typing import Annotated, Any
@@ -31,7 +32,8 @@ class PrinterConfig(BaseModel):
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # Errors never echo the input, which may be a secret (the salt, an access code).
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", hide_input_in_errors=True)
 
     database_url: str = "sqlite:///./data/filament.db"
     admin_token: SecretStr | None = None
@@ -46,6 +48,22 @@ class Settings(BaseSettings):
     web_dir: Path | None = None
     # Printers to watch over MQTT, as a JSON list (see PrinterConfig).
     printers: list[PrinterConfig] = Field(default_factory=list)
+    # The tag key-derivation constant (hex), served to devices at /devices/provisioning.
+    # Never in the repo, never logged.
+    bambu_kdf_salt: SecretStr | None = None
+
+    @field_validator("bambu_kdf_salt")
+    @classmethod
+    def _hex_salt(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is None:
+            return None
+        text = value.get_secret_value().strip()
+        if not text:
+            return None
+        # The message must not echo the value.
+        if not re.fullmatch(r"(?:[0-9A-Fa-f]{2}){1,64}", text):
+            raise ValueError("BAMBU_KDF_SALT must be hex (an even number of digits, at most 128)")
+        return SecretStr(text.upper())
 
     @field_validator("printers")
     @classmethod

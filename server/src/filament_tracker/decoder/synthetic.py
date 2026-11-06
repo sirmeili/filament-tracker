@@ -18,6 +18,7 @@ from filament_tracker.decoder.blocks import (
     is_trailer,
     strip_trailers,
 )
+from filament_tracker.decoder.keys import sector_keys
 
 _ACCESS_BITS = bytes.fromhex("87878769")
 _SIGNATURE_BLOCKS = range(40, TOTAL_BLOCKS)
@@ -56,8 +57,9 @@ class SyntheticTag:
     production_date: datetime = datetime(2026, 9, 14, 8, 30)
     filler: bytes = field(default_factory=lambda: secrets.token_bytes(_FILLER_SIZE), repr=False)
 
-    def image(self) -> bytes:
-        """Return a full 1024-byte tag image, sector trailers included."""
+    def image(self, salt: bytes | None = None) -> bytes:
+        """Return a full 1024-byte tag image, sector trailers included. With a salt, the
+        trailers hold the keys derived from it, as on a real tag; otherwise random keys."""
         filler = iter(_chunks(self.filler, [11] + [BLOCK_SIZE] * len(_SIGNATURE_DATA_BLOCKS)))
         blocks = [bytes(BLOCK_SIZE)] * TOTAL_BLOCKS
         blocks[0] = self.tag_uid + _bcc(self.tag_uid) + next(filler)
@@ -90,9 +92,13 @@ class SyntheticTag:
             blocks[16] = struct.pack("<HH", 2, 2) + abgr + bytes(8)
         for n in _SIGNATURE_DATA_BLOCKS:
             blocks[n] = next(filler)
-        keys = self.filler[-len(_TRAILERS) * 6 :]
-        for i, n in enumerate(_TRAILERS):
-            blocks[n] = keys[i * 6 : i * 6 + 6] + _ACCESS_BITS + bytes(6)
+        if salt is None:
+            random_keys = self.filler[-len(_TRAILERS) * 6 :]
+            keys = [random_keys[i * 6 : i * 6 + 6] for i in range(len(_TRAILERS))]
+        else:
+            keys = sector_keys(self.tag_uid, salt)
+        for key, n in zip(keys, _TRAILERS, strict=True):
+            blocks[n] = key + _ACCESS_BITS + bytes(6)
         return b"".join(blocks)
 
     def data_blocks(self) -> list[str]:

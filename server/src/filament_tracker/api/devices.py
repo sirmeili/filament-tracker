@@ -4,12 +4,18 @@ receive their heartbeats."""
 from datetime import datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from filament_tracker.api.deps import get_session
-from filament_tracker.api.schemas import DeviceCreate, DeviceCreated, DeviceOut, Heartbeat
+from filament_tracker.api.schemas import (
+    DeviceCreate,
+    DeviceCreated,
+    DeviceOut,
+    Heartbeat,
+    Provisioning,
+)
 from filament_tracker.auth import Admin, ScannerDevice, hash_token, new_device_token
 from filament_tracker.db.models import Device
 from filament_tracker.db.types import utcnow
@@ -50,6 +56,18 @@ def heartbeat(body: Heartbeat, device: ScannerDevice, session: SessionDep) -> Re
     device.queue_length = body.queue_length
     session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/devices/provisioning", response_model=Provisioning)
+def provisioning(_: ScannerDevice, request: Request, response: Response) -> Provisioning:
+    """The tag key-derivation constant, for a scanner or the phone app after pairing."""
+    salt = request.app.state.settings.bambu_kdf_salt
+    if salt is None:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE, "BAMBU_KDF_SALT is not set on the server"
+        )
+    response.headers["Cache-Control"] = "no-store"
+    return Provisioning(kdf_salt=salt.get_secret_value())
 
 
 @router.get("/devices", response_model=list[DeviceOut])
