@@ -76,9 +76,12 @@ test("admins register a scanner and see its token and pairing code once", async 
   await expect(panel.locator("code")).toHaveText(/\S{20,}/);
   await expect(page.getByRole("article", { name: "Office scanner" })).toContainText("Never seen");
 
-  await expect(panel.getByLabel("Server address for the phone")).toHaveValue(
-    /^http:\/\/127\.0\.0\.1:/,
-  );
+  const address = panel.getByLabel("Server address for the phone");
+  await expect(address).toHaveValue(/^http:\/\/127\.0\.0\.1:/);
+  // The phone cannot reach the admin's loopback address, so it must be changed first.
+  await panel.getByRole("button", { name: "Show QR code" }).click();
+  await expect(panel.getByRole("status")).toContainText("can't reach localhost");
+  await address.fill("http://192.168.1.20:8000");
   await panel.getByRole("button", { name: "Show QR code" }).click();
   await expect(
     panel.getByRole("img", { name: "Pairing QR code for Office scanner" }),

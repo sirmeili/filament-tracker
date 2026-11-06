@@ -45,25 +45,25 @@ Run this before a release that changes the app, and record the results in `PROGR
 **Setup and pairing**
 
 1. First launch opens Pairing.
-2. With NFC turned off in Android settings, Scan says NFC is off. With NFC turned on, it asks for a tap.
+2. With NFC turned off in Android settings, Scan says NFC is off. Turn NFC on and come back: within a few seconds it asks for a tap, without restarting the app.
 3. On the PC, register a device on Devices, set the server address and show the QR code. Scan it in the app: the app opens Scan, and within a minute Devices shows the phone Online with version `app-1.0`.
 4. Typed pairing: an `http://` address that is not on the LAN, such as `http://example.com`, is refused with a message about the home network.
 
 **Scanning**
 
-5. Tap a spool the server knows: the card shows its name, color swatch and state with its date, and the suggested action is highlighted.
+5. Tap a spool the server knows: once the whole tag is read the phone buzzes once and beeps (the beep follows the notification volume); the card then shows its name, color swatch and state with its date, and the suggested action is highlighted.
 6. Choose an action: the app shows "Recorded …", and Activity shows the event from the phone.
 7. Tap and choose nothing: after 15 seconds the screen goes back to waiting, and no event is recorded.
-8. Choose the same action for the same spool twice within 30 seconds: Activity shows one event.
+8. A known spool never offers the same action twice, so this one is checked offline (see 14).
 9. Undo on the last scan: the app shows "Undid …", and Activity shows the event undone.
 10. Tap a spool the server has never seen: New is offered, and choosing it adds the spool.
 11. Tap a card that is not a Bambu tag, such as a transit card: nothing breaks, and the app keeps waiting for a tap.
-12. Pull a spool away during the read: the app keeps waiting for the next tap.
+12. Pull a spool away during the read: two short buzzes and a low tone, and the app keeps waiting for the next tap. Leave a spool on the phone after a read: it is not read again until it is lifted and tapped again.
 13. A sealed spool reads through its box, as in M0a.
 
 **Offline**
 
-14. Stop the server, then tap a spool: the card shows the product decoded on the phone with New, Opened and Empty. Choose one: Scan shows "1 queued".
+14. Stop the server, then tap a spool: the card shows the product decoded on the phone with New, Opened and Empty. Choose one: Scan shows "1 queued". Tap the same spool within 30 seconds and choose the same action: the app says it was already recorded, and the queue still holds one scan (check 8).
 15. Undo the queued scan: the queue is empty, and nothing reaches the server later.
 16. Queue another scan, then start the server: within a few minutes the queue empties, and Activity shows the event with the time of the tap.
 17. Close the app fully and reopen it: it opens on Scan, still paired, and a queued scan is still queued.

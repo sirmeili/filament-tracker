@@ -46,7 +46,8 @@
     - A spool left on the phone was read over and over, and Android's "tag found" sound played before the read was done, so lifting the spool at the sound cut the read short. Reader mode now stays on while the app is in front and ignores tags while a spool is on screen (a spool has to be lifted and tapped again), the system sound is off, and the app beeps once the whole tag has been read (another tone for a failed read).
     - Check 14 failed: with the server stopped, Scan stayed on "Looking it up". The firewall drops the connection, so the request never ended. Device API requests now give up after 5 s and the scan falls back to offline.
     - Checklist run 2: 14, 8 (offline) and 15 passed; reading stops after one scan, and NFC changes show at once. No beep was heard because the phone's notification volume was 0 (Android's own NFC sound ignores it), so the app also vibrates after a read: one buzz for a good read, two for a failed one.
-  - Next: record the results here, fix anything that fails, then the PR.
+    - Checklist complete (2026-11-06), all 21 checks passed on the Pixel 9 Pro XL: 16 (queued scans sent once the server was back), 17 (queue kept across an app restart), 18 (sign-in in the app, with `COOKIE_SECURE=false` over plain HTTP; without it sign-in is refused, as the spec says), 19, 20, 4 (typed `http://example.com` refused) and 21 (no device token, key constant, plugin call data or any of the server's 8 tag UIDs in `adb logcat`).
+  - Next: review by the owner, then the PR. That completes M8.
 
 ## Next
 
