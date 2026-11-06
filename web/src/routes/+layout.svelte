@@ -1,19 +1,23 @@
 <script lang="ts">
+  import "#lib/fonts.ts";
   import "../app.css";
 
   import type { Snippet } from "svelte";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
+  import { reviewCount } from "#lib/api/stock.ts";
   import { guardRedirect, LOGIN_PATH } from "#lib/auth/redirect.ts";
   import { session } from "#lib/auth/session.svelte.ts";
   import Forbidden from "#lib/components/Forbidden.svelte";
-  import Nav from "#lib/components/Nav.svelte";
-  import { navItemFor, requiredRole, visibleNav } from "#lib/nav.ts";
-  import { ROLE_LABELS } from "#lib/roles.ts";
+  import Header from "#lib/components/Header.svelte";
+  import { requiredRole } from "#lib/nav.ts";
+  import { theme } from "#lib/theme.svelte.ts";
 
   let { children }: { children: Snippet } = $props();
 
+  const appTheme = theme();
   let loadError = $state<string | null>(null);
+  let waiting = $state(0);
 
   async function load(): Promise<void> {
     loadError = null;
@@ -33,16 +37,22 @@
     const target = guardRedirect(page.url, session.user, session.loaded, session.expired);
     if (target) void goto(target, { replaceState: true });
   });
+
+  // The Review badge, refreshed on every page change.
+  $effect(() => {
+    void page.url.pathname;
+    if (!session.user) return;
+    reviewCount().then(
+      (count) => (waiting = count),
+      () => {}, // the badge is a hint; a failed refresh keeps the last count
+    );
+  });
 </script>
 
 {#if page.url.pathname === LOGIN_PATH}
   <main class="centered">{@render children()}</main>
 {:else if session.user}
-  <header>
-    <a class="brand" href="/">Filament Tracker</a>
-    <Nav items={visibleNav(session.user.role)} current={navItemFor(page.url.pathname)} />
-    <span class="who">{session.user.username} · {ROLE_LABELS[session.user.role]}</span>
-  </header>
+  <Header user={session.user} pathname={page.url.pathname} theme={appTheme} reviewCount={waiting} />
   <main>
     {#if session.can(requiredRole(page.url.pathname))}
       {@render children()}
@@ -53,44 +63,29 @@
 {:else if loadError}
   <main class="centered">
     <p role="alert" class="error">{loadError}</p>
-    <button onclick={load}>Try again</button>
+    <button class="primary" onclick={load}>Try again</button>
   </main>
 {:else}
   <main class="centered"><p class="muted">Loading…</p></main>
 {/if}
 
 <style>
-  header {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem 1rem;
-    padding: 0.5rem 1rem;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface);
-  }
-
-  .brand {
-    font-weight: 700;
-    color: var(--text);
-    text-decoration: none;
-  }
-
-  .who {
-    margin-left: auto;
-    color: var(--muted);
-    font-size: 0.9rem;
-  }
-
   main {
-    padding: 1rem;
-    max-width: 72rem;
+    max-width: 1240px;
     margin: 0 auto;
+    padding: 32px 24px 56px;
+  }
+
+  @media (max-width: 600px) {
+    main {
+      padding: 20px 16px 40px;
+    }
   }
 
   .centered {
     display: grid;
     place-items: center;
+    align-content: center;
     gap: 1rem;
     min-height: 80vh;
   }

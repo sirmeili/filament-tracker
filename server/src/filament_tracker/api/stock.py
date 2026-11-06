@@ -33,8 +33,9 @@ def get_inventory(
     ] = None,
     sort: InventorySort = InventorySort.NAME,
 ) -> list[ProductSummary]:
-    """Spool counts per product, with low-stock flags. Low stock: sealed count at or below
-    the product's threshold, when the threshold is above 0."""
+    """Spool counts per product, with low-stock flags and each open spool's remaining %.
+    Low stock: sealed count at or below the product's threshold, when the threshold is above
+    0. Nearly out: an open spool's AMS % at or below the product's nearly-out %."""
     items = queries.inventory(session, filament_type=filament_type, sort=sort)
     return [product_summary(item) for item in items]
 
@@ -58,6 +59,9 @@ def list_spools(
     session: DbSession,
     state: Annotated[list[StateName] | None, Query()] = None,
     product_id: int | None = None,
+    filament_type: Annotated[
+        str | None, Query(alias="type", max_length=32, description="Filament type, e.g. PLA")
+    ] = None,
     location: Annotated[str | None, Query(max_length=100)] = None,
     q: Annotated[str | None, Query(max_length=100, description="Search text")] = None,
     limit: Limit = 50,
@@ -66,7 +70,11 @@ def list_spools(
     """Spools, newest first. `state` may be repeated; search matches product name, filament
     type, location and notes."""
     spool_filter = SpoolFilter(
-        states=tuple(state or ()), product_id=product_id, location=location, search=q
+        states=tuple(state or ()),
+        product_id=product_id,
+        filament_type=filament_type,
+        location=location,
+        search=q,
     )
     items, total = queries.spools(session, spool_filter, limit=limit, offset=offset)
     return Page[SpoolRow](

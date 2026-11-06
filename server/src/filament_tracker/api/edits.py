@@ -131,7 +131,8 @@ def add_product(body: ProductCreate, _: Editor, session: DbSession) -> ProductDe
 def update_product(
     product_id: int, body: ProductUpdate, _: Editor, session: DbSession
 ) -> ProductDetail:
-    """Set the display name or low-stock threshold. Fields left out are not changed."""
+    """Set the display name, low-stock threshold or nearly-out %. Fields left out are not
+    changed."""
     product = _product(session, product_id)
     for name in body.model_fields_set:
         value = getattr(body, name)

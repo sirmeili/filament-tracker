@@ -6,6 +6,10 @@ export interface NavItem {
   role: Role;
 }
 
+/** Reached from the account button in the header rather than the nav links. Any signed-in
+ * user may open it. */
+export const ACCOUNT_PATH = "/account";
+
 /** The pages in the Server: web UI table of docs/SPEC.md, with the lowest role that may
  * open each. The API enforces the same rules. */
 export const NAV: readonly NavItem[] = [
@@ -16,7 +20,6 @@ export const NAV: readonly NavItem[] = [
   { href: "/activity", label: "Activity", role: "viewer" },
   { href: "/devices", label: "Devices", role: "admin" },
   { href: "/users", label: "Users", role: "admin" },
-  { href: "/account", label: "Account", role: "viewer" },
 ];
 
 export function visibleNav(role: Role | null | undefined): NavItem[] {

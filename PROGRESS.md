@@ -24,18 +24,22 @@
 - M2 part 3, the read API for inventory, products, spools, activity and review, merged (PR #13).
 - M2 part 4, the write API (edits, manual entry, review, token rotation), merged (PR #14).
 - M2 part 5, the SvelteKit web foundation (sign-in, layout, navigation by role, served by FastAPI), merged (PR #15).
+- Web app mockups (direction A, "Workshop") and the owner's decisions on them, merged (PR #16).
 - M2 plan approved: seven branches (spec, users and auth, read API, write API, web foundation, stock pages, admin pages).
 - M1 plan approved: five branches merged in order (decoder, data model, event log, `/scans` API, scan simulator).
 
 ## In progress
 
-- `feature/web-mockups`: mockups for every M2 web page in the chosen style (direction A, "Workshop"), in `docs/mockups/web/`: ten page sources (`.dc.html`), `tokens.css` (light and dark tokens, spool ring treatment) and a README mapping each mockup to its route, with the design rules. The user decided on the eight things the mockups show beyond the spec (see the README's decisions table), and the spec now includes the approved ones: per-spool % left on Inventory, a per-product `nearly_out_pct`, grams left, Review "Bring back" (`unaccept`, `restore`), the AMS slot strip, a password meter, role descriptions and a Light/Dark/System theme choice. The backdating field is not built. Docs only. PR open, awaiting merge.
+- `feature/web-pages-stock` (M2 part 6): the Inventory, Spools, Spool detail and Products pages, built from `docs/mockups/web/`. Plan approved, including a new `type` filter on `GET /spools` (now in the spec).
+  - Done: backend. A migration adds `product.nearly_out_pct` (default 15, 0–100), which product create and edit accept. `GET /inventory` and `GET /products/{id}` list each open spool with its remaining % and a nearly-out flag. `GET /spools/{id}` adds `spool_weight_g` and `grams_left`. `GET /spools` filters by `type`.
+  - Done: web app look and pages. Mockup tokens in `app.css`; Space Grotesk, Inter and JetBrains Mono bundled from `@fontsource` (OFL, no advisories, no dependencies); a Light/Dark/System theme saved in the browser and applied before the page draws by a small script in `app.html` (its hash goes into the CSP like SvelteKit's); a header with pill nav, the Review count and an account button (Account left the nav links). Pages: Inventory (totals, type filter, low stock first, cards or list, a % bar per open spool), Spools (search, state and type filters, pages of 50, bulk move for Editors), Spool detail (actions, history with undo, % and grams left, location and notes, tag data) and Products (name, low-stock threshold and nearly-out %, saved together). Editor controls are hidden from Viewers.
+  - Tests: 8 new server tests (559 in all, 99.8% coverage); web unit tests 169 at 99.6% statements, 91.6% branches; 5 new end-to-end tests on seeded stock (11 in all).
+  - Next: the user's review, then the PR.
 
 ## Next
 
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
-- M2 part 6 starts once the mockups PR is merged: build from `docs/mockups/web/`, including the approved additions in its README. Part 6 needs a small backend change first (`nearly_out_pct` migration, open spools' % in `/inventory`, grams left).
-- M2 parts 6 and 7: stock pages (the first part usable day to day), then admin pages.
+- M2 part 7: admin pages (Review with Bring back, Activity, manual entry, Devices, Users, Account).
 
 ## Decisions
 

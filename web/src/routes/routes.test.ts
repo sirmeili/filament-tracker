@@ -90,9 +90,24 @@ describe("layout", () => {
     render(Layout, { children });
 
     expect(screen.getByText("page content")).toBeInTheDocument();
-    expect(screen.getByText("alice · Editor")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "alice" })).toHaveAttribute("href", "/account");
     expect(screen.getByRole("link", { name: "Spools" })).toHaveAttribute("aria-current", "page");
     expect(screen.queryByRole("link", { name: "Users" })).toBeNull();
+  });
+
+  it("shows how many items wait in Review", async () => {
+    signedIn({ id: 1, username: "alice", role: "viewer" });
+    const review = { flagged_events: [{}], unidentified_tags: [{}, {}], likely_empty: [] };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify(review), { status: 200 })),
+    );
+    at("/");
+
+    render(Layout, { children });
+
+    expect(await screen.findByRole("link", { name: "Review, 3 waiting" })).toBeInTheDocument();
+    vi.unstubAllGlobals();
   });
 
   it("refuses pages the role cannot open", () => {
@@ -151,14 +166,8 @@ describe("pages", () => {
     expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
   });
 
-  it("placeholder pages say what they will show", () => {
-    render(HomePage);
-
-    expect(screen.getByRole("heading", { name: "Inventory" })).toBeInTheDocument();
-  });
-
   const placeholders = import.meta.glob<{ default: typeof HomePage }>(
-    "./{spools,products,review,activity,devices,users}/+page.svelte",
+    "./{review,activity,devices,users}/+page.svelte",
     { eager: true },
   );
 

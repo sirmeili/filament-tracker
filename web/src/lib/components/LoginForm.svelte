@@ -68,7 +68,7 @@
       bind:value={password}
     />
   </label>
-  <button type="submit" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
+  <button type="submit" class="primary" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
 </form>
 
 <style>
@@ -76,15 +76,15 @@
     display: grid;
     gap: 1rem;
     width: min(100%, 22rem);
-    padding: 1.5rem;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-large);
+    padding: 28px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
     background: var(--surface);
   }
 
   h1 {
     margin: 0;
-    font-size: 1.4rem;
+    font-size: 28px;
   }
 
   label {
