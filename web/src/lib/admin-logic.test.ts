@@ -3,6 +3,7 @@ import { dayLabel, groupByDay, SOURCE_FILTERS, timeOfDay } from "#lib/activity.t
 import { ago, deviceId, DEVICE_ID_PATTERN, deviceStatus, seenText } from "#lib/devices.ts";
 import { blankIsNull, emptyEntry, entryProblem, rgbaOf } from "#lib/manual-entry.ts";
 import {
+  isLanHost,
   normalizeUrl,
   PAIRING_VERSION,
   pairingPayload,
@@ -240,6 +241,45 @@ describe("pairing", () => {
     expect(serverUrlError("https://me:pw@host")).toMatch(/user name/);
     expect(serverUrlError("https://host/?x=1")).toMatch(/\? or #/);
     expect(serverUrlError("https://host/#a")).toMatch(/\? or #/);
+  });
+
+  it("allows plain http only on the home network", () => {
+    expect(serverUrlError("http://filament.lan:8000")).toBeNull();
+    expect(serverUrlError("http://filament.example.com")).toMatch(/home network/);
+    expect(serverUrlError("http://8.8.8.8")).toMatch(/home network/);
+    expect(serverUrlError("https://8.8.8.8")).toBeNull();
+  });
+
+  it("knows which hosts are on the home network", () => {
+    const lan = [
+      "10.1.2.3",
+      "127.0.0.1",
+      "172.16.0.1",
+      "172.31.255.1",
+      "192.168.0.10",
+      "169.254.1.1",
+      "[::1]",
+      "[fd12:3456::1]",
+      "[fe80::1]",
+      "localhost",
+      "filament",
+      "Filament.Local",
+      "nas.lan",
+      "box.home.arpa",
+      "nas.lan.",
+    ];
+    const internet = [
+      "8.8.8.8",
+      "172.15.0.1",
+      "172.32.0.1",
+      "192.169.0.1",
+      "[2001:db8::1]",
+      "example.com",
+      "lan.example.com",
+      "local.example.com",
+    ];
+    expect(lan.filter((host) => !isLanHost(host))).toEqual([]);
+    expect(internet.filter((host) => isLanHost(host))).toEqual([]);
   });
 
   it("stores the address without a trailing slash", () => {

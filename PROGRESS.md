@@ -40,7 +40,7 @@
 ## In progress
 
 - M8, the phone scanner. Plan approved: four branches (provisioning and the pairing QR code, the app logic in the web app, the Android app with its NFC plugin, a check on the owner's phone). Android Studio and the Android SDK are installed.
-- `feature/android-app` (M8 part 3): the Android app. A Capacitor project in `android/` around the web build (Capacitor 8.6.0; `glob` and `minimatch` overridden to patched versions for two moderate advisories in the CLI's `rimraf`). A Kotlin plugin: NFC reader mode with `MifareClassic`, keys derived on the phone (HKDF, checked against the server's keys), 48 data blocks without trailers, `readOk` false when a sector refuses its key; QR scanning with the Google code scanner (no camera permission); values encrypted with AES-GCM under an Android Keystore key, backup off. Next on this branch: the web app's native bridge and LAN-only `http://` pairing. Kotlin tests with a fake tag at 100% of the testable code (JaCoCo gate 90%), and a CI job that runs them and builds the APK. Builds need JDK 21 (Temurin 21 installed).
+- `feature/android-app` (M8 part 3): the Android app. A Capacitor project in `android/` around the web build (Capacitor 8.6.0; `glob` and `minimatch` overridden to patched versions for two moderate advisories in the CLI's `rimraf`). A Kotlin plugin: NFC reader mode with `MifareClassic`, keys derived on the phone (HKDF, checked against the server's keys), 48 data blocks without trailers, `readOk` false when a sector refuses its key; QR scanning with the Google code scanner (no camera permission); values encrypted with AES-GCM under an Android Keystore key, backup off. The web app installs the native bridge at start in the app. Plain `http://` pairing only for LAN addresses. Kotlin tests with a fake tag at 100% of the testable code (JaCoCo gate 90%), and a CI job that runs them and builds the APK. Builds need JDK 21 (Temurin 21 installed).
   - Next: review by the owner, then the PR. Then part 4, the check on the owner's Pixel 9 Pro XL.
 
 ## Next
@@ -52,6 +52,7 @@
 
 - 2026-11-06: Build the Android app with JDK 21, because Gradle 8.14 cannot run on Android Studio's bundled JDK 25.
 - 2026-11-06: Scan pairing QR codes with Google's code scanner (Play services), because it needs no camera permission and keeps camera code out of the app.
+- 2026-11-06: Allow plain HTTP in the Android platform settings and enforce "LAN addresses only" when pairing, because Android's network rules cannot express private address ranges.
 - 2026-10-31: Use the resistor ladder on GPIO35 for the buttons, because its voltages are well separated and it needs no extra chip. The PCF8574 stays as the fallback.
 - 2026-10-31: Keep all agent instructions and build commands in AGENTS.md, with no CLAUDE.md, so every tool follows one file.
 - 2026-10-31: Use uv for dependency locking because it is already installed and needs no extra lock tool.

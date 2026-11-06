@@ -208,7 +208,7 @@ An Android phone can act as one more scanner, so spools can be scanned before th
 
 **Network**
 
-- The app allows plain HTTP for LAN addresses, like the scanner, and HTTPS everywhere.
+- The app allows plain HTTP for LAN addresses, like the scanner, and HTTPS everywhere. A LAN address is a private IPv4 or IPv6 address, `localhost`, a name without dots, or a name ending in `.local`, `.lan` or `.home.arpa`; pairing refuses any other `http://` address.
 - The session cookie is `Secure`, so signing in over a plain `http://` address works only with `COOKIE_SECURE=false`. Pairing with the HTTPS address of the reverse proxy is recommended: scanning still works on the LAN, because the proxy forwards the phone's LAN address.
 
 ## Server: data model

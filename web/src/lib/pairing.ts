@@ -17,7 +17,34 @@ export function serverUrlError(text: string): string | null {
   }
   if (url.username || url.password) return "The address must not include a user name.";
   if (url.search || url.hash) return "The address must not include ? or #.";
+  if (url.protocol === "http:" && !isLanHost(url.hostname)) {
+    return "Plain http:// works only for addresses on your home network. Use https://.";
+  }
   return null;
+}
+
+const LAN_SUFFIXES = [".local", ".lan", ".home.arpa"];
+
+/** Whether a host is on the home network, where the app allows plain HTTP (docs/SPEC.md). */
+export function isLanHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/\.$/, "");
+  if (host.startsWith("[")) {
+    const ip6 = host.slice(1, -1);
+    return ip6 === "::1" || /^f[cd][0-9a-f]{0,2}:/.test(ip6) || /^fe[89ab][0-9a-f]?:/.test(ip6);
+  }
+  const ip4 = host.match(/^(\d+)\.(\d+)\.\d+\.\d+$/);
+  if (ip4) {
+    const [a, b] = [Number(ip4[1]), Number(ip4[2])];
+    return (
+      a === 10 ||
+      a === 127 ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 169 && b === 254)
+    );
+  }
+  if (host === "localhost" || !host.includes(".")) return true;
+  return LAN_SUFFIXES.some((suffix) => host.endsWith(suffix));
 }
 
 /** The address without a trailing slash, as the app stores it. */
