@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 
 from filament_tracker.api.read_schemas import EventOut, Page, ReviewOut
-from filament_tracker.api.views import event_out, unidentified_tag
+from filament_tracker.api.views import event_out, spool_row, unidentified_tag
 from filament_tracker.auth import DbSession, Viewer
 from filament_tracker.domain.enums import EventSource
 from filament_tracker.services import queries
@@ -35,5 +35,5 @@ def get_review(_: Viewer, session: DbSession) -> ReviewOut:
     return ReviewOut(
         flagged_events=[event_out(e) for e in queries.flagged_events(session)],
         unidentified_tags=[unidentified_tag(t) for t in queries.unidentified_tags(session)],
-        likely_empty=[],
+        likely_empty=[spool_row(s) for s in queries.likely_empty(session)],
     )

@@ -105,4 +105,6 @@ class UnidentifiedTag(BaseModel):
 class ReviewOut(BaseModel):
     flagged_events: list[EventOut] = Field(description="Flagged and not undone, newest first")
     unidentified_tags: list[UnidentifiedTag]
-    likely_empty: list[SpoolRow] = Field(description="From the AMS, arriving in M5")
+    likely_empty: list[SpoolRow] = Field(
+        description="Open spools the AMS reports at 0%, not dismissed"
+    )

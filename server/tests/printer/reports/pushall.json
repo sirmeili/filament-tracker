@@ -1,0 +1,58 @@
+{
+  "print": {
+    "command": "push_status",
+    "sequence_id": "2001",
+    "gcode_state": "IDLE",
+    "nozzle_temper": 24.0,
+    "ams": {
+      "ams": [
+        {
+          "id": "0",
+          "humidity": "4",
+          "temp": "0.0",
+          "tray": [
+            {
+              "id": "0",
+              "tag_uid": "0000000000000000",
+              "tray_uuid": "A1B2C3D4E5F60718293A4B5C6D7E8F90",
+              "tray_info_idx": "GFA00",
+              "tray_type": "PLA",
+              "tray_sub_brands": "PLA Basic",
+              "tray_color": "000000FF",
+              "tray_weight": "1000",
+              "tray_diameter": "1.75",
+              "nozzle_temp_min": "190",
+              "nozzle_temp_max": "230",
+              "remain": 85
+            },
+            { "id": "1" },
+            {
+              "id": "2",
+              "tag_uid": "0000000000000000",
+              "tray_uuid": "00000000000000000000000000000000",
+              "tray_info_idx": "GFG99",
+              "tray_type": "PETG",
+              "tray_sub_brands": "",
+              "tray_color": "FF6A13FF",
+              "remain": -1
+            },
+            {
+              "id": "3",
+              "tag_uid": "0000000000000000",
+              "tray_uuid": "0F1E2D3C4B5A69788796A5B4C3D2E1F0",
+              "tray_info_idx": "GFG02",
+              "tray_type": "PETG",
+              "tray_sub_brands": "PETG HF",
+              "tray_color": "515151FF",
+              "remain": 0
+            }
+          ]
+        }
+      ],
+      "ams_exist_bits": "1",
+      "tray_exist_bits": "d",
+      "tray_now": "255",
+      "version": 4
+    }
+  }
+}
