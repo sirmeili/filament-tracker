@@ -3,6 +3,10 @@ package io.github.sirmeili.filamenttracker
 import android.app.Activity
 import android.media.AudioManager
 import android.media.ToneGenerator
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.nfc.tech.MifareClassic
@@ -38,6 +42,8 @@ class FilamentTrackerPlugin : Plugin() {
     private companion object {
         const val TONE_VOLUME = 80
         const val TONE_MS = 150
+        val READ_OK_BUZZ = longArrayOf(0, 80)
+        val READ_FAILED_BUZZ = longArrayOf(0, 60, 80, 60)
     }
 
     @PluginMethod
@@ -126,10 +132,31 @@ class FilamentTrackerPlugin : Plugin() {
 
     private var tones: ToneGenerator? = null
 
+    /**
+     * Say a read is done: a beep at the notification volume, and a vibration so it is felt
+     * even with the sound off. A failed read gets another tone and two short buzzes.
+     */
     private fun beep(tone: Int) {
         runCatching {
             val generator = tones ?: ToneGenerator(AudioManager.STREAM_NOTIFICATION, TONE_VOLUME).also { tones = it }
             generator.startTone(tone, TONE_MS)
+        }
+        runCatching { buzz(if (tone == ToneGenerator.TONE_PROP_ACK) READ_OK_BUZZ else READ_FAILED_BUZZ) }
+    }
+
+    private fun buzz(pattern: LongArray) {
+        val vibrator =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                context.getSystemService(VibratorManager::class.java)?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                context.getSystemService(Vibrator::class.java)
+            } ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(pattern, -1)
         }
     }
 

@@ -45,6 +45,7 @@
     - NFC turned on in Android settings needed an app restart: Scan now checks again every 2 s while NFC is off and when the app comes back to the front.
     - A spool left on the phone was read over and over, and Android's "tag found" sound played before the read was done, so lifting the spool at the sound cut the read short. Reader mode now stays on while the app is in front and ignores tags while a spool is on screen (a spool has to be lifted and tapped again), the system sound is off, and the app beeps once the whole tag has been read (another tone for a failed read).
     - Check 14 failed: with the server stopped, Scan stayed on "Looking it up". The firewall drops the connection, so the request never ended. Device API requests now give up after 5 s and the scan falls back to offline.
+    - Checklist run 2: 14, 8 (offline) and 15 passed; reading stops after one scan, and NFC changes show at once. No beep was heard because the phone's notification volume was 0 (Android's own NFC sound ignores it), so the app also vibrates after a read: one buzz for a good read, two for a failed one.
   - Next: record the results here, fix anything that fails, then the PR.
 
 ## Next

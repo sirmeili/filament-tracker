@@ -40,6 +40,8 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.NFC" />
+    <!-- A short buzz when a tag has been read, felt even with the sound off. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Optional, so phones without NFC can still install the app and use the web pages. -->
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
 </manifest>
