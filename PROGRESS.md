@@ -26,17 +26,19 @@
 - M2 part 5, the SvelteKit web foundation (sign-in, layout, navigation by role, served by FastAPI), merged (PR #15).
 - Web app mockups (direction A, "Workshop") and the owner's decisions on them, merged (PR #16).
 - M2 part 6, the Inventory, Spools, Spool detail and Products pages with the mockup look and a Light/Dark/System theme, merged (PR #17).
+- Phone scanner (M8) added to the spec, merged (PR #19).
 - M2 part 7, the Review, Activity, Devices, Users and Account pages, manual entry, Review Bring back, the scanner heartbeat and the Activity source filter, merged (PR #18). **M2 complete.**
 - M2 plan approved: seven branches (spec, users and auth, read API, write API, web foundation, stock pages, admin pages).
 - M1 plan approved: five branches merged in order (decoder, data model, event log, `/scans` API, scan simulator).
 
 ## In progress
 
-- `feature/phone-scanner-spec`: the spec for M8, an Android phone app that works as a LAN-only scanner. It is a Capacitor wrapper around the web app with a Kotlin NFC plugin (`MifareClassic`), the full web app after sign-in, QR pairing from the Devices page, and an offline queue like the scanner's. M8 is placed right after M5.
+- M5, the printer link. Plan approved: four branches (AMS ingest, MQTT client with the fake printer, printer pages, check against the real P1S). Decisions: the printer certificate is pinned on first connect, data comes over direct MQTT (which also works through an MQTT proxy), and Spool detail and the Spools table show the AMS slot.
+- `feature/ams-ingest` (M5 part 1): spec for M5, the `printer_slot` table and new printer and spool columns, the report parser that merges P1 partial reports, the ingest service (first sighting opens a spool, product matching, remaining %, slots, likely empty), a scanned tag winning over the AMS's product, and Review's likely-empty list. Tests use report fixtures based on the documented message format.
+  - Next: review by the owner, then the PR. Then part 2, the MQTT client.
 
 ## Next
 
-- M5, the printer link: plan to be presented once the phone scanner spec is merged.
 - M8 needs JDK 21 and the Android SDK (Android Studio is the easiest way to get both); neither is installed on the development PC yet.
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
 

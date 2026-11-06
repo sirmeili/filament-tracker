@@ -83,6 +83,8 @@ class Spool(Base):
     remaining_pct: Mapped[int | None]
     location: Mapped[str | None] = mapped_column(String(100))
     notes: Mapped[str | None] = mapped_column(String(2000))
+    # Set when its "Likely empty" suggestion is dismissed; cleared when the AMS reports more.
+    likely_empty_dismissed_at: Mapped[datetime | None]
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
     product: Mapped[Product] = relationship(back_populates="spools")
@@ -192,7 +194,7 @@ class UserSession(Base):
 
 
 class Printer(Base):
-    """A printer watched over MQTT (used from M5)."""
+    """A printer (or MQTT proxy) watched over MQTT, synced from the PRINTERS setting."""
 
     __tablename__ = "printer"
 
@@ -200,3 +202,34 @@ class Printer(Base):
     name: Mapped[str] = mapped_column(String(100))
     serial: Mapped[str] = mapped_column(String(32), unique=True)
     host: Mapped[str] = mapped_column(String(255))
+    port: Mapped[int] = mapped_column(Integer, default=8883, server_default="8883")
+    # SHA-256 of the TLS certificate pinned on first connect, as lower-case hex.
+    cert_sha256: Mapped[str | None] = mapped_column(String(64))
+    last_report_at: Mapped[datetime | None]
+
+    slots: Mapped[list["PrinterSlot"]] = relationship(
+        back_populates="printer",
+        cascade="all, delete-orphan",
+        order_by="(PrinterSlot.ams_index, PrinterSlot.tray_index)",
+    )
+
+
+class PrinterSlot(Base):
+    """What the AMS last reported in one slot, and the spool it is (if it has a tray UID)."""
+
+    __tablename__ = "printer_slot"
+    __table_args__ = (UniqueConstraint("printer_id", "ams_index", "tray_index"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    printer_id: Mapped[int] = mapped_column(ForeignKey("printer.id"), index=True)
+    ams_index: Mapped[int]
+    tray_index: Mapped[int]
+    tray_uuid: Mapped[str | None] = mapped_column(String(32))
+    spool_id: Mapped[int | None] = mapped_column(ForeignKey("spool.id"), index=True)
+    filament_type: Mapped[str | None] = mapped_column(String(32))
+    color_rgba: Mapped[str | None] = mapped_column(String(8))
+    remaining_pct: Mapped[int | None]
+    updated_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+    printer: Mapped[Printer] = relationship(back_populates="slots")
+    spool: Mapped[Spool | None] = relationship()

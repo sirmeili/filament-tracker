@@ -95,10 +95,12 @@ Some spools cannot be scanned when they arrive; TPU, for example, ships in a foi
 
 **Automatic detection from the AMS**
 
-- The first time the P1S/AMS reports a tray UID the server has not seen opened, the spool moves to `open` with source `ams`. This covers spools opened and loaded without a scan.
-- A spool first seen through the AMS is assigned to an existing product if its AMS data matches exactly one. If it matches none or several, the server creates a provisional product. Either way the spool is flagged for review. A later scan of one of its tags wins: the spool moves to the tag's product, and a provisional product left with no spools is removed.
-- The AMS remaining % is stored on the spool and shown in the UI.
-- When the AMS reports 0% remaining, the server raises a "Likely empty" suggestion; it does not mark the spool empty on its own.
+- The first time the P1S/AMS reports a tray UID the server has not seen opened, the spool moves to `open` with source `ams`. This covers spools opened and loaded without a scan. It happens once per spool: if that `opened` is undone, the AMS does not record it again.
+- A spool first seen through the AMS is assigned to an existing product if its AMS data matches exactly one: the same material ID (the AMS `tray_info_idx`) and color. If it matches none or several, the server creates a provisional product from the AMS filament type and color. Either way the spool is flagged for review. A later scan of one of its tags wins: the spool moves to the tag's product, and a provisional product left with no spools is removed.
+- Trays with no tray UID (all zeros, for example a non-Bambu spool) are shown in their slot but create no spool. A remaining % of -1 means the AMS does not know it, and is ignored.
+- The AMS remaining % is stored on the spool and shown in the UI. It is written only when it changes.
+- The server remembers what is in each AMS slot, so the Devices page, the Spools table and Spool detail can show where a spool is loaded.
+- When the AMS reports 0% remaining for an open spool, the server raises a "Likely empty" suggestion; it does not mark the spool empty on its own. The suggestion lasts until the spool is emptied, the AMS reports more than 0%, or it is dismissed.
 
 ## System architecture
 
@@ -218,13 +220,14 @@ The server is event-sourced: every scan, AMS observation and UI edit is an immut
 | Table | Key fields | Purpose |
 | --- | --- | --- |
 | `product` | id, material\_id, variant\_id, filament\_type, color\_rgba, display\_name, low\_stock\_threshold, nearly\_out\_pct, provisional | One row per filament product (for example Black PLA Basic); created automatically from the first decoded tag; display name editable. `nearly_out_pct` (default 15) is the AMS remaining % at or below which an open spool is shown as nearly out. Provisional products (from the AMS or manual entry) have no material or variant ID until a tag is scanned |
-| `spool` | id, tray\_uid (unique, null for a manual placeholder), product\_id, state, received\_at, opened\_at, emptied\_at, remaining\_pct, location, notes | One physical spool; state and timestamps derived from events. State is null (Unknown) when every event that set it has been undone |
+| `spool` | id, tray\_uid (unique, null for a manual placeholder), product\_id, state, received\_at, opened\_at, emptied\_at, remaining\_pct, location, notes, likely\_empty\_dismissed\_at | One physical spool; state and timestamps derived from events. State is null (Unknown) when every event that set it has been undone. `likely_empty_dismissed_at` hides its "Likely empty" suggestion |
 | `tag` | uid (unique), spool\_id, raw\_blocks, decoded\_json, first\_seen\_at, dismissed\_at | Each spool has up to two tags; raw dump kept for re-decoding. `dismissed_at` hides an `unidentified` tag from Review |
 | `event` | id (UUID from device or server), spool\_id, type, source, device\_id, user\_id, occurred\_at, flagged, reviewed\_at, reviewed\_by, payload\_json, reverted\_by | Append-only log; undo writes a new `revert` event. `user_id` records who acted in the web app |
 | `device` | id, name, token\_hash, revoked\_at, last\_seen\_at, fw\_version, queue\_length | Registered scanners; firmware version and offline queue length come from the last heartbeat |
 | `user` | id, username (unique, case-insensitive), password\_hash, role, disabled\_at, last\_login\_at | Web app accounts; see Users and roles |
 | `session` | id, token\_hash, user\_id, expires\_at, last\_seen\_at | Signed-in browsers; only a hash of the cookie value is stored |
-| `printer` | id, name, serial, host | Printers watched over MQTT |
+| `printer` | id, name, serial, host, port, cert\_sha256, last\_report\_at | Printers watched over MQTT, synced from `PRINTERS` at startup. `cert_sha256` is the pinned TLS certificate fingerprint |
+| `printer_slot` | id, printer\_id, ams\_index, tray\_index, tray\_uuid, spool\_id, filament\_type, color\_rgba, remaining\_pct, updated\_at | What the AMS last reported in each slot, and the spool it is |
 
 **Spool states and transitions**
 
@@ -266,6 +269,9 @@ A versioned REST API under `/api/v1`, documented by FastAPI's generated OpenAPI 
 | GET | `/events` | Viewer | Activity: all events, newest first, paged; filter by spool or source (scanner, web app, printer) |
 | POST | `/events/{id}/revert` | Editor, Scanner | Undo an event; a scanner can undo only events from its own device |
 | GET | `/review` | Viewer | Flagged events not yet reviewed, `unidentified` tags, likely-empty suggestions |
+| POST | `/review/spools/{id}/dismiss`, `/review/spools/{id}/restore` | Editor | Dismiss a likely-empty suggestion; Bring back returns it |
+| GET | `/printers` | Admin | Printers with online status, certificate pin state and each AMS slot's contents and spool |
+| POST | `/printers/{id}/unpin` | Admin | Forget the pinned certificate, so the next connection pins a new one (for example after a firmware update) |
 | POST | `/review/events/{id}/accept` | Editor | Mark a flagged event as correct |
 | POST | `/review/tags/{uid}/dismiss` | Editor | Hide an `unidentified` tag from Review |
 | POST | `/review/events/{id}/unaccept`, `/review/tags/{uid}/restore` | Editor | Bring back: return an accepted event or a dismissed tag to Review |
@@ -301,11 +307,11 @@ A small, mobile-friendly web app for checking stock and fixing mistakes; day-to-
 | Page | Shows | Actions |
 | --- | --- | --- |
 | Inventory | One card per product: color swatch, name, sealed / open / used-up counts, low-stock badge (sealed count at or below the product's threshold; 0 turns it off), and a remaining % bar for each open spool, marked nearly out at or below the product's nearly-out %. A summary counts open spools that are nearly out | Filter by type; sort by low stock; switch between cards and a list |
-| Spools | Table of spools with state, product, location, remaining %, dates | Filter by state and type, search, bulk change location, add a spool by hand |
-| Spool detail | Tag data, AMS remaining % and grams left (remaining % of the tag's spool weight), event timeline | Manual action, undo, edit notes and location |
+| Spools | Table of spools with state, product, location (and AMS slot while loaded), remaining %, dates | Filter by state and type, search, bulk change location, add a spool by hand |
+| Spool detail | Tag data, AMS remaining % and grams left (remaining % of the tag's spool weight), the AMS slot while loaded (for example "AMS 1, slot 2 on P1S"), event timeline | Manual action, undo, edit notes and location |
 | Products | Decoded product IDs and colors | Set display name, low-stock threshold and nearly-out % |
-| Review | Flagged events, `unidentified` tags, "likely empty" suggestions | Flagged event: Accept (it was right), Undo (revert it) or Open spool (fix by hand). Unidentified tag: dismiss. Likely empty: mark empty or dismiss. After an Accept or a dismiss, Bring back returns the item to Review |
-| Devices | Scanners (including phones) and printers with online status, firmware, queue; each printer shows its AMS slots and the spool in each (from M5) | Register device (token shown once, with a QR code for the phone app), rotate token, revoke |
+| Review | Flagged events, `unidentified` tags, "likely empty" suggestions | Flagged event: Accept (it was right), Undo (revert it) or Open spool (fix by hand). Unidentified tag: dismiss. Likely empty: mark used up or dismiss. After an Accept or a dismiss, Bring back returns the item to Review |
+| Devices | Scanners (including phones) and printers with online status, firmware, queue; each printer shows its AMS slots and the spool in each, and warns when its certificate does not match the pin | Register device (token shown once, with a QR code for the phone app), rotate token, revoke; forget a printer's certificate pin |
 | Users | Accounts and roles (Admin only), with a short description of what each role can do | Create, change role, reset password, disable |
 | Account | The signed-in user | Change password (with a meter showing progress to the 12-character minimum), sign out |
 | Activity | Global event log, newest first, grouped by day | Filter by source (scanners, web app, printer); undo |
@@ -316,13 +322,13 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 
 **Bambu P1S (local MQTT)**
 
-- The server subscribes to the printer's local MQTT report (TLS, port 8883, LAN access code) for each configured printer.
-- From each AMS tray it reads the tray UID, filament type, color and remaining %.
-- A new tray UID triggers the automatic `opened` event (source `ams`); remaining % updates the spool in place, debounced to one write per change.
-- Read-only, with one exception: the server may publish `pushall`, which requests full state, because P1 printers otherwise report only changes. It never publishes anything else to the printer.
-- `PRINTERS` may point at an MQTT proxy instead of the printer, to stay under the printer's connection limit. Any proxy is a separate project, not part of this system.
+- The server keeps one MQTT connection per configured printer (TLS, port 8883 by default, user `bblp` and the LAN access code), subscribes to `device/{serial}/report` and reconnects with backoff.
+- P1 printers report only what changed, so the server merges each message into its full view of every AMS tray. From each tray it reads the tray UID, material ID (`tray_info_idx`), filament type, color and remaining %. See Automatic detection from the AMS for what this does to spools.
+- Read-only, with one exception: the server publishes `pushall`, which requests full state, on connect and every 30 minutes. It never publishes anything else to the printer.
+- A printer is online when it reported in the last 5 minutes.
+- **Certificate pinning**: the printer's TLS certificate is not from a public authority, so the server pins it on first use. The first connection only completes a TLS handshake and stores the certificate's SHA-256 fingerprint; every connection after that trusts only the pinned certificate, so the access code is never sent to anything else. A different certificate is refused and shown on the Devices page, where an admin can forget the pin (for example after a firmware update).
+- **MQTT proxies**: `PRINTERS` may point at an MQTT proxy instead of the printer, to stay under the printer's connection limit. A proxy such as `bambu-mqtt-proxy` speaks the same protocol (TLS on 8883 with its own certificate, user `bblp`, the access code, the same topics, and it forwards `pushall`), so it needs no special support: set its host and port, and use the alias as the serial if the proxy renames the printer. The pin is then the proxy's certificate. Any proxy is a separate project, not part of this system.
 - A **fake printer** replays recorded or documentation-based report messages over TLS, so this integration can be tested without a printer.
-- Alternative (see Open questions): read the same data from the ha-bambulab entities in Home Assistant instead of a second MQTT connection.
 
 **Home Assistant**
 
@@ -353,7 +359,7 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 | --- | --- | --- |
 | `ADMIN_TOKEN` | random 32 bytes | Machine access for Home Assistant and scripts, from the LAN only |
 | `BAMBU_KDF_SALT` | hex string | Key-derivation constant, served to provisioned devices |
-| `PRINTERS` | name, host, serial, access code | Printers to watch over MQTT |
+| `PRINTERS` | `[{"name": "P1S", "host": "192.168.1.40", "serial": "01P00A...", "access_code": "..."}]` | Printers to watch over MQTT, as a JSON list; each entry may also set `port` (default 8883). `host` and `port` may be an MQTT proxy's |
 | `MQTT_URL`, `MQTT_USER`, `MQTT_PASSWORD` | HA broker | Discovery and state publishing |
 | `HA_URL`, `HA_TOKEN` | long-lived token | Firing HA events |
 | `TZ` | `America/New_York` | Timestamps in the UI |
@@ -372,7 +378,7 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 - Device tokens are stored hashed, revocable, and scoped to `/scans`, `/devices/heartbeat`, `/devices/provisioning` and `/events/{id}/revert` for events from that same device.
 - Input validation on all payloads (Pydantic); block arrays capped in size.
 - No tag UIDs or derived keys in logs above debug level, in line with the RFID guide's request not to publish UID/key pairs.
-- The printer access code and HA token never leave the server or appear in API responses.
+- The printer access code and HA token never leave the server or appear in API responses or logs. The access code is sent only to a printer (or proxy) whose certificate matches the pin.
 
 ## Testing
 
@@ -428,6 +434,6 @@ Each milestone ends with something usable. Reading is proved first with a phone,
 - [ ] Does a tag read through the sealed shipping box with the PN532, and from which side? If not, New needs another trigger (box barcode, or scanning at first opening). A Pixel 9 Pro XL reads tags through sealed refill boxes from either side, but a phone antenna is not a PN532. Tags in TPU's foil bag cannot be read; see Manual entry.
 - [ ] Does the AMS tray UUID equal the tag's tray UID, and how does the AMS report non-Bambu spools? Check against the real P1S.
 - [x] Buttons on the CYD prototype: resistor ladder on GPIO35. The PCF8574 expander stays as the fallback.
-- [ ] Printer data source: direct MQTT from the server, or the ha-bambulab entities in Home Assistant?
+- [x] Printer data source: direct MQTT from the server, which also works through an MQTT proxy if the printer's connection limit is hit.
 - [x] Refill packs carry Bambu tags that read through the box. A refill has its own tray UID, so it is tracked as a new spool.
 - [ ] Project and repo name.
