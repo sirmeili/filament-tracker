@@ -1,5 +1,6 @@
 // Review, manual entry, Devices, Users and Account against the real server. The seed
-// (e2e/seed.py) flags a second Received on Black PLA spool 1 for Review.
+// (e2e/seed.py) flags a second Received on Black PLA spool 1 for Review, and seeds a
+// printer whose AMS reports White PLA spool 4 at 0%.
 
 import { expect, test } from "@playwright/test";
 import { failOnBrowserErrors, signIn, signInAt } from "./helpers.ts";
@@ -17,6 +18,36 @@ test("editors accept a flagged event, then bring it back", async ({ page }) => {
   await page.getByRole("button", { name: "Bring back" }).click();
   await expect(page.getByRole("status")).toHaveText(/Brought back to Review/);
   await expect(page.getByRole("heading", { name: "Received, flagged" })).toBeVisible();
+});
+
+test("editors dismiss a used-up suggestion, then bring it back", async ({ page }) => {
+  await signInAt(page, "/review", "e2e-editor");
+  await expect(page.getByRole("heading", { name: "AMS reports 0% left" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Dismiss the suggestion for White PLA Basic #4" }).click();
+  await expect(page.getByText(/^No suggestions\./)).toBeVisible();
+
+  await page.getByRole("button", { name: "Bring back" }).click();
+  await expect(page.getByRole("status")).toHaveText(/Brought back to Review/);
+  await expect(page.getByRole("heading", { name: "AMS reports 0% left" })).toBeVisible();
+});
+
+test("admins see the printer and what is in its AMS", async ({ page }) => {
+  await signInAt(page, "/devices", "e2e-admin");
+  const printer = page.getByRole("article", { name: "E2E P1S" });
+
+  await expect(printer).toContainText("Not configured");
+  await expect(printer).toContainText("192.0.2.10:8883");
+  await expect(printer.getByRole("listitem", { name: "AMS 1, slot 1" })).toContainText(
+    "Black PLA Basic #2",
+  );
+  await expect(printer.getByRole("listitem", { name: "AMS 1, slot 3" })).toContainText(
+    "No Bambu tag, not tracked",
+  );
+  await expect(printer.getByRole("listitem", { name: "AMS 1, slot 4" })).toContainText("Empty");
+
+  await printer.getByRole("link", { name: /White PLA Basic #4/ }).click();
+  await expect(page.getByText("Loaded in AMS 1, slot 2 on E2E P1S")).toBeVisible();
 });
 
 test("editors add a spool by hand with a new product", async ({ page }) => {
