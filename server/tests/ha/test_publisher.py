@@ -13,7 +13,7 @@ from filament_tracker.db.engine import create_session_factory
 from filament_tracker.domain.enums import SpoolState
 from filament_tracker.ha import publisher as publisher_module
 from filament_tracker.ha.broker import BrokerConfig
-from filament_tracker.ha.entities import AVAILABILITY_TOPIC, TOTALS_TOPIC, product_topic
+from filament_tracker.ha.entities import AVAILABILITY_TOPIC, LOW_STOCK_TOPIC, TOTALS_TOPIC
 from filament_tracker.ha.publisher import HaPublisher, MqttStatus
 
 BROKER = BrokerConfig("ha.lan", 1883, False, "filament", SecretStr("broker-secret"))
@@ -79,8 +79,9 @@ def test_publishes_entities_once_and_then_only_changes(
         topics = broker.topics()
         assert topics[0] == AVAILABILITY_TOPIC
         assert topics.index(
-            f"homeassistant/sensor/filament_tracker/product_{black_id}_sealed/config"
-        ) < topics.index(product_topic(black_id))
+            "homeassistant/sensor/filament_tracker/total_spools/config"
+        ) < topics.index(TOTALS_TOPIC)
+        assert json.loads(broker.last(LOW_STOCK_TOPIC) or "{}")["low"] is False
         first = len(broker.published)
         await asyncio.sleep(TICK * 5)
         assert len(broker.published) == first  # nothing changed, nothing sent
@@ -91,8 +92,13 @@ def test_publishes_entities_once_and_then_only_changes(
         await until(lambda: len(broker.published) > first, "the change")
         await asyncio.sleep(TICK * 3)
         changed = broker.topics()[first:]
-        assert changed == [product_topic(black_id)]
-        assert json.loads(broker.last(product_topic(black_id)) or "{}")["open"] == 1
+        assert changed == [TOTALS_TOPIC]
+        assert json.loads(broker.last(TOTALS_TOPIC) or "{}")["open"] == 1
+
+        with sessions() as session:
+            session.get_one(type(black), black_id).low_stock_threshold = 2
+            session.commit()
+        await until(lambda: json.loads(broker.last(LOW_STOCK_TOPIC) or "{}")["low"], "low")
 
     run(scenario, ha)
 
@@ -113,7 +119,11 @@ def test_publishes_entities_once_and_then_only_changes(
         "offline",
         True,
     )
-    assert broker.clients[0].subscribed == ["homeassistant/status"]
+    assert broker.clients[0].subscribed == [
+        "homeassistant/status",
+        "homeassistant/+/filament_tracker/+/config",
+        "filament_tracker/#",
+    ]
 
 
 def test_republishes_everything_when_home_assistant_restarts(
@@ -131,6 +141,31 @@ def test_republishes_everything_when_home_assistant_restarts(
         assert AVAILABILITY_TOPIC in broker.topics()[first:]
 
     run(scenario, ha)
+
+
+def test_clears_retained_entities_it_no_longer_publishes(
+    sessions: sessionmaker[Session],
+) -> None:
+    broker = FakeBroker()
+    ha = publisher(sessions, broker)
+    old = "homeassistant/sensor/filament_tracker/product_1_sealed/config"
+
+    async def scenario(ha: HaPublisher, _: asyncio.Event) -> None:
+        await until(lambda: broker.last(TOTALS_TOPIC) is not None)
+        client = broker.clients[0]
+        client.send(old, b'{"name": "old"}', retain=True)  # left by an earlier version
+        client.send("filament_tracker/product/1", b"{}", retain=True)
+        client.send(AVAILABILITY_TOPIC, b"online", retain=True)  # ours: kept
+        client.send("homeassistant/sensor/filament_tracker/total_open/config", b"x", retain=True)
+        client.send(TOTALS_TOPIC, b"{}")  # an echo of our own message: not retained
+        client.send("filament_tracker/product/2", b"", retain=True)  # already cleared
+        await until(lambda: broker.last(old) == "", "cleared")
+        await asyncio.sleep(TICK * 3)
+
+    run(scenario, ha)
+
+    cleared = [t for t, payload, *_ in broker.published if payload == ""]
+    assert sorted(cleared) == sorted([old, "filament_tracker/product/1"])
 
 
 def test_reconnects_after_a_refusal_or_a_lost_connection(

@@ -28,7 +28,9 @@ from filament_tracker.ha.entities import (
     ONLINE,
     birth_topic,
     changes,
+    is_owned,
     messages,
+    owned_topics,
 )
 from filament_tracker.ha.snapshot import take_snapshot
 
@@ -84,6 +86,7 @@ class HaPublisher:
         self._loop: asyncio.AbstractEventLoop | None = None
         self._thread: threading.Thread | None = None
         self._stopping: asyncio.Event | None = None
+        self._stale: set[str] = set()
 
     # --- the background thread -------------------------------------------------------
 
@@ -154,6 +157,12 @@ class HaPublisher:
             self.status = MqttStatus.CONNECTED
             logger.info("Home Assistant MQTT: connected")
             await client.subscribe(birth_topic(self.prefix))
+            # Retained messages on our own topics arrive once on subscribing; any that this
+            # version no longer publishes (such as the per-product entities of earlier
+            # versions) are cleared, which removes them from Home Assistant.
+            for topic in owned_topics(self.prefix):
+                await client.subscribe(topic)
+            self._stale = set()
             resend = asyncio.Event()
             listener = asyncio.create_task(self._listen(client, resend))
             try:
@@ -166,8 +175,18 @@ class HaPublisher:
         return True
 
     async def _listen(self, client: MqttClient, resend: asyncio.Event) -> None:
-        """Republish everything when Home Assistant says it has started."""
+        """Republish everything when Home Assistant says it has started, and note retained
+        messages on our topics so stale ones can be cleared."""
         async for message in client.messages:
+            topic = str(message.topic)
+            if is_owned(topic, self.prefix):
+                if (
+                    getattr(message, "retain", False)
+                    and message.payload
+                    and topic != AVAILABILITY_TOPIC
+                ):
+                    self._stale.add(topic)
+                continue
             payload = message.payload
             if isinstance(payload, bytes | bytearray):
                 payload = bytes(payload[:16]).decode("utf-8", errors="replace")
@@ -192,6 +211,9 @@ class HaPublisher:
             for topic, payload in changes(published, current):
                 await client.publish(topic, payload, qos=1, retain=True)
             published = current
+            for topic in sorted(self._stale - current.keys()):
+                await client.publish(topic, "", qos=1, retain=True)
+            self._stale.clear()
             # Wake for the next poll, a Home Assistant restart, a stop, or a lost connection.
             waits = [
                 asyncio.ensure_future(self._sleep(self._poll_seconds)),

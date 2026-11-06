@@ -336,10 +336,13 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 
 **Home Assistant**
 
-- Publish entities through MQTT discovery to the existing broker, under one device "Filament Tracker":
-  - a sensor per product: sealed count (attributes: open count, color, display name);
-  - a binary sensor per product for low stock;
-  - a sensor for total sealed spools and one for spools in review (the Review page's count).
+- Publish entities through MQTT discovery to the existing broker, under one device "Filament Tracker", with five entities (owner's choice, 2026-11-06: a few totals rather than entities per product):
+  - **Total spools**: sealed and open spools, not used up;
+  - **Total open** and **Total sealed**;
+  - **Low filament**: a binary sensor, on while any product is low on stock (sealed count at or below its threshold), with attributes `count` and `products`, a list of the low products (name, type, color, sealed count, threshold);
+  - **Spools in review**: the Review page's count.
+- Because Low filament stays on when a second product goes low, automations that should act on each product use the `filament_tracker_low_stock` event instead.
+- The server clears retained discovery messages under its own node ID that it no longer publishes (for example, entities from an earlier version), which removes them from Home Assistant.
 - Entities are published retained and updated within about 5 seconds of any change, whatever made it. The server reads its stock every 5 seconds and publishes only what changed.
 - While the server is stopped or cannot reach the broker, the entities are unavailable: the server publishes `online` and `offline` on an availability topic, with `offline` as its MQTT will.
 - When Home Assistant restarts (its `online` birth message), everything is published again.

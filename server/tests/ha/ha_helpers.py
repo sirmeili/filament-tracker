@@ -34,6 +34,7 @@ def add_spools(session: Session, product: Product, state: SpoolState, count: int
 class Message:
     topic: str
     payload: Any
+    retain: bool = False
 
 
 @dataclass
@@ -92,8 +93,8 @@ class FakeClient:
                 raise MqttError("Disconnected")
             yield message
 
-    def send(self, topic: str, payload: Any) -> None:
-        self.inbox.put_nowait(Message(topic, payload))
+    def send(self, topic: str, payload: Any, retain: bool = False) -> None:
+        self.inbox.put_nowait(Message(topic, payload, retain))
 
     def drop(self) -> None:
         self.inbox.put_nowait(None)

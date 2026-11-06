@@ -113,8 +113,11 @@ The access code is on the printer's screen under the network settings. Put `PRIN
 
 The server publishes Home Assistant entities through MQTT discovery, under one device, **Filament Tracker**:
 
-- per product, **`<name> sealed`** (the sealed count, with the open count, color, name and type as attributes) and **`<name> low stock`** (on when the sealed count is at or below the product's low-stock threshold);
-- **Sealed spools** (all products) and **Spools in review** (the Review page's count).
+- **Total spools** (sealed and open, not used up), **Total open** and **Total sealed**;
+- **Low filament**: on while any product's sealed count is at or below its low-stock threshold (set on the Products page; 0 turns it off). Its `products` attribute lists the low products with their name, type, color, sealed count and threshold, and `count` says how many;
+- **Spools in review**: the Review page's count.
+
+Entities from an earlier version of the server (such as per-product sensors) are removed automatically.
 
 Set these in `server/.env` and restart the server:
 

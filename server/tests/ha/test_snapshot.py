@@ -34,13 +34,15 @@ def test_counts_low_stock_and_review(session: Session) -> None:
     snapshot = take_snapshot(session)
 
     assert snapshot.products == (
-        ProductState(black.id, "Black PLA Basic", "PLA", "000000FF", 2, 1, low_stock=True),
-        ProductState(white.id, "White PETG", "PETG", "FFFFFFFF", 3, 1, low_stock=False),
+        ProductState(black.id, "Black PLA Basic", "PLA", "000000FF", 2, 1, True, 2),
+        ProductState(white.id, "White PETG", "PETG", "FFFFFFFF", 3, 1, False, 0),
     )
-    assert snapshot.total_sealed == 5
+    assert (snapshot.total_sealed, snapshot.total_open, snapshot.total_spools) == (5, 2, 7)
+    assert [p.name for p in snapshot.low_stock] == ["Black PLA Basic"]
     assert snapshot.in_review == 3
 
 
 def test_an_empty_database(session: Session) -> None:
     snapshot = take_snapshot(session)
-    assert (snapshot.products, snapshot.total_sealed, snapshot.in_review) == ((), 0, 0)
+    assert (snapshot.products, snapshot.total_spools, snapshot.in_review) == ((), 0, 0)
+    assert snapshot.low_stock == ()

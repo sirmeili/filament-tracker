@@ -1,11 +1,11 @@
 """MQTT discovery messages for Home Assistant (docs/SPEC.md, Home Assistant).
 
 Everything is published retained, so Home Assistant finds the entities and their latest
-state whenever it (re)connects. One device, "Filament Tracker", holds:
+state whenever it (re)connects. One device, "Filament Tracker", holds five entities:
 
-- per product, a sensor with the sealed count (open count, color, name and type as
-  attributes) and a binary sensor that is on when the product is low on stock;
-- a sensor with all sealed spools, and one with the spools waiting in Review.
+- Total spools (sealed and open, not used up), Total open, Total sealed;
+- Low filament, on while any product is low on stock, listing those products;
+- Spools in review (the Review page's count).
 
 The entities are unavailable while the server is not connected to the broker.
 """
@@ -20,6 +20,7 @@ BASE = "filament_tracker"
 AVAILABILITY_TOPIC = f"{BASE}/status"
 ONLINE, OFFLINE = "online", "offline"
 TOTALS_TOPIC = f"{BASE}/totals"
+LOW_STOCK_TOPIC = f"{BASE}/low_stock"
 
 DEVICE = {
     "identifiers": [NODE],
@@ -28,9 +29,13 @@ DEVICE = {
     "model": "Spool tracker server",
 }
 
-
-def product_topic(product_id: int) -> str:
-    return f"{BASE}/product/{product_id}"
+# (object ID, name, key in the totals message, icon)
+TOTALS = (
+    ("total_spools", "Total spools", "spools", "mdi:printer-3d-nozzle"),
+    ("total_open", "Total open", "open", "mdi:package-variant"),
+    ("total_sealed", "Total sealed", "sealed", "mdi:package-variant-closed"),
+    ("in_review", "Spools in review", "in_review", "mdi:clipboard-alert-outline"),
+)
 
 
 def birth_topic(prefix: str) -> str:
@@ -38,7 +43,26 @@ def birth_topic(prefix: str) -> str:
     return f"{prefix}/status"
 
 
-def _dump(value: dict[str, Any]) -> str:
+def owned_topics(prefix: str) -> list[str]:
+    """Subscriptions that cover every retained message this server could have published,
+    including ones from older versions, so stale ones can be cleared."""
+    return [f"{prefix}/+/{NODE}/+/config", f"{BASE}/#"]
+
+
+def is_owned(topic: str, prefix: str) -> bool:
+    parts = topic.split("/")
+    if topic.startswith(f"{BASE}/"):
+        return True
+    head = prefix.split("/")
+    return (
+        len(parts) == len(head) + 4
+        and parts[: len(head)] == head
+        and parts[len(head) + 1] == NODE
+        and parts[-1] == "config"
+    )
+
+
+def _dump(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
 
@@ -55,55 +79,21 @@ def _config(prefix: str, component: str, object_id: str, fields: dict[str, Any])
     return topic, _dump(payload)
 
 
-def _product_messages(prefix: str, product: ProductState) -> dict[str, str]:
-    state = product_topic(product.id)
-    sealed = _config(
-        prefix,
-        "sensor",
-        f"product_{product.id}_sealed",
-        {
-            "name": f"{product.name} sealed",
-            "state_topic": state,
-            "value_template": "{{ value_json.sealed }}",
-            "json_attributes_topic": state,
-            "unit_of_measurement": "spools",
-            "state_class": "measurement",
-            "icon": "mdi:printer-3d-nozzle",
-        },
-    )
-    low = _config(
-        prefix,
-        "binary_sensor",
-        f"product_{product.id}_low_stock",
-        {
-            "name": f"{product.name} low stock",
-            "state_topic": state,
-            "value_template": "{{ 'ON' if value_json.low_stock else 'OFF' }}",
-            "device_class": "problem",
-            "icon": "mdi:cart-arrow-down",
-        },
-    )
-    payload = {
-        "sealed": product.sealed,
-        "open": product.open,
-        "display_name": product.name,
+def _low_product(product: ProductState) -> dict[str, Any]:
+    return {
+        "name": product.name,
         "filament_type": product.filament_type,
         # The swatch color as #RRGGBB (the tag's alpha byte dropped).
         "color": f"#{product.color_rgba[:6].upper()}",
-        "low_stock": product.low_stock,
+        "sealed": product.sealed,
+        "threshold": product.low_stock_threshold,
     }
-    return dict([sealed, low, (state, _dump(payload))])
 
 
 def messages(snapshot: Snapshot, prefix: str) -> dict[str, str]:
     """Every retained message for this snapshot, by topic."""
     out: dict[str, str] = {}
-    for product in snapshot.products:
-        out |= _product_messages(prefix, product)
-    for object_id, name, key, icon in (
-        ("total_sealed", "Sealed spools", "sealed", "mdi:package-variant-closed"),
-        ("in_review", "Spools in review", "in_review", "mdi:clipboard-alert-outline"),
-    ):
+    for object_id, name, key, icon in TOTALS:
         topic, payload = _config(
             prefix,
             "sensor",
@@ -118,7 +108,33 @@ def messages(snapshot: Snapshot, prefix: str) -> dict[str, str]:
             },
         )
         out[topic] = payload
-    out[TOTALS_TOPIC] = _dump({"sealed": snapshot.total_sealed, "in_review": snapshot.in_review})
+    topic, payload = _config(
+        prefix,
+        "binary_sensor",
+        "low_filament",
+        {
+            "name": "Low filament",
+            "state_topic": LOW_STOCK_TOPIC,
+            "value_template": "{{ 'ON' if value_json.low else 'OFF' }}",
+            "json_attributes_topic": LOW_STOCK_TOPIC,
+            "json_attributes_template": (
+                "{{ {'count': value_json.count, 'products': value_json.products} | tojson }}"
+            ),
+            "device_class": "problem",
+            "icon": "mdi:cart-arrow-down",
+        },
+    )
+    out[topic] = payload
+    out[TOTALS_TOPIC] = _dump(
+        {
+            "spools": snapshot.total_spools,
+            "open": snapshot.total_open,
+            "sealed": snapshot.total_sealed,
+            "in_review": snapshot.in_review,
+        }
+    )
+    low = [_low_product(p) for p in snapshot.low_stock]
+    out[LOW_STOCK_TOPIC] = _dump({"low": bool(low), "count": len(low), "products": low})
     return out
 
 
