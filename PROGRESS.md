@@ -25,6 +25,7 @@
 - M2 part 4, the write API (edits, manual entry, review, token rotation), merged (PR #14).
 - M2 part 5, the SvelteKit web foundation (sign-in, layout, navigation by role, served by FastAPI), merged (PR #15).
 - Web app mockups (direction A, "Workshop") and the owner's decisions on them, merged (PR #16).
+- M6 part 2, Home Assistant events and an example low-stock automation, merged (PR #29).
 - M2 part 6, the Inventory, Spools, Spool detail and Products pages with the mockup look and a Light/Dark/System theme, merged (PR #17).
 - Phone scanner (M8) added to the spec, merged (PR #19).
 - M5 part 1, reading AMS reports into spools, slots and likely-empty suggestions, merged (PR #20).
@@ -43,11 +44,12 @@
 ## In progress
 
 - M6, Home Assistant. Plan approved (2026-11-06): four branches (MQTT discovery entities; HA events and an example automation; an Admin Settings page for the Home Assistant settings, with secrets encrypted in the database; a check against the owner's Home Assistant, which uses the Mosquitto add-on).
-- `feature/ha-events` (M6 part 2): `HA_URL` and `HA_TOKEN`; a sender on its own thread that reads the database every 5 s and fires `filament_tracker_spool_received`, `_spool_opened`, `_spool_emptied` (any source) and `filament_tracker_low_stock` (a product going low) through Home Assistant's REST API. Only events after the server starts; undone-before-fired events skipped; retries after 1, 4 and 15 s, then a warning; a refused token is not retried; redirects are not followed so the token only goes to `HA_URL`; `/health` reports events as `off`, `ready` or `failing`. Example automation in `docs/home-assistant/low-stock-automation.yaml` (shopping list and phone notification).
-  - Next: review by the owner, then the PR. Then part 3, the Admin Settings page.
+- `feature/mobile-scanner-mockups`: mockups for the phone app's Scan screen in `docs/mockups/mobile-scanner/`: the one-spool flow (direction A) as the default, an "unpacking a delivery" mode with a session list (direction B, actions at the bottom for one-handed use), a Delivery toggle and a Light/Dark/System toggle, plus a README with the layout and three items beyond the spec waiting for the owner's approval. Docs only, no code or tests changed.
 
 ## Next
 
+- M6 part 3: the Admin Settings page for the Home Assistant settings.
+- Phone Scan screen: once the owner decides on the "Beyond the spec" items in `docs/mockups/mobile-scanner/README.md`, update the spec and rebuild the Scan screen from the mockups.
 - Later (owner's request, 2026-11-06): make printers configurable from the web app too, like the Home Assistant settings in M6 part 3, instead of only `PRINTERS` in `server/.env`.
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
 
