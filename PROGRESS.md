@@ -32,6 +32,7 @@
 - M5 part 3, the printer pages: Printers on Devices, likely-empty Dismiss on Review, the AMS slot on spools, merged (PR #22).
 - M5 part 4, checked against the real P1S, AMS HT units and `ft-printer check`, merged (PR #23). **M5 complete.**
 - M8 part 1, `BAMBU_KDF_SALT`, `/devices/provisioning`, `ft-sim check-salt` and the pairing QR code, merged (PR #24).
+- M8 part 3, the Android app with its Kotlin NFC plugin, Keystore storage, QR scanning and the Android CI job, merged (PR #26).
 - M8 part 2, the phone app's logic in the web app (bridge interface, pairing, device API, offline decode and queue, Scan flow, Scan and Pairing pages), merged (PR #25).
 - M2 part 7, the Review, Activity, Devices, Users and Account pages, manual entry, Review Bring back, the scanner heartbeat and the Activity source filter, merged (PR #18). **M2 complete.**
 - M2 plan approved: seven branches (spec, users and auth, read API, write API, web foundation, stock pages, admin pages).
@@ -40,12 +41,11 @@
 ## In progress
 
 - M8, the phone scanner. Plan approved: four branches (provisioning and the pairing QR code, the app logic in the web app, the Android app with its NFC plugin, a check on the owner's phone). Android Studio and the Android SDK are installed.
-- `feature/android-app` (M8 part 3): the Android app. A Capacitor project in `android/` around the web build (Capacitor 8.6.0; `glob` and `minimatch` overridden to patched versions for two moderate advisories in the CLI's `rimraf`). A Kotlin plugin: NFC reader mode with `MifareClassic`, keys derived on the phone (HKDF, checked against the server's keys), 48 data blocks without trailers, `readOk` false when a sector refuses its key; QR scanning with the Google code scanner (no camera permission); values encrypted with AES-GCM under an Android Keystore key, backup off. The web app installs the native bridge at start in the app. Plain `http://` pairing only for LAN addresses. Kotlin tests with a fake tag at 100% of the testable code (JaCoCo gate 90%), and a CI job that runs them and builds the APK. Builds need JDK 21 (Temurin 21 installed).
-  - Next: review by the owner, then the PR. Then part 4, the check on the owner's Pixel 9 Pro XL.
+- `feature/m8-phone-check` (M8 part 4): the phone checklist is in `android/README.md` (install, a server the phone can reach, 20 checks covering pairing, scanning, offline and sign-in). The owner is running it on the Pixel 9 Pro XL.
+  - Next: record the results here, fix anything that fails, then the PR.
 
 ## Next
 
-- M8 part 4 (`feature/m8-phone-check`): install the debug APK on the Pixel 9 Pro XL and work through the phone manual checklist (reading, MIFARE Classic detection, QR pairing, offline queue, sign-in).
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
 
 ## Decisions

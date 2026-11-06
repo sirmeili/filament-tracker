@@ -114,6 +114,8 @@ npm run build && npx cap sync android   # Copy the web app into the Android proj
 ./gradlew assembleDebug                 # Build app/build/outputs/apk/debug/app-debug.apk
 ```
 
+To install the app, run a phone test and work through the phone checklist, see [android/README.md](android/README.md).
+
 To create accounts (`ft-admin`), run behind a reverse proxy, register a scanner and use the scan simulator (`ft-sim`) with your own tag dumps, see [server/README.md](server/README.md).
 
 The server keeps its SQLite database in `server/data/` by default (set `DATABASE_URL` to change it) and applies migrations on startup.
