@@ -1,0 +1,103 @@
+apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
+apply plugin: 'jacoco'
+
+android {
+    namespace = "io.github.sirmeili.filamenttracker"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "io.github.sirmeili.filamenttracker"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    buildTypes {
+        debug {
+            enableUnitTestCoverage true
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    implementation "com.google.android.gms:play-services-code-scanner:$codeScannerVersion"
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21
+    }
+}
+
+// Unit-test coverage, gated at 90% of lines. The Android glue (the Capacitor plugin, the
+// MifareClassic adapter, Keystore and SharedPreferences storage, the activity) needs a real
+// phone and is covered by the manual checklist in docs/SPEC.md instead.
+def coverageExcludes = [
+    '**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*',
+    '**/MainActivity*', '**/FilamentTrackerPlugin*', '**/AndroidMifare*',
+    '**/KeystoreKey*', '**/PrefsValues*',
+]
+def coverageClasses = fileTree(dir: layout.buildDirectory.dir('tmp/kotlin-classes/debug'), excludes: coverageExcludes)
+def coverageData = fileTree(dir: layout.buildDirectory, includes: ['outputs/unit_test_code_coverage/debugUnitTest/*.exec'])
+
+tasks.register('coverageReport', JacocoReport) {
+    dependsOn 'testDebugUnitTest'
+    classDirectories.setFrom(coverageClasses)
+    sourceDirectories.setFrom(files('src/main/java'))
+    executionData.setFrom(coverageData)
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+tasks.register('coverageCheck', JacocoCoverageVerification) {
+    dependsOn 'coverageReport'
+    classDirectories.setFrom(coverageClasses)
+    sourceDirectories.setFrom(files('src/main/java'))
+    executionData.setFrom(coverageData)
+    violationRules {
+        rule {
+            limit {
+                counter = 'LINE'
+                minimum = 0.90
+            }
+        }
+    }
+}
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

@@ -4,7 +4,7 @@ A self-hosted system that tracks every Bambu Lab filament spool from delivery to
 
 It runs in Docker with no Bambu cloud dependency. Scanners and integrations stay on your LAN; the web app, with personal accounts and Viewer, Editor and Admin roles, can be reached from the internet through your own HTTPS reverse proxy.
 
-> **Status: early development.** This repo currently holds the spec, the enclosure design and the server core (M1): the tag decoder, the database, the event log, the scanner API (`/scans`, device registration and undo) and a scan simulator. M2 is complete: user accounts with Viewer, Editor and Admin roles, sign-in sessions, LAN-only tokens and the API behind the pages are built, and the web app has sign-in, a Light/Dark/System theme and every M2 page: Inventory, Spools, Spool detail, Products, Review, Activity, adding a spool by hand, Devices, Users and Account. The server also accepts the scanner heartbeat. M5 (the printer link) has started: the server connects to printers over MQTT (directly or through an MQTT proxy, with the certificate pinned on first use) and reads AMS reports into spools, slots and likely-empty suggestions, which the Devices, Review, Spools and Spool detail pages show. It has been checked against a real P1S with an AMS and an AMS HT, so M5 is complete. M8 has started: an Android phone app that works as a scanner; the server now hands the tag key constant to paired devices, and Devices shows a pairing QR code. The phone app's Scan and Pairing screens, offline queue and on-phone decoding are built into the web app; the Android app around them is next. The other features described below have not been built yet, and most of the software is planned to be built before the scanner hardware arrives. See [PROGRESS.md](PROGRESS.md) for current work.
+> **Status: early development.** This repo currently holds the spec, the enclosure design and the server core (M1): the tag decoder, the database, the event log, the scanner API (`/scans`, device registration and undo) and a scan simulator. M2 is complete: user accounts with Viewer, Editor and Admin roles, sign-in sessions, LAN-only tokens and the API behind the pages are built, and the web app has sign-in, a Light/Dark/System theme and every M2 page: Inventory, Spools, Spool detail, Products, Review, Activity, adding a spool by hand, Devices, Users and Account. The server also accepts the scanner heartbeat. M5 (the printer link) has started: the server connects to printers over MQTT (directly or through an MQTT proxy, with the certificate pinned on first use) and reads AMS reports into spools, slots and likely-empty suggestions, which the Devices, Review, Spools and Spool detail pages show. It has been checked against a real P1S with an AMS and an AMS HT, so M5 is complete. M8 has started: an Android phone app that works as a scanner; the server now hands the tag key constant to paired devices, and Devices shows a pairing QR code. The phone app's Scan and Pairing screens, offline queue and on-phone decoding are built into the web app, and the Android app around them (Capacitor, with a Kotlin plugin for NFC tag reading, QR scanning and Keystore storage) builds; checking it on a real phone is next. The other features described below have not been built yet, and most of the software is planned to be built before the scanner hardware arrives. See [PROGRESS.md](PROGRESS.md) for current work.
 
 [![Filament scanner case](hardware/enclosure/preview.png)](https://sirmeili.github.io/3d-mockup-viewer/openscad/viewer.html?manifest=https://raw.githubusercontent.com/sirmeili/filament-tracker/main/hardware/enclosure/manifest.json)
 
@@ -75,6 +75,7 @@ hardware/BOM.md      Bill of materials for one scanner
 hardware/enclosure/  3D model of the scanner case
 server/              FastAPI server: decoder, database, event log, API, scan simulator
 web/                 SvelteKit web app (TypeScript), built to static files the server serves
+android/             Android phone app: Capacitor around the web app, Kotlin NFC plugin
 .github/workflows/   CI: lint, tests, 90% coverage gates, dependency audits, end-to-end tests
 AGENTS.md            Rules for AI agents working in this repo
 PROGRESS.md          Current status, next steps and decisions
@@ -103,6 +104,14 @@ The web app needs Node.js 24. From `web/`:
 npm ci                 # Install dependencies
 npm run test:coverage  # Run tests with the 90% coverage gate
 npm run build          # Build to web/build, which the server serves at /
+```
+
+The Android app needs JDK 21 and the Android SDK (Android Studio installs it). From `web/`, then `android/`:
+
+```sh
+npm run build && npx cap sync android   # Copy the web app into the Android project
+./gradlew coverageCheck                 # Kotlin tests with the 90% coverage gate
+./gradlew assembleDebug                 # Build app/build/outputs/apk/debug/app-debug.apk
 ```
 
 To create accounts (`ft-admin`), run behind a reverse proxy, register a scanner and use the scan simulator (`ft-sim`) with your own tag dumps, see [server/README.md](server/README.md).

@@ -32,23 +32,27 @@
 - M5 part 3, the printer pages: Printers on Devices, likely-empty Dismiss on Review, the AMS slot on spools, merged (PR #22).
 - M5 part 4, checked against the real P1S, AMS HT units and `ft-printer check`, merged (PR #23). **M5 complete.**
 - M8 part 1, `BAMBU_KDF_SALT`, `/devices/provisioning`, `ft-sim check-salt` and the pairing QR code, merged (PR #24).
+- M8 part 2, the phone app's logic in the web app (bridge interface, pairing, device API, offline decode and queue, Scan flow, Scan and Pairing pages), merged (PR #25).
 - M2 part 7, the Review, Activity, Devices, Users and Account pages, manual entry, Review Bring back, the scanner heartbeat and the Activity source filter, merged (PR #18). **M2 complete.**
 - M2 plan approved: seven branches (spec, users and auth, read API, write API, web foundation, stock pages, admin pages).
 - M1 plan approved: five branches merged in order (decoder, data model, event log, `/scans` API, scan simulator).
 
 ## In progress
 
-- M8, the phone scanner. Plan approved: four branches (provisioning and the pairing QR code, the app logic in the web app, the Android app with its NFC plugin, a check on the owner's phone). Android Studio is installed (winget, 2026.2.2.8, bundled JDK 25); its first-run setup downloads the Android SDK.
-- `feature/phone-app-core` (M8 part 2): the phone app's logic in the web app, tested without Android. A bridge interface for the native parts (NFC, encrypted storage, camera) that part 3 implements; pairing from the QR code (now with the device ID) or typed details; the device API with the device token; an offline decoder ported from the server's (checked against fixtures the server's decoder generated); an offline queue (100 events, backoff from 5 s to 5 min); the Scan flow (15 s choice, one event for a repeat within 30 s, offline choices queued, Undo of the last scan); a heartbeat every 5 minutes; the Scan and Pairing pages; and the API client pointed at the paired server in the app.
-  - Next: review by the owner, then the PR. Then part 3, the Android app.
+- M8, the phone scanner. Plan approved: four branches (provisioning and the pairing QR code, the app logic in the web app, the Android app with its NFC plugin, a check on the owner's phone). Android Studio and the Android SDK are installed.
+- `feature/android-app` (M8 part 3): the Android app. A Capacitor project in `android/` around the web build (Capacitor 8.6.0; `glob` and `minimatch` overridden to patched versions for two moderate advisories in the CLI's `rimraf`). A Kotlin plugin: NFC reader mode with `MifareClassic`, keys derived on the phone (HKDF, checked against the server's keys), 48 data blocks without trailers, `readOk` false when a sector refuses its key; QR scanning with the Google code scanner (no camera permission); values encrypted with AES-GCM under an Android Keystore key, backup off. The web app installs the native bridge at start in the app. Plain `http://` pairing only for LAN addresses. Kotlin tests with a fake tag at 100% of the testable code (JaCoCo gate 90%), and a CI job that runs them and builds the APK. Builds need JDK 21 (Temurin 21 installed).
+  - Next: review by the owner, then the PR. Then part 4, the check on the owner's Pixel 9 Pro XL.
 
 ## Next
 
-- M8 part 3 needs the Android SDK: open Android Studio once so its setup wizard downloads it. The build will use Android Studio's bundled JDK (25) unless the Android Gradle plugin needs 21.
+- M8 part 4 (`feature/m8-phone-check`): install the debug APK on the Pixel 9 Pro XL and work through the phone manual checklist (reading, MIFARE Classic detection, QR pairing, offline queue, sign-in).
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
 
 ## Decisions
 
+- 2026-11-06: Build the Android app with JDK 21, because Gradle 8.14 cannot run on Android Studio's bundled JDK 25.
+- 2026-11-06: Scan pairing QR codes with Google's code scanner (Play services), because it needs no camera permission and keeps camera code out of the app.
+- 2026-11-06: Allow plain HTTP in the Android platform settings and enforce "LAN addresses only" when pairing, because Android's network rules cannot express private address ranges.
 - 2026-10-31: Use the resistor ladder on GPIO35 for the buttons, because its voltages are well separated and it needs no extra chip. The PCF8574 stays as the fallback.
 - 2026-10-31: Keep all agent instructions and build commands in AGENTS.md, with no CLAUDE.md, so every tool follows one file.
 - 2026-10-31: Use uv for dependency locking because it is already installed and needs no extra lock tool.

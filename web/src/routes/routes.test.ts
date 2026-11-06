@@ -171,5 +171,6 @@ describe("pages", () => {
 
     expect(layout.ssr).toBe(false);
     expect(layout.prerender).toBe(false);
+    await expect(layout.load()).resolves.toBeUndefined(); // not the app: no native bridge
   });
 });
