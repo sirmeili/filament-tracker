@@ -90,7 +90,7 @@ def test_unknown_api_paths_are_404_not_the_app(client: TestClient, path: str) ->
 
 
 def test_the_api_still_works(client: TestClient) -> None:
-    assert client.get("/api/v1/health").json() == {"status": "ok"}
+    assert client.get("/api/v1/health").json()["status"] == "ok"
 
 
 def test_without_a_build_only_the_api_is_served(db_url: str, tmp_path: Path) -> None:

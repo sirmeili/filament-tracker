@@ -51,6 +51,31 @@ class Settings(BaseSettings):
     # The tag key-derivation constant (hex), served to devices at /devices/provisioning.
     # Never in the repo, never logged.
     bambu_kdf_salt: SecretStr | None = None
+    # Home Assistant's MQTT broker, for discovery entities: mqtt://host[:port] or
+    # mqtts://host[:port]. Unset: no entities are published.
+    mqtt_url: str | None = None
+    mqtt_user: str | None = None
+    mqtt_password: SecretStr | None = None
+    # Home Assistant's MQTT discovery prefix (its default is "homeassistant").
+    ha_discovery_prefix: str = Field(
+        default="homeassistant", pattern=r"^[A-Za-z0-9_-]{1,64}(/[A-Za-z0-9_-]{1,64}){0,3}$"
+    )
+
+    @field_validator("mqtt_url")
+    @classmethod
+    def _mqtt_url(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        # Parsing checks the value; the messages do not repeat it.
+        from filament_tracker.ha.broker import parse_mqtt_url
+
+        parse_mqtt_url(value.strip())
+        return value.strip()
+
+    @field_validator("mqtt_user")
+    @classmethod
+    def _blank_is_none(cls, value: str | None) -> str | None:
+        return value.strip() or None if value is not None else None
 
     @field_validator("bambu_kdf_salt")
     @classmethod

@@ -339,7 +339,11 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 - Publish entities through MQTT discovery to the existing broker, under one device "Filament Tracker":
   - a sensor per product: sealed count (attributes: open count, color, display name);
   - a binary sensor per product for low stock;
-  - a sensor for total sealed spools and one for spools in review.
+  - a sensor for total sealed spools and one for spools in review (the Review page's count).
+- Entities are published retained and updated within about 5 seconds of any change, whatever made it. The server reads its stock every 5 seconds and publishes only what changed.
+- While the server is stopped or cannot reach the broker, the entities are unavailable: the server publishes `online` and `offline` on an availability topic, with `offline` as its MQTT will.
+- When Home Assistant restarts (its `online` birth message), everything is published again.
+- `/health` reports the MQTT link as `off`, `connecting`, `connected` or `disconnected`.
 - Fire HA events through the REST API for automations: `filament_tracker_spool_received`, `_opened`, `_emptied`, `_low_stock`.
 - Example automation the user can build: on low stock, add the product to the shopping list and notify a phone.
 - Any automations or scripts created for this project get the `Claude` label.
@@ -364,7 +368,8 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 | `ADMIN_TOKEN` | random 32 bytes | Machine access for Home Assistant and scripts, from the LAN only |
 | `BAMBU_KDF_SALT` | hex string | Key-derivation constant, served to provisioned devices |
 | `PRINTERS` | `[{"name": "P1S", "host": "192.168.1.40", "serial": "01P00A...", "access_code": "..."}]` | Printers to watch over MQTT, as a JSON list; each entry may also set `port` (default 8883). `host` and `port` may be an MQTT proxy's |
-| `MQTT_URL`, `MQTT_USER`, `MQTT_PASSWORD` | HA broker | Discovery and state publishing |
+| `MQTT_URL`, `MQTT_USER`, `MQTT_PASSWORD` | `mqtt://homeassistant.local:1883` | Home Assistant's MQTT broker, for discovery and state publishing; `mqtts://` for TLS. Unset: nothing is published. The URL must not hold the password |
+| `HA_DISCOVERY_PREFIX` | `homeassistant` | Home Assistant's MQTT discovery prefix |
 | `HA_URL`, `HA_TOKEN` | long-lived token | Firing HA events |
 | `TZ` | `America/New_York` | Timestamps in the UI |
 | `TRUSTED_NETWORKS` | `192.168.0.0/16,10.0.0.0/8` | LAN ranges allowed to use bearer tokens, scanner routes and API docs; defaults to the private ranges |
@@ -382,7 +387,7 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 - Device tokens are stored hashed, revocable, and scoped to `/scans`, `/devices/heartbeat`, `/devices/provisioning` and `/events/{id}/revert` for events from that same device.
 - Input validation on all payloads (Pydantic); block arrays capped in size.
 - No tag UIDs or derived keys in logs above debug level, in line with the RFID guide's request not to publish UID/key pairs.
-- The printer access code, HA token and `BAMBU_KDF_SALT` never appear in logs, and a rejected setting's error message does not repeat its value. The salt is returned only by `/devices/provisioning`, to a device token from the LAN.
+- The printer access code, HA token, MQTT password and `BAMBU_KDF_SALT` never appear in logs, and a rejected setting's error message does not repeat its value. The salt is returned only by `/devices/provisioning`, to a device token from the LAN.
 - The printer access code and HA token never leave the server or appear in API responses or logs. The access code is sent only to a printer (or proxy) whose certificate matches the pin.
 
 ## Testing

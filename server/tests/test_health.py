@@ -9,7 +9,7 @@ def test_health_is_ok_without_authentication() -> None:
     response = client.get("/api/v1/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.json() == {"status": "ok", "home_assistant": {"mqtt": "off"}}
 
 
 def test_health_exists_only_under_the_versioned_prefix() -> None:
