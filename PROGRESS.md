@@ -41,7 +41,7 @@
 ## In progress
 
 - M8, the phone scanner. Plan approved: four branches (provisioning and the pairing QR code, the app logic in the web app, the Android app with its NFC plugin, a check on the owner's phone). Android Studio and the Android SDK are installed.
-- `feature/m8-phone-check` (M8 part 4): the phone checklist is in `android/README.md` (install, a server the phone can reach, 21 checks covering pairing, scanning, offline, sign-in and a clean phone log). The debug APK is installed on the owner's Pixel 9 Pro XL over USB and starts. Found on install: Capacitor's debug builds log every plugin call with its result, which would have put the token, the tag key constant and tag UIDs in the phone's log; `loggingBehavior` is now `none`, checked with `adb logcat`.
+- `feature/m8-phone-check` (M8 part 4): the phone checklist is in `android/README.md` (install, a server the phone can reach, 21 checks covering pairing, scanning, offline, sign-in and a clean phone log). The debug APK is installed on the owner's Pixel 9 Pro XL over USB and starts. Found on install: Capacitor's debug builds log every plugin call with its result, which would have put the token, the tag key constant and tag UIDs in the phone's log; `loggingBehavior` is now `none`, checked with `adb logcat`. Found while pairing: the Devices page fills the phone's server address with the address the admin uses, so an admin on `localhost` got a QR code the phone could not use; pairing now refuses loopback addresses with a message saying to use the computer's network address.
   - Next: record the results here, fix anything that fails, then the PR.
 
 ## Next

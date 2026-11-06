@@ -4,6 +4,7 @@ import { ago, deviceId, DEVICE_ID_PATTERN, deviceStatus, seenText } from "#lib/d
 import { blankIsNull, emptyEntry, entryProblem, rgbaOf } from "#lib/manual-entry.ts";
 import {
   isLanHost,
+  isLoopbackHost,
   normalizeUrl,
   PAIRING_VERSION,
   pairingPayload,
@@ -248,6 +249,23 @@ describe("pairing", () => {
     expect(serverUrlError("http://filament.example.com")).toMatch(/home network/);
     expect(serverUrlError("http://8.8.8.8")).toMatch(/home network/);
     expect(serverUrlError("https://8.8.8.8")).toBeNull();
+  });
+
+  it("refuses loopback addresses, which a phone cannot reach", () => {
+    for (const url of [
+      "http://localhost:8000",
+      "https://localhost",
+      "http://127.0.0.1:8000",
+      "http://[::1]:8000",
+      "http://0.0.0.0:8000",
+      "http://app.localhost",
+    ]) {
+      expect(serverUrlError(url)).toMatch(/can't reach localhost/);
+    }
+    expect(isLoopbackHost("LOCALHOST.")).toBe(true);
+    expect(isLoopbackHost("128.0.0.1")).toBe(false);
+    expect(isLoopbackHost("localhost.example.com")).toBe(false);
+    expect(serverUrlError("http://10.0.0.148:8000")).toBeNull();
   });
 
   it("knows which hosts are on the home network", () => {

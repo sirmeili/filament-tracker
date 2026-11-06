@@ -440,6 +440,10 @@ describe("Devices page", () => {
     const address = within(panel).getByLabelText("Server address for the phone");
     expect(address).toHaveValue(window.location.origin);
     await userEvent.clear(address);
+    await userEvent.type(address, "http://localhost:8000");
+    await userEvent.click(within(panel).getByRole("button", { name: "Show QR code" }));
+    expect(within(panel).getByRole("status")).toHaveTextContent(/can't reach localhost/);
+    await userEvent.clear(address);
     await userEvent.type(address, "filament.local");
     await userEvent.click(within(panel).getByRole("button", { name: "Show QR code" }));
     expect(within(panel).getByRole("status")).toHaveTextContent(/full address/);
