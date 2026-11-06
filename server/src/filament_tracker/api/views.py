@@ -5,6 +5,7 @@ from uuid import UUID
 from filament_tracker.api.read_schemas import (
     Counts,
     EventOut,
+    OpenSpool,
     ProductDetail,
     ProductSummary,
     SpoolDetail,
@@ -14,7 +15,7 @@ from filament_tracker.api.read_schemas import (
 )
 from filament_tracker.db.models import Event, Product, Spool, Tag
 from filament_tracker.domain.enums import EventType
-from filament_tracker.services.queries import UNKNOWN, ProductCounts
+from filament_tracker.services.queries import UNKNOWN, ProductCounts, is_nearly_out
 
 
 def product_detail(product: Product) -> ProductDetail:
@@ -26,6 +27,10 @@ def product_summary(item: ProductCounts) -> ProductSummary:
         product=product_detail(item.product),
         counts=Counts(**item.counts),
         low_stock=item.low_stock,
+        open_spools=[
+            OpenSpool(id=s.id, remaining_pct=s.remaining_pct, nearly_out=is_nearly_out(s))
+            for s in item.open_spools
+        ],
     )
 
 
@@ -82,11 +87,25 @@ def tag_out(tag: Tag) -> TagOut:
     )
 
 
+def spool_weight_g(tags: list[Tag]) -> int | None:
+    """The filament weight from the first decoded tag that has one."""
+    for tag in tags:
+        weight = (tag.decoded_json or {}).get("spool_weight_g")
+        if isinstance(weight, int) and weight > 0:
+            return weight
+    return None
+
+
 def spool_detail(spool: Spool, events: list[Event]) -> SpoolDetail:
+    tags = sorted(spool.tags, key=lambda t: t.first_seen_at)
+    weight = spool_weight_g(tags)
+    pct = spool.remaining_pct
     return SpoolDetail(
         **spool_row(spool).model_dump(),
         notes=spool.notes,
-        tags=[tag_out(t) for t in sorted(spool.tags, key=lambda t: t.first_seen_at)],
+        spool_weight_g=weight,
+        grams_left=round(weight * pct / 100) if weight is not None and pct is not None else None,
+        tags=[tag_out(t) for t in tags],
         events=[event_out(e) for e in events],
     )
 

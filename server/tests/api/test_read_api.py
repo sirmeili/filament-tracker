@@ -87,6 +87,49 @@ def test_low_stock_is_sealed_at_or_below_the_threshold(
     ]
 
 
+def _remaining(db: Session, spool_id: int, pct: int | None) -> None:
+    db.get(Spool, spool_id).remaining_pct = pct
+    db.commit()
+
+
+def test_inventory_lists_open_spools_with_their_remaining_pct(
+    client: TestClient, token: str, viewer: TestClient, db: Session
+) -> None:
+    tags = _stock(client, token)
+    scan(client, token, tags["black0"], "opened")  # spool 1, opened after spool 3
+    _remaining(db, 3, 15)  # black, at the default cutoff: nearly out
+    _remaining(db, 1, None)  # not seen by the AMS
+    _remaining(db, 6, 16)  # red PETG, above the cutoff
+
+    cards = {c["product"]["display_name"]: c for c in viewer.get("/api/v1/inventory").json()}
+
+    black = cards["PLA Basic #000000"]
+    assert black["product"]["nearly_out_pct"] == 15
+    assert black["open_spools"] == [
+        {"id": 3, "remaining_pct": 15, "nearly_out": True},
+        {"id": 1, "remaining_pct": None, "nearly_out": False},
+    ]
+    assert cards["PETG Basic #FF0000"]["open_spools"] == [
+        {"id": 6, "remaining_pct": 16, "nearly_out": False}
+    ]
+    assert cards["PLA Basic #FFFFFF"]["open_spools"] == []
+
+
+def test_the_nearly_out_cutoff_is_per_product(
+    client: TestClient, token: str, viewer: TestClient, db: Session
+) -> None:
+    _stock(client, token)
+    _remaining(db, 6, 30)
+    db.query(Product).filter(Product.filament_type == "PETG").one().nearly_out_pct = 30
+    db.commit()
+
+    [card] = viewer.get("/api/v1/inventory", params={"type": "PETG"}).json()
+    detail = viewer.get(f"/api/v1/products/{card['product']['id']}").json()
+
+    assert card["open_spools"][0]["nearly_out"] is True
+    assert detail["open_spools"] == card["open_spools"]
+
+
 def test_inventory_filters_by_type(client: TestClient, token: str, viewer: TestClient) -> None:
     _stock(client, token)
 
@@ -203,6 +246,15 @@ def test_spools_filter_by_location_and_search(
     assert len(_ids(viewer.get("/api/v1/spools", params={"q": "  "}))) == 6
 
 
+def test_spools_filter_by_type(client: TestClient, token: str, viewer: TestClient) -> None:
+    _stock(client, token)
+
+    assert _ids(viewer.get("/api/v1/spools", params={"type": " petg"})) == [6]
+    assert _ids(viewer.get("/api/v1/spools", params={"type": "PLA", "state": "open"})) == [3]
+    assert _ids(viewer.get("/api/v1/spools", params={"type": "ABS"})) == []
+    assert viewer.get("/api/v1/spools", params={"type": "x" * 33}).status_code == 422
+
+
 def test_spools_are_paged(client: TestClient, token: str, viewer: TestClient) -> None:
     _stock(client, token)
 
@@ -253,6 +305,31 @@ def test_spool_detail_has_tags_and_a_timeline(
     assert first["reverted_by"] == undo["revert_event_id"]
     assert first["can_undo"] is False
     assert first["product_name"] == "PLA Basic #000000"
+
+
+def test_spool_detail_has_grams_left(
+    client: TestClient, token: str, viewer: TestClient, db: Session
+) -> None:
+    scan(client, token, SyntheticTag(spool_weight_g=750), "opened")
+
+    before = viewer.get("/api/v1/spools/1").json()
+    _remaining(db, 1, 33)
+    after = viewer.get("/api/v1/spools/1").json()
+
+    assert (before["spool_weight_g"], before["grams_left"]) == (750, None)
+    assert (after["spool_weight_g"], after["grams_left"], after["remaining_pct"]) == (750, 248, 33)
+
+
+def test_a_spool_without_a_readable_weight_has_no_grams_left(
+    client: TestClient, viewer: TestClient, db: Session
+) -> None:
+    product = Product(filament_type="TPU", color_rgba="00FF00FF", display_name="TPU")
+    db.add(Spool(product=product, remaining_pct=50))
+    db.commit()
+
+    detail = viewer.get("/api/v1/spools/1").json()
+
+    assert (detail["spool_weight_g"], detail["grams_left"]) == (None, None)
 
 
 def test_unknown_spools_are_404(client: TestClient, viewer: TestClient) -> None:

@@ -22,6 +22,7 @@ class ProductDetail(BaseModel):
     material_id: str | None
     variant_id: str | None
     low_stock_threshold: int = Field(description="Low on stock at or below this; 0 is off")
+    nearly_out_pct: int = Field(description="An open spool at or below this AMS % is nearly out")
     provisional: bool
 
 
@@ -32,12 +33,19 @@ class Counts(BaseModel):
     unknown: int = 0
 
 
+class OpenSpool(BaseModel):
+    id: int
+    remaining_pct: int | None = Field(description="From the AMS; null until it reports one")
+    nearly_out: bool = Field(description="Remaining % known and at or below the product's cutoff")
+
+
 class ProductSummary(BaseModel):
     """A product with its spool counts: one inventory card."""
 
     product: ProductDetail
     counts: Counts
     low_stock: bool
+    open_spools: list[OpenSpool] = Field(description="Open spools, oldest opened first")
 
 
 class SpoolRow(BaseModel):
@@ -81,6 +89,8 @@ class EventOut(BaseModel):
 
 class SpoolDetail(SpoolRow):
     notes: str | None
+    spool_weight_g: int | None = Field(description="Filament weight from the tag")
+    grams_left: int | None = Field(description="Remaining % of the tag's weight, when both known")
     tags: list[TagOut]
     events: list[EventOut] = Field(description="Newest first")
 

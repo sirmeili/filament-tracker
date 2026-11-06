@@ -18,10 +18,20 @@ class InventorySort(StrEnum):
     LOW_STOCK = "low_stock"
 
 
+def is_nearly_out(spool: Spool) -> bool:
+    """Open, reported by the AMS, and at or below the product's nearly-out %."""
+    return (
+        spool.state is SpoolState.OPEN
+        and spool.remaining_pct is not None
+        and spool.remaining_pct <= spool.product.nearly_out_pct
+    )
+
+
 @dataclass(frozen=True)
 class ProductCounts:
     product: Product
     counts: dict[str, int]
+    open_spools: tuple[Spool, ...] = ()
 
     @property
     def low_stock(self) -> bool:
@@ -39,6 +49,17 @@ def _counts_by_product(session: Session) -> dict[int, dict[str, int]]:
     return counts
 
 
+def _open_by_product(session: Session, product_id: int | None = None) -> dict[int, list[Spool]]:
+    query = select(Spool).where(Spool.state == SpoolState.OPEN)
+    if product_id is not None:
+        query = query.where(Spool.product_id == product_id)
+    query = query.options(selectinload(Spool.product)).order_by(Spool.opened_at, Spool.id)
+    spools: dict[int, list[Spool]] = defaultdict(list)
+    for spool in session.scalars(query):
+        spools[spool.product_id].append(spool)
+    return spools
+
+
 def _name_key(product: Product) -> tuple[str, int]:
     return product.display_name.lower(), product.id
 
@@ -51,7 +72,11 @@ def inventory(
     if filament_type:
         query = query.where(func.lower(Product.filament_type) == filament_type.strip().lower())
     counts = _counts_by_product(session)
-    items = [ProductCounts(p, counts.get(p.id, {})) for p in session.scalars(query)]
+    open_spools = _open_by_product(session)
+    items = [
+        ProductCounts(p, counts.get(p.id, {}), tuple(open_spools.get(p.id, ())))
+        for p in session.scalars(query)
+    ]
     items.sort(key=lambda item: _name_key(item.product))
     if sort is InventorySort.LOW_STOCK:
         items.sort(key=lambda item: not item.low_stock)  # stable: low first, then by name
@@ -59,7 +84,11 @@ def inventory(
 
 
 def product_counts(session: Session, product: Product) -> ProductCounts:
-    return ProductCounts(product, _counts_by_product(session).get(product.id, {}))
+    return ProductCounts(
+        product,
+        _counts_by_product(session).get(product.id, {}),
+        tuple(_open_by_product(session, product.id).get(product.id, ())),
+    )
 
 
 def products(session: Session) -> list[Product]:
@@ -70,6 +99,7 @@ def products(session: Session) -> list[Product]:
 class SpoolFilter:
     states: tuple[str, ...] = ()  # sealed, open, empty or unknown
     product_id: int | None = None
+    filament_type: str | None = None
     location: str | None = None
     search: str | None = None
 
@@ -84,6 +114,9 @@ def _filtered_spools(spool_filter: SpoolFilter) -> Select[tuple[Spool]]:
         query = query.where(or_(*conditions))
     if spool_filter.product_id is not None:
         query = query.where(Spool.product_id == spool_filter.product_id)
+    if spool_filter.filament_type is not None:
+        wanted = spool_filter.filament_type.strip().lower()
+        query = query.where(func.lower(Product.filament_type) == wanted)
     if spool_filter.location is not None:
         query = query.where(func.lower(Spool.location) == spool_filter.location.strip().lower())
     if spool_filter.search and spool_filter.search.strip():

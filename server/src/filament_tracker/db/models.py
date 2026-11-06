@@ -56,6 +56,8 @@ class Product(Base):
     color_rgba: Mapped[str] = mapped_column(String(8))
     display_name: Mapped[str] = mapped_column(String(100))
     low_stock_threshold: Mapped[int] = mapped_column(Integer, default=0)
+    # AMS remaining % at or below which an open spool is shown as nearly out.
+    nearly_out_pct: Mapped[int] = mapped_column(Integer, default=15, server_default="15")
     provisional: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 

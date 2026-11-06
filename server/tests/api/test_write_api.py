@@ -162,6 +162,7 @@ def test_creating_a_provisional_product(editor: TestClient) -> None:
     assert product["color_rgba"] == "000000FF"
     assert (product["material_id"], product["variant_id"]) == (None, None)
     assert product["low_stock_threshold"] == 2
+    assert product["nearly_out_pct"] == 15
 
 
 @pytest.mark.parametrize(
@@ -171,6 +172,7 @@ def test_creating_a_provisional_product(editor: TestClient) -> None:
         {"display_name": " "},
         {"filament_type": ""},
         {"low_stock_threshold": -1},
+        {"nearly_out_pct": 101},
         {"material_id": "GFA00"},
     ],
 )
@@ -239,6 +241,28 @@ def test_renaming_a_product_and_setting_its_threshold(
     assert editor.get("/api/v1/inventory").json()[0]["low_stock"] is True
 
 
+def test_setting_a_products_nearly_out_pct(
+    client: TestClient, token: str, editor: TestClient, db: Session
+) -> None:
+    scan(client, token, SyntheticTag(), "opened")
+    db.get(Spool, 1).remaining_pct = 20
+    db.commit()
+
+    product = _patch(editor, "/api/v1/products/1", {"nearly_out_pct": 25})
+
+    assert product["nearly_out_pct"] == 25
+    assert editor.get("/api/v1/inventory").json()[0]["open_spools"][0]["nearly_out"] is True
+
+
+def test_viewers_cannot_change_products(app: FastAPI, client: TestClient, token: str) -> None:
+    scan(client, token, SyntheticTag(), "received")
+    viewer = signed_in(app, Role.VIEWER)
+
+    response = viewer.patch("/api/v1/products/1", json={"nearly_out_pct": 50}, headers=CSRF)
+
+    assert response.status_code == 403
+
+
 def test_product_edits_are_validated(client: TestClient, token: str, editor: TestClient) -> None:
     scan(client, token, SyntheticTag(), "received")
     for body in (
@@ -246,6 +270,10 @@ def test_product_edits_are_validated(client: TestClient, token: str, editor: Tes
         {"low_stock_threshold": None},
         {"display_name": ""},
         {"low_stock_threshold": 1001},
+        {"nearly_out_pct": None},
+        {"nearly_out_pct": -1},
+        {"nearly_out_pct": 101},
+        {"nearly_out_pct": "lots"},
         {"color_rgba": "FFFFFFFF"},
     ):
         assert editor.patch("/api/v1/products/1", json=body, headers=CSRF).status_code == 422

@@ -20,6 +20,9 @@ Location = Annotated[str | None, StringConstraints(max_length=100), AfterValidat
 Notes = Annotated[str | None, StringConstraints(max_length=2000), AfterValidator(_blank_is_none)]
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
 Threshold = Annotated[int, Field(ge=0, le=1000, description="Low on stock at or below; 0 is off")]
+NearlyOut = Annotated[
+    int, Field(ge=0, le=100, description="Open spools at or below this AMS % are nearly out")
+]
 Rgba = Annotated[str, StringConstraints(pattern=r"^[0-9A-Fa-f]{8}$"), AfterValidator(str.upper)]
 FilamentType = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=32)]
 
@@ -65,11 +68,13 @@ class ProductCreate(Strict):
     filament_type: FilamentType
     color_rgba: Rgba
     low_stock_threshold: Threshold = 0
+    nearly_out_pct: NearlyOut = 15
 
 
 class ProductUpdate(Strict):
     display_name: Name | None = None
     low_stock_threshold: Threshold | None = None
+    nearly_out_pct: NearlyOut | None = None
 
 
 class ActionResult(BaseModel):

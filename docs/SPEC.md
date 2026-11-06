@@ -225,7 +225,7 @@ A versioned REST API under `/api/v1`, documented by FastAPI's generated OpenAPI 
 | POST | `/devices/heartbeat` | Scanner | Online status, firmware version, queue length |
 | GET | `/devices/provisioning` | Scanner | Returns the key-derivation constant to an authenticated device |
 | GET | `/inventory` | Viewer, HA | Counts by product and state, low-stock flags, and each open spool's remaining % with a nearly-out flag |
-| GET | `/spools` | Viewer | List with filters (state, product, location) and search |
+| GET | `/spools` | Viewer | List with filters (state, product, filament type, location) and search |
 | POST | `/spools` | Editor | Manual entry: create a placeholder spool for a product, with a `received` event |
 | GET | `/spools/{id}` | Viewer | Spool detail with tags and event timeline |
 | PATCH | `/spools/{id}`, `/spools` | Editor | Edit location and notes; bulk change location |
@@ -268,7 +268,7 @@ A small, mobile-friendly web app for checking stock and fixing mistakes; day-to-
 | Page | Shows | Actions |
 | --- | --- | --- |
 | Inventory | One card per product: color swatch, name, sealed / open / used-up counts, low-stock badge (sealed count at or below the product's threshold; 0 turns it off), and a remaining % bar for each open spool, marked nearly out at or below the product's nearly-out %. A summary counts open spools that are nearly out | Filter by type; sort by low stock; switch between cards and a list |
-| Spools | Table of spools with state, product, location, remaining %, dates | Filter, search, bulk change location, add a spool by hand |
+| Spools | Table of spools with state, product, location, remaining %, dates | Filter by state and type, search, bulk change location, add a spool by hand |
 | Spool detail | Tag data, AMS remaining % and grams left (remaining % of the tag's spool weight), event timeline | Manual action, undo, edit notes and location |
 | Products | Decoded product IDs and colors | Set display name, low-stock threshold and nearly-out % |
 | Review | Flagged events, `unidentified` tags, "likely empty" suggestions | Flagged event: Accept (it was right), Undo (revert it) or Open spool (fix by hand). Unidentified tag: dismiss. Likely empty: mark empty or dismiss. After an Accept or a dismiss, Bring back returns the item to Review |
