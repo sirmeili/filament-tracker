@@ -144,6 +144,31 @@ button:disabled {
   cursor: not-allowed;
 }
 
+/* A link that looks like a button, for navigation actions such as "Open spool". */
+a.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+a.button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--onaccent);
+}
+
+button.danger {
+  color: var(--danger);
+}
+
 /* Filter chips: round, accent when pressed. */
 button.chip {
   padding: 10px 16px;

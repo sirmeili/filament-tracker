@@ -13,3 +13,13 @@ export const ROLE_LABELS: Record<Role, string> = {
   editor: "Editor",
   admin: "Admin",
 };
+
+export const ROLES: readonly Role[] = ["viewer", "editor", "admin"];
+
+/** What each role can do, shown on the Users page. */
+export const ROLE_DESCRIPTIONS: Record<Role, string> = {
+  viewer: "sees every page.",
+  editor:
+    "also records actions, undoes, edits spools and products, adds spools by hand, and resolves review items.",
+  admin: "also manages users and scanners.",
+};

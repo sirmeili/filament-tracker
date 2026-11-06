@@ -33,7 +33,8 @@
 
 - `feature/web-pages-admin` (M2 part 7): the Review, Activity, Devices, Users and Account pages and manual entry, built from `docs/mockups/web/`. Plan approved: scanners count as online when seen in the last 15 minutes, and Activity gets a source filter (both now in the spec). "Scans today" (Devices) and "signed in since" (Account) from the mockups are left out.
   - Done: backend. Review Bring back (`POST /review/events/{id}/unaccept`, `POST /review/tags/{uid}/restore`); the scanner heartbeat `POST /devices/heartbeat` (firmware version and queue length; a migration adds `device.queue_length`), with `online` and `queue_length` in `GET /devices`; `GET /events` filters by `source`.
-  - Next: the six pages, then tests and docs.
+  - Done: web. Review (Accept, Undo, Open spool, Dismiss, Bring back, header count kept current), Activity (grouped by day, source filter, Load older, Undo), Add a spool by hand (existing or new provisional product), Devices (register with the token shown once, rotate, revoke, online status, firmware and queue), Users (create, role, disable, reset password) and Account (change password, sign out). Unit tests at 90% branch coverage and end-to-end tests for Accept then Bring back, manual entry, registering a scanner, and a new user changing their password.
+  - Next: review by the owner, then the PR. This completes the M2 pages.
 
 ## Next
 

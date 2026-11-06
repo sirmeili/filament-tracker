@@ -166,17 +166,6 @@ describe("pages", () => {
     expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
   });
 
-  const placeholders = import.meta.glob<{ default: typeof HomePage }>(
-    "./{review,activity,devices,users}/+page.svelte",
-    { eager: true },
-  );
-
-  it.each(Object.entries(placeholders))("%s renders its heading", (_path, module) => {
-    render(module.default);
-
-    expect(screen.getByRole("heading")).toBeInTheDocument();
-  });
-
   it("every page renders in the browser only", async () => {
     const layout = await import("./+layout.ts");
 

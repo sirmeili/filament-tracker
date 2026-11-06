@@ -6,7 +6,6 @@ import { Session } from "#lib/auth/session.svelte.ts";
 import Forbidden from "#lib/components/Forbidden.svelte";
 import LoginForm from "#lib/components/LoginForm.svelte";
 import Nav from "#lib/components/Nav.svelte";
-import Placeholder from "#lib/components/Placeholder.svelte";
 import { NAV, visibleNav } from "#lib/nav.ts";
 
 describe("Nav", () => {
@@ -21,15 +20,8 @@ describe("Nav", () => {
   });
 });
 
-describe("Placeholder and Forbidden", () => {
-  it("say what is coming", () => {
-    render(Placeholder, { title: "Review", shows: "Flagged events." });
-
-    expect(screen.getByRole("heading", { name: "Review" })).toBeInTheDocument();
-    expect(screen.getByText("Flagged events.")).toBeInTheDocument();
-  });
-
-  it("explain a page the role cannot open", () => {
+describe("Forbidden", () => {
+  it("explains a page the role cannot open", () => {
     render(Forbidden);
 
     expect(screen.getByRole("heading", { name: "No access" })).toBeInTheDocument();
