@@ -1,11 +1,17 @@
 <script lang="ts">
   import ActionKeys from "#lib/components/phone/ActionKeys.svelte";
+  import CountdownBar from "#lib/components/phone/CountdownBar.svelte";
+  import LastScanBar from "#lib/components/phone/LastScanBar.svelte";
   import ScanCard from "#lib/components/phone/ScanCard.svelte";
+  import ScanHeader from "#lib/components/phone/ScanHeader.svelte";
+  import ScanResult from "#lib/components/phone/ScanResult.svelte";
+  import TapTarget from "#lib/components/phone/TapTarget.svelte";
   import { bridge, type NfcStatus } from "#lib/phone/bridge.ts";
   import { NFC_MESSAGES } from "#lib/phone/card-text.ts";
   import { phone } from "#lib/phone/phone-state.svelte.ts";
   import { pause } from "#lib/phone/pause.ts";
   import type { FlowView } from "#lib/phone/scan-flow.ts";
+  import { theme } from "#lib/theme.svelte.ts";
 
   /** How often to check NFC again while it is off. */
   const NFC_RECHECK_MS = 2000;
@@ -57,126 +63,120 @@
   });
 
   const flow = $derived(phone.session?.flow ?? null);
+  const appTheme = theme();
 </script>
 
 <svelte:head><title>Scan · Filament Tracker</title></svelte:head>
 
 <section class="scan" aria-labelledby="scan-h">
-  <div class="head">
-    <h1 id="scan-h">Scan</h1>
-    {#if phone.queueSize > 0}
-      <span class="queue" role="status">{phone.queueSize} queued</span>
-    {/if}
-  </div>
+  <ScanHeader online={phone.online} queueSize={phone.queueSize} theme={appTheme} />
 
   {#if !phone.app}
-    <p class="muted">Scanning works in the Filament Tracker Android app.</p>
+    <div class="middle">
+      <p class="muted">Scanning works in the Filament Tracker Android app.</p>
+    </div>
   {:else if nfc && nfc !== "ready"}
-    <p class="warn" role="alert">{NFC_MESSAGES[nfc]}</p>
+    <div class="middle"><p class="message warn" role="alert">{NFC_MESSAGES[nfc]}</p></div>
   {:else if view && flow}
-    {#if view.phase === "idle"}
-      <p class="prompt">Tap a spool on the back of the phone.</p>
-    {:else if view.phase === "looking_up"}
-      <p class="prompt" role="status">Looking it up…</p>
-    {/if}
-
-    {#if view.card && view.phase !== "idle"}
-      <ScanCard card={view.card} />
-    {/if}
-
-    {#if view.message}
-      <p class="message {view.tone}" role="status">{view.message}</p>
-    {/if}
-
-    {#if view.phase === "choosing" || view.phase === "sending"}
-      <ActionKeys
-        actions={view.actions}
-        suggested={view.suggested}
-        busy={view.phase === "sending"}
-        onchoose={(action) => void flow.choose(action)}
-      />
-    {:else if view.phase === "result"}
-      <button type="button" onclick={() => flow.dismiss()}>Done</button>
-    {/if}
-
-    {#if view.last && view.phase !== "choosing"}
-      <div class="last">
-        <span class="muted"
-          >Last scan: {view.last.card.name}{view.last.undone ? " (undone)" : ""}</span
-        >
-        {#if !view.last.undone}
-          <button type="button" onclick={() => void flow.undoLast()}>Undo</button>
+    {#if view.phase === "idle" || view.phase === "looking_up"}
+      <TapTarget busy={view.phase === "looking_up"} />
+      <div class="bottom">
+        {#if view.message}<p class="message {view.tone}" role="status">{view.message}</p>{/if}
+        {#if view.last}
+          <LastScanBar last={view.last} onundo={() => void flow.undoLast()} />
+        {:else}
+          <p class="muted hint">Your last scan shows here, with Undo.</p>
         {/if}
       </div>
+    {:else if view.phase === "choosing" || view.phase === "sending"}
+      <div class="middle">
+        {#if view.card}<ScanCard card={view.card} />{/if}
+        {#if view.message}<p class="message {view.tone}" role="status">{view.message}</p>{/if}
+      </div>
+      <div class="bottom">
+        {#if view.phase === "sending"}
+          <p class="muted sending" role="status">Sending…</p>
+        {:else if view.countdown}
+          <CountdownBar countdown={view.countdown} label="Pick within 15 s" />
+        {/if}
+        <ActionKeys
+          actions={view.actions}
+          suggested={view.suggested}
+          busy={view.phase === "sending"}
+          onchoose={(action) => void flow.choose(action)}
+        />
+      </div>
+    {:else}
+      <ScanResult {view} onundo={() => void flow.undoLast()} onnext={() => flow.dismiss()} />
     {/if}
   {:else}
-    <p class="muted">Starting…</p>
+    <div class="middle"><p class="muted">Starting…</p></div>
   {/if}
-
-  <p class="links">
-    <a href="/">Open the full app</a> · <a href="/pair">Pairing</a>
-  </p>
 </section>
 
 <style>
   .scan {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    min-height: 100dvh;
     max-width: 560px;
     margin: 0 auto;
   }
 
-  .head {
+  .scan :global(.middle) {
+    flex: 1;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-  }
-
-  h1 {
-    margin: 0;
-  }
-
-  .queue {
-    font-size: 13px;
-    font-weight: 700;
-    padding: 4px 10px;
-    border-radius: 999px;
-    background: var(--lowbg);
-    color: var(--lowtext);
-  }
-
-  .prompt {
-    font-size: 20px;
+    justify-content: center;
+    gap: 20px;
+    padding: 0 24px;
     text-align: center;
-    padding: 32px 0;
-    margin: 0;
   }
 
-  .message,
-  .warn {
+  .scan :global(.bottom) {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 20px 28px;
+  }
+
+  .scan :global(.bottom button),
+  .scan :global(.bottom a.button) {
+    min-height: 52px;
+    border-radius: 14px;
+    font-size: 16px;
+  }
+
+  .scan :global(.bottom .key) {
+    min-height: 72px;
+    border-radius: 16px;
+  }
+
+  .scan :global(.bottom .last button) {
+    min-height: 40px;
+    border-radius: 10px;
+    font-size: 14px;
+  }
+
+  .scan :global(.message) {
     margin: 0;
     padding: 12px 14px;
     border-radius: 12px;
     background: var(--chip);
+    text-align: left;
   }
 
-  .message.warn,
-  .warn,
-  .message.error {
+  .scan :global(.message.warn),
+  .scan :global(.message.error) {
     background: var(--lowbg);
     color: var(--lowtext);
   }
 
-  .last {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  .links {
-    text-align: center;
+  .hint,
+  .sending {
+    margin: 0;
     font-size: 14px;
+    text-align: center;
   }
 </style>

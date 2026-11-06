@@ -20,6 +20,7 @@ const { phone } = await import("#lib/phone/phone-state.svelte.ts");
 const Layout = (await import("./+layout.svelte")).default;
 const ScanPage = (await import("./scan/+page.svelte")).default;
 const PairPage = (await import("./pair/+page.svelte")).default;
+const AccountPage = (await import("./account/+page.svelte")).default;
 
 const children = createRawSnippet(() => ({ render: () => "<p>page content</p>" }));
 const CODE = JSON.stringify({ v: 1, url: PAIRING.url, token: PAIRING.token, device_id: "phone-1" });
@@ -125,12 +126,21 @@ describe("layout in the phone app", () => {
 
     render(Layout, { children });
 
-    expect(await screen.findByRole("link", { name: "Back to Scan" })).toHaveAttribute(
-      "href",
-      "/scan",
-    );
+    expect(await screen.findByRole("link", { name: "Scan" })).toHaveAttribute("href", "/scan");
     expect(screen.getByText("page content")).toBeInTheDocument();
     session.user = null;
+  });
+});
+
+describe("account page in the phone app", () => {
+  it("links to the phone's pairing, only in the app", () => {
+    const app = render(AccountPage);
+    expect(screen.getByRole("link", { name: "Phone pairing" })).toHaveAttribute("href", "/pair");
+    app.unmount();
+
+    setBridge(browserBridge);
+    render(AccountPage);
+    expect(screen.queryByRole("link", { name: "Phone pairing" })).toBeNull();
   });
 });
 
@@ -224,22 +234,28 @@ describe("scan page", () => {
   it("looks up a tapped spool and records the chosen action", async () => {
     await paired();
     render(ScanPage);
-    expect(await screen.findByText("Tap a spool on the back of the phone.")).toBeInTheDocument();
+    expect(await screen.findByText("Hold a spool to the back of your phone")).toBeInTheDocument();
 
     native.tap(tagRead(tags[0].blocks));
 
     const card = await screen.findByRole("article", { name: "Spool" });
     expect(card).toHaveTextContent("Black PLA Basic");
-    expect(card).toHaveTextContent("Sealed, received Oct 12");
-    expect(within(card).getByRole("link")).toHaveAttribute("href", "/spools/7");
+    expect(card).toHaveTextContent("Sealed");
+    expect(card).toHaveTextContent("Received Oct 12 · #7");
+    expect(screen.getByText("Pick within 15 s")).toBeInTheDocument();
     const opened = screen.getByRole("button", { name: "Opened" });
     expect(opened).toHaveClass("primary");
-    expect(screen.getByText("Highlighted: the suggested action")).toBeInTheDocument();
+    expect(opened).toHaveAccessibleDescription("Suggested");
+    expect(screen.getByRole("button", { name: "Empty" })).not.toHaveAccessibleDescription();
 
     await userEvent.click(opened);
-    expect(await screen.findByText("Recorded Opened.")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Done" }));
-    expect(screen.getByText(/Last scan: Black PLA Basic/)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Opened" })).toBeInTheDocument();
+    expect(screen.getByText("Recorded just now · spool #7")).toBeInTheDocument();
+    expect(screen.getByText("Ready for the next spool in 3 s")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View spool" })).toHaveAttribute("href", "/spools/7");
+    await userEvent.click(screen.getByRole("button", { name: "Scan next" }));
+    expect(screen.getByText("Last scan")).toBeInTheDocument();
+    expect(screen.getByText(/Black PLA Basic · Opened/)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Undo" }));
     expect(await screen.findByText(/\(undone\)/)).toBeInTheDocument();
@@ -250,20 +266,22 @@ describe("scan page", () => {
     await paired();
     serverUp = false;
     render(ScanPage);
-    await screen.findByText("Tap a spool on the back of the phone.");
+    await screen.findByText("Hold a spool to the back of your phone");
 
     native.tap(tagRead(tags[0].blocks));
     expect(await screen.findByText(/Your choice will be queued/)).toBeInTheDocument();
     expect(screen.getByRole("article", { name: "Spool" })).toHaveTextContent("PLA Basic #000000");
     await userEvent.click(screen.getByRole("button", { name: "New" }));
 
-    expect(await screen.findByText("1 queued")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "New" })).toBeInTheDocument();
+    expect(screen.getByText(/Queued · it will be sent/)).toBeInTheDocument();
+    expect(screen.getByText("Offline · 1 queued")).toBeInTheDocument();
   });
 
   it("keeps listening after a tag is pulled away", async () => {
     await paired();
     render(ScanPage);
-    await screen.findByText("Tap a spool on the back of the phone.");
+    await screen.findByText("Hold a spool to the back of your phone");
     const before = native.reads;
 
     native.fail();
@@ -274,15 +292,15 @@ describe("scan page", () => {
   it("reads one spool at a time, listening again once it is dealt with", async () => {
     await paired();
     render(ScanPage);
-    await screen.findByText("Tap a spool on the back of the phone.");
+    await screen.findByText("Hold a spool to the back of your phone");
     expect(native.reads).toBe(1);
 
     native.tap(tagRead(tags[0].blocks));
     await userEvent.click(await screen.findByRole("button", { name: "Opened" }));
-    await screen.findByText("Recorded Opened.");
+    await screen.findByText("Recorded just now · spool #7");
     expect(native.reads).toBe(1); // not listening while the spool is on screen
 
-    await userEvent.click(screen.getByRole("button", { name: "Done" }));
+    await userEvent.click(screen.getByRole("button", { name: "Scan next" }));
     await waitFor(() => expect(native.reads).toBe(2));
   });
 
@@ -294,13 +312,13 @@ describe("scan page", () => {
 
     native.status = "ready";
     document.dispatchEvent(new Event("visibilitychange")); // back from Android settings
-    expect(await screen.findByText("Tap a spool on the back of the phone.")).toBeInTheDocument();
+    expect(await screen.findByText("Hold a spool to the back of your phone")).toBeInTheDocument();
   });
 
   it("starts a fresh read when the app comes back to the front", async () => {
     await paired();
     render(ScanPage);
-    await screen.findByText("Tap a spool on the back of the phone.");
+    await screen.findByText("Hold a spool to the back of your phone");
 
     document.dispatchEvent(new Event("visibilitychange"));
 
@@ -313,6 +331,51 @@ describe("scan page", () => {
     render(ScanPage);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/MIFARE Classic/);
+  });
+
+  it("shows Online once the server answers", async () => {
+    await paired();
+    render(ScanPage);
+    expect(await screen.findByText("Online")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open the full app" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("group", { name: "Theme" })).toBeInTheDocument();
+  });
+
+  it("restarts the countdown bar for each spool", async () => {
+    await paired();
+    render(ScanPage);
+    await screen.findByText("Hold a spool to the back of your phone");
+    const bar = () => document.querySelector(".fill") as HTMLElement;
+
+    native.tap(tagRead(tags[0].blocks));
+    await screen.findByText("Pick within 15 s");
+    const first = bar();
+    expect(first.dataset.ms).toBe("15000");
+    expect(first.style.animationDuration).toBe("15000ms");
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => expect(native.reads).toBe(2));
+    native.tap(tagRead(tags[0].blocks));
+    await screen.findByText("Pick within 15 s");
+    expect(bar()).not.toBe(first);
+  });
+
+  it("shows a message when the server refuses, with Scan next", async () => {
+    await paired();
+    server = fakeFetch({
+      "POST /api/v1/devices/heartbeat": () => ({ status: 204 }),
+      "POST /api/v1/scans": () => ({ status: 403, body: { detail: "LAN only" } }),
+    });
+    vi.stubGlobal("fetch", server);
+    render(ScanPage);
+    await screen.findByText("Hold a spool to the back of your phone");
+
+    native.tap(tagRead(tags[0].blocks));
+
+    expect(await screen.findByText(/only from your home network/)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "View spool" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Scan next" }));
+    expect(screen.getByText("Hold a spool to the back of your phone")).toBeInTheDocument();
   });
 
   it("waits for the session before listening", () => {

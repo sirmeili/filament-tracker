@@ -5,7 +5,7 @@
    * background. Decorative; the product name says what it is. */
   interface Props {
     rgba: string;
-    size?: "sm" | "md" | "lg";
+    size?: "sm" | "md" | "lg" | "xl";
   }
 
   let { rgba, size = "md" }: Props = $props();
@@ -40,5 +40,11 @@
     width: 104px;
     height: 104px;
     border-width: 28px;
+  }
+
+  .xl {
+    width: 160px;
+    height: 160px;
+    border-width: 44px;
   }
 </style>

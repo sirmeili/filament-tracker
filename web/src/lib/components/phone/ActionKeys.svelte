@@ -17,32 +17,45 @@
     {#if action}
       <button
         type="button"
+        class="key"
         class:primary={action === suggested}
         aria-describedby={action === suggested ? "suggested-note" : undefined}
         disabled={busy}
-        onclick={() => onchoose(action)}>{actionLabel(action)}</button
+        onclick={() => onchoose(action)}
+        >{actionLabel(action)}{#if action === suggested}<small aria-hidden="true">Suggested</small
+          >{/if}</button
       >
     {:else}
       <span></span>
     {/if}
   {/each}
 </div>
-{#if suggested}<p id="suggested-note" class="muted small">Highlighted: the suggested action</p>{/if}
+{#if suggested}<span id="suggested-note" hidden>Suggested</span>{/if}
 
 <style>
   .keys {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
   }
 
-  button {
-    min-height: 56px;
+  .key {
+    min-height: 72px;
+    padding: 0 6px;
+    border-radius: 16px;
     font-size: 17px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
   }
 
-  .small {
-    margin: 0;
-    font-size: 13px;
+  small {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.85;
   }
 </style>

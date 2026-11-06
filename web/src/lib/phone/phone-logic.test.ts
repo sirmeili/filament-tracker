@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "#lib/api/client.ts";
 import { checkPairing, parsePairing } from "#lib/pairing.ts";
 import { browserBridge, bridge, setBridge } from "#lib/phone/bridge.ts";
-import { NFC_MESSAGES, stateText } from "#lib/phone/card-text.ts";
+import { cardLine, chipKind, chipText, NFC_MESSAGES } from "#lib/phone/card-text.ts";
 import { DeviceApi, isOffline, REQUEST_TIMEOUT_MS, scanEvent } from "#lib/phone/device-api.ts";
 import { forgetPairing, loadPairing, loadSalt, savePairing } from "#lib/phone/pairing-store.ts";
 import { backoff, BACKOFF_MAX_MS, OfflineQueue, QUEUE_LIMIT } from "#lib/phone/queue.ts";
-import type { Card } from "#lib/phone/scan-flow.ts";
+import type { Card, FlowView, LastScan } from "#lib/phone/scan-flow.ts";
 import { decodeOffline, offlineName } from "#lib/phone/tag-decode.ts";
 import {
   fakeBridge,
@@ -316,15 +316,35 @@ describe("card text", () => {
   });
   const now = new Date("2026-11-06T10:00:00Z");
 
-  it("says the state with its date", () => {
-    expect(stateText(card({}), now)).toBe("Sealed, received Oct 12");
-    expect(stateText(card({ state: "open" }), now)).toBe("Open, opened Oct 20");
-    expect(stateText(card({ state: "empty" }), now)).toBe("Empty, used up Nov 1");
-    expect(stateText(card({ state: null }), now)).toBe("Not tracked yet");
-    expect(stateText(card({ state: "unknown" }), now)).toBe("State unknown");
-    expect(stateText(card({ placeholder: true }), now)).toBe("Added by hand, received Oct 12");
-    expect(stateText(card({ offline: true }), now)).toMatch(/Offline/);
-    expect(stateText(card({}))).toMatch(/^Sealed, received Oct 12/);
+  it("says the state with its date and the spool number", () => {
+    expect(cardLine(card({}), now)).toBe("Received Oct 12 · #1");
+    expect(cardLine(card({ state: "open" }), now)).toBe("Opened Oct 20 · #1");
+    expect(cardLine(card({ state: "empty" }), now)).toBe("Used up Nov 1 · #1");
+    expect(cardLine(card({ state: null, spoolId: null }), now)).toBe("New tag");
+    expect(cardLine(card({ state: "unknown" }), now)).toBe("State unknown · #1");
+    expect(cardLine(card({ placeholder: true }), now)).toBe("Added by hand, received Oct 12 · #1");
+    expect(cardLine(card({ offline: true }), now)).toMatch(/queued/);
+    expect(cardLine(card({ spoolId: null }))).toBe("Received Oct 12");
+  });
+
+  it("labels the state chip", () => {
+    expect([chipText(card({})), chipKind(card({}))]).toEqual(["Sealed", "sealed"]);
+    expect([chipText(card({ state: "empty" })), chipKind(card({ state: "empty" }))]).toEqual([
+      "Used up",
+      "empty",
+    ]);
+    expect([chipText(card({ state: null })), chipKind(card({ state: null }))]).toEqual([
+      "Not tracked yet",
+      "new",
+    ]);
+    expect([chipText(card({ offline: true })), chipKind(card({ offline: true }))]).toEqual([
+      "Offline",
+      "new",
+    ]);
+    expect([chipText(card({ state: "odd" })), chipKind(card({ state: "odd" }))]).toEqual([
+      "Unknown",
+      "unknown",
+    ]);
   });
 
   it("explains each NFC problem", () => {
@@ -332,29 +352,117 @@ describe("card text", () => {
   });
 });
 
-describe("scan card", async () => {
+describe("scan screen parts", async () => {
   const { render, screen } = await import("@testing-library/svelte");
   const ScanCard = (await import("#lib/components/phone/ScanCard.svelte")).default;
   const ActionKeys = (await import("#lib/components/phone/ActionKeys.svelte")).default;
+  const ScanResult = (await import("#lib/components/phone/ScanResult.svelte")).default;
+  const ScanHeader = (await import("#lib/components/phone/ScanHeader.svelte")).default;
+  const { Theme } = await import("#lib/theme.svelte.ts");
 
-  it("shows a spool with no swatch, no link and the AMS remaining", () => {
-    render(ScanCard, {
-      card: {
-        name: "PLA Basic #000000",
-        colorRgba: null,
-        state: "open",
-        receivedAt: null,
-        openedAt: "2026-10-20T10:00:00Z",
-        emptiedAt: null,
-        remainingPct: 40,
-        spoolId: null,
-        placeholder: false,
-        offline: false,
-      },
-    });
+  const spool: Card = {
+    name: "PLA Basic #000000",
+    colorRgba: null,
+    state: "open",
+    receivedAt: null,
+    openedAt: "2026-10-20T10:00:00Z",
+    emptiedAt: null,
+    remainingPct: 40,
+    spoolId: 7,
+    placeholder: false,
+    offline: false,
+  };
+  const view = (fields: Partial<FlowView>): FlowView => ({
+    phase: "result",
+    outcome: "notice",
+    countdown: null,
+    card: spool,
+    actions: [],
+    suggested: null,
+    message: null,
+    tone: "ok",
+    last: null,
+    ...fields,
+  });
+  const last = (fields: Partial<LastScan> = {}): LastScan => ({
+    card: spool,
+    tagUid: "AA",
+    action: "opened",
+    eventId: "e1",
+    at: 0,
+    queued: false,
+    undone: false,
+    ...fields,
+  });
+  const handlers = { onundo: vi.fn(), onnext: vi.fn() };
 
+  it("shows a spool with no swatch, and only the ring once recorded", () => {
+    const { container } = render(ScanCard, { card: { ...spool, spoolId: null }, done: true });
+    expect(container.querySelector(".ring")).toBeInTheDocument();
+    expect(screen.queryByRole("heading")).toBeNull();
     expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("shows Info with the AMS remaining and a link to the spool, without a countdown", () => {
+    render(ScanResult, { view: view({ outcome: "info" }), ...handlers });
     expect(screen.getByText("40% left, as the AMS last reported")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View spool" })).toHaveAttribute("href", "/spools/7");
+    expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+    expect(screen.queryByText(/Ready for the next spool/)).toBeNull();
+  });
+
+  it("says when a recorded action was flagged", () => {
+    render(ScanResult, {
+      view: view({
+        outcome: "recorded",
+        message: "Recorded Opened, flagged for review.",
+        tone: "warn",
+        last: last(),
+        countdown: { id: 1, ms: 3000 },
+      }),
+      ...handlers,
+    });
+    expect(screen.getByRole("heading", { name: "Opened" })).toBeInTheDocument();
+    expect(screen.getByText("Recorded Opened, flagged for review.")).toHaveClass("warn");
+    expect(screen.getByRole("button", { name: "Undo" })).toBeInTheDocument();
+  });
+
+  it("shows the message alone once the recorded action is undone", () => {
+    render(ScanResult, {
+      view: view({ outcome: "recorded", message: "Undid Opened.", last: last({ undone: true }) }),
+      ...handlers,
+    });
+    expect(screen.queryByRole("heading", { name: "Opened" })).toBeNull();
+    expect(screen.getByText("Undid Opened.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+  });
+
+  it("names a recorded spool with no number yet without one", () => {
+    render(ScanResult, {
+      view: view({
+        outcome: "recorded",
+        message: "Recorded Opened.",
+        card: null,
+        last: last({ card: { ...spool, spoolId: null } }),
+      }),
+      ...handlers,
+    });
+    expect(screen.getByText("Recorded just now")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "View spool" })).toBeNull();
+  });
+
+  it("says Online, Offline and the queue size in the header", () => {
+    const theme = new Theme(document.createElement("html"), undefined, undefined);
+    const header = render(ScanHeader, { online: null, queueSize: 0, theme });
+    expect(screen.queryByRole("status")).toBeNull();
+    header.rerender({ online: null, queueSize: 2, theme });
+    expect(screen.getByRole("status")).toHaveTextContent("2 queued");
+    header.rerender({ online: true, queueSize: 0, theme });
+    expect(screen.getByRole("status")).toHaveTextContent("Online");
+    expect(screen.getByRole("status")).not.toHaveClass("off");
+    header.rerender({ online: false, queueSize: 3, theme });
+    expect(screen.getByRole("status")).toHaveTextContent("Offline · 3 queued");
+    expect(screen.getByRole("status")).toHaveClass("off");
   });
 
   it("leaves a blank slot for a missing action and no hint without a suggestion", () => {
@@ -368,6 +476,6 @@ describe("scan card", async () => {
     expect(screen.getAllByRole("button")).toHaveLength(2);
     expect(screen.getByRole("button", { name: "Opened" })).toBeDisabled();
     expect(container.querySelectorAll(".keys > span")).toHaveLength(1);
-    expect(screen.queryByText(/suggested action/)).toBeNull();
+    expect(screen.queryByText("Suggested")).toBeNull();
   });
 });

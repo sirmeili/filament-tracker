@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Me } from "#lib/api/types.ts";
   import Nav from "#lib/components/Nav.svelte";
+  import ScanIcon from "#lib/components/phone/ScanIcon.svelte";
   import ThemeControl from "#lib/components/ThemeControl.svelte";
   import { ACCOUNT_PATH, navItemFor, visibleNav } from "#lib/nav.ts";
   import { ROLE_LABELS } from "#lib/roles.ts";
@@ -11,9 +12,11 @@
     pathname: string;
     theme: Theme;
     reviewCount: number;
+    /** In the phone app: show the button back to Scan. */
+    scan?: boolean;
   }
 
-  let { user, pathname, theme, reviewCount }: Props = $props();
+  let { user, pathname, theme, reviewCount, scan = false }: Props = $props();
 </script>
 
 <header>
@@ -40,6 +43,9 @@
       badges={{ "/review": reviewCount }}
     />
     <div class="end">
+      {#if scan}
+        <a class="scan" href="/scan" aria-label="Scan" title="Scan"><ScanIcon size={24} /></a>
+      {/if}
       <ThemeControl {theme} />
       <a
         class="account"
@@ -96,6 +102,18 @@
     border: 1px solid var(--line);
     font-size: 14px;
     font-weight: 500;
+  }
+
+  .scan {
+    width: 44px;
+    height: 44px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: var(--accent);
+    color: var(--onaccent);
   }
 
   .account[aria-current="page"] {
