@@ -81,3 +81,38 @@ uv run ft-sim scan black.bin --action opened
 ```
 
 Each scan prints the feedback code, product, spool number (or "new spool"), state, the three soft-key choices and the suggested action. Add `--json` for the full server response, or `--event-id <uuid>` to resend the same event and test retries. Actions: `lookup` (default), `received`, `opened`, `empty`.
+
+## Printers
+
+The server watches each printer in `PRINTERS` over MQTT and keeps the AMS slots and spools up to date. It is a JSON list; `port` is optional (default 8883):
+
+```powershell
+$env:PRINTERS = '[{"name": "P1S", "host": "192.168.1.40", "serial": "01P00A123456789", "access_code": "12345678"}]'
+```
+
+The access code is on the printer's screen under the network settings. Put `PRINTERS` in `.env` rather than typing it into a shared shell: it holds the access code, and `.env` is never committed.
+
+- **Certificate pin**: on the first connection the server stores the SHA-256 fingerprint of the printer's TLS certificate, and from then on talks only to that certificate. If the printer's certificate changes (for example after a firmware update), the printer shows a pin mismatch and an admin forgets the pin from the Devices page.
+- **MQTT proxy**: to stay under the printer's connection limit, point `host` and `port` at a proxy such as `bambu-mqtt-proxy`, and use the proxy's alias as `serial` if it renames the printer. The pin is then the proxy's certificate.
+
+## Fake printer
+
+Test the printer link without a printer: a Mosquitto broker in Docker stands in for the printer's MQTT server, and `ft-fakeprinter` plays the printer on it. Needs Docker and `openssl`; run from `server/` in Git Bash or WSL for the first command.
+
+```sh
+./fakeprinter/make-cert.sh                                  # a throwaway certificate, never committed
+docker compose -f fakeprinter/compose.yaml up -d --wait     # TLS on 127.0.0.1:8883, user bblp
+```
+
+```powershell
+$env:FT_ACCESS_CODE = "fake-access-code"
+uv run ft-fakeprinter --serial FAKE01 --report tests\printer\reports\pushall.json --then tests\printer\reports\remain-delta.json
+```
+
+It publishes the full report, then each `--then` change every 5 seconds (`--interval`), and answers every `pushall` with the full report until stopped with Ctrl+C. Point the server at it with:
+
+```powershell
+$env:PRINTERS = '[{"name": "Fake", "host": "127.0.0.1", "serial": "FAKE01", "access_code": "fake-access-code"}]'
+```
+
+The integration tests use the same broker: set `FT_FAKE_BROKER=127.0.0.1:8883` before `uv run pytest` to include them (CI does). Stop it with `docker compose -f fakeprinter/compose.yaml down`.

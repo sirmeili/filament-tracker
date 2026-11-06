@@ -1,0 +1,25 @@
+# A stand-in for a Bambu printer's MQTT broker: TLS on 8883, user bblp, a test access code.
+# Make the certificate first with ./make-cert.sh; see server/README.md.
+services:
+  broker:
+    image: eclipse-mosquitto:2.0.22
+    ports:
+      - "127.0.0.1:${FAKE_PRINTER_PORT:-8883}:8883"
+    environment:
+      ACCESS_CODE: ${FAKE_PRINTER_ACCESS_CODE:-fake-access-code}
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./certs:/certs:ro
+    command:
+      - sh
+      - -c
+      - >-
+        mosquitto_passwd -b -c /mosquitto/data/passwd bblp "$$ACCESS_CODE" &&
+        chown mosquitto:mosquitto /mosquitto/data/passwd &&
+        chmod 0700 /mosquitto/data/passwd &&
+        exec mosquitto -c /mosquitto/config/mosquitto.conf
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 8883"]
+      interval: 1s
+      timeout: 2s
+      retries: 30
