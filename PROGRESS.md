@@ -41,7 +41,7 @@
 ## In progress
 
 - M8, the phone scanner. Plan approved: four branches (provisioning and the pairing QR code, the app logic in the web app, the Android app with its NFC plugin, a check on the owner's phone). Android Studio and the Android SDK are installed.
-- `feature/m8-phone-check` (M8 part 4): the phone checklist is in `android/README.md` (install, a server the phone can reach, 20 checks covering pairing, scanning, offline and sign-in). The owner is running it on the Pixel 9 Pro XL.
+- `feature/m8-phone-check` (M8 part 4): the phone checklist is in `android/README.md` (install, a server the phone can reach, 21 checks covering pairing, scanning, offline, sign-in and a clean phone log). The debug APK is installed on the owner's Pixel 9 Pro XL over USB and starts. Found on install: Capacitor's debug builds log every plugin call with its result, which would have put the token, the tag key constant and tag UIDs in the phone's log; `loggingBehavior` is now `none`, checked with `adb logcat`.
   - Next: record the results here, fix anything that fails, then the PR.
 
 ## Next
