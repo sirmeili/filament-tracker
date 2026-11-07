@@ -13,6 +13,7 @@ describe("visibleNav", () => {
   it("shows everything to admins", () => {
     expect(labels("admin")).toContain("Users");
     expect(labels("admin")).toContain("Devices");
+    expect(labels("admin")).toContain("Settings");
   });
 
   it("shows nothing when signed out", () => {
@@ -37,6 +38,7 @@ describe("navItemFor", () => {
 describe("requiredRole", () => {
   it("is the page's role, or viewer for pages not in the nav", () => {
     expect(requiredRole("/users")).toBe("admin");
+    expect(requiredRole("/settings")).toBe("admin");
     expect(requiredRole("/devices/scanner-1")).toBe("admin");
     expect(requiredRole("/spools/3")).toBe("viewer");
     expect(requiredRole("/nowhere")).toBe("viewer");

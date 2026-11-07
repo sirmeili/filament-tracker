@@ -47,6 +47,13 @@ const uvicorn = spawn(
       ADMIN_TOKEN: "",
       // Never watch a real printer from a developer's server/.env; the seed has its own.
       PRINTERS: "[]",
+      // Nor a real Home Assistant: the Settings tests start from nothing set.
+      MQTT_URL: "",
+      MQTT_USER: "",
+      MQTT_PASSWORD: "",
+      HA_URL: "",
+      HA_TOKEN: "",
+      SETTINGS_KEY: "",
     },
   },
 );
