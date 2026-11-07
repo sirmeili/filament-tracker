@@ -5,14 +5,14 @@
    * new bar, so it always matches the timer that will act. */
   interface Props {
     countdown: Countdown;
-    label: string;
+    label?: string;
   }
 
-  let { countdown, label }: Props = $props();
+  let { countdown, label = "" }: Props = $props();
 </script>
 
 <div class="countdown">
-  <span>{label}</span>
+  {#if label}<span>{label}</span>{/if}
   <div class="track" aria-hidden="true">
     {#key countdown.id}
       <div class="fill" data-ms={countdown.ms} style:animation-duration="{countdown.ms}ms"></div>

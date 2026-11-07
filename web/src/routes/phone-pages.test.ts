@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/svelte";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { createRawSnippet } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -382,6 +382,121 @@ describe("scan page", () => {
     render(ScanPage);
     expect(screen.getByText("Starting…")).toBeInTheDocument();
     expect(native.reads).toBe(0);
+  });
+});
+
+describe("scan page, unpacking a delivery", () => {
+  afterEach(() => {
+    phone.delivery.clear();
+    phone.delivery.on = false;
+  });
+
+  async function deliveryOn(): Promise<void> {
+    await paired();
+    render(ScanPage);
+    await screen.findByText("Hold a spool to the back of your phone");
+    await userEvent.click(screen.getByRole("button", { name: "Delivery" }));
+  }
+
+  it("lists each spool recorded, with totals, and undoes only the newest", async () => {
+    await deliveryOn();
+    expect(screen.getByRole("button", { name: "Delivery" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByText("Spools you scan show up here.")).toBeInTheDocument();
+    expect(screen.getByText("Ready")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Clear" })).toBeNull();
+
+    native.tap(tagRead(tags[0].blocks));
+    const panel = await screen.findByRole("region", { name: "Scanned spool" });
+    expect(within(panel).getByRole("article", { name: "Spool" })).toHaveTextContent(
+      "Received Oct 12 · #7",
+    );
+    expect(screen.queryByRole("button", { name: "Delivery" })).toBeNull(); // not mid-choice
+    await userEvent.click(within(panel).getByRole("button", { name: "Opened" }));
+
+    expect(await screen.findByText("Recorded Opened")).toBeInTheDocument();
+    const list = screen.getByRole("list", { name: "Spools in this delivery" });
+    expect(within(list).getAllByRole("listitem")).toHaveLength(1);
+    expect(within(list).getByRole("listitem")).toHaveClass("fresh");
+    expect(screen.getAllByRole("button", { name: "Undo" })).toHaveLength(1); // the panel's
+    expect(screen.getByText("0 new · 1 opened")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Scan next" }));
+    expect(within(list).getByRole("listitem")).not.toHaveClass("fresh");
+
+    native.tap(tagRead(tags[0].blocks));
+    const again = await screen.findByRole("region", { name: "Scanned spool" });
+    await userEvent.click(within(again).getByRole("button", { name: "Empty" }));
+    await screen.findByText("Recorded Empty");
+    await userEvent.click(screen.getByRole("button", { name: "Scan next" }));
+
+    const rows = within(list).getAllByRole("listitem");
+    expect(rows).toHaveLength(2);
+    expect(within(rows[0]).queryByRole("button", { name: "Undo" })).toBeNull();
+    await userEvent.click(within(rows[1]).getByRole("button", { name: "Undo" }));
+    expect(await within(rows[1]).findByText("Undone")).toBeInTheDocument();
+    expect(screen.getByText("0 new · 1 opened")).toBeInTheDocument();
+  });
+
+  it("keeps the list after leaving Scan, until Clear", async () => {
+    await deliveryOn();
+    native.tap(tagRead(tags[0].blocks));
+    const panel = await screen.findByRole("region", { name: "Scanned spool" });
+    await userEvent.click(within(panel).getByRole("button", { name: "Opened" }));
+    await screen.findByText("Recorded Opened");
+    await userEvent.click(screen.getByRole("button", { name: "Undo" }));
+    await screen.findByText("Undone");
+    cleanup();
+
+    render(ScanPage);
+    const list = await screen.findByRole("list", { name: "Spools in this delivery" });
+    expect(within(list).getAllByRole("listitem")).toHaveLength(1);
+
+    await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(screen.getByText("Spools you scan show up here.")).toBeInTheDocument();
+  });
+
+  it("marks a queued spool until it is sent, and turns off again", async () => {
+    await paired();
+    serverUp = false;
+    render(ScanPage);
+    await screen.findByText("Hold a spool to the back of your phone");
+    await userEvent.click(screen.getByRole("button", { name: "Delivery" }));
+
+    native.tap(tagRead(tags[0].blocks));
+    const panel = await screen.findByRole("region", { name: "Scanned spool" });
+    await userEvent.click(within(panel).getByRole("button", { name: "New" }));
+    expect(await screen.findByText("Queued New")).toBeInTheDocument();
+    expect(screen.getByText(/· queued/)).toBeInTheDocument();
+
+    serverUp = true;
+    await phone.session!.retry(true);
+    await waitFor(() => expect(screen.queryByText(/· queued/)).toBeNull());
+
+    await userEvent.click(screen.getByRole("button", { name: "Scan next" }));
+    await userEvent.click(screen.getByRole("button", { name: "Delivery" }));
+    expect(await screen.findByText("Hold a spool to the back of your phone")).toBeInTheDocument();
+  });
+
+  it("shows a refusal in the panel", async () => {
+    await paired();
+    vi.stubGlobal(
+      "fetch",
+      fakeFetch({
+        "POST /api/v1/devices/heartbeat": () => ({ status: 204 }),
+        "POST /api/v1/scans": () => ({ status: 403 }),
+      }),
+    );
+    render(ScanPage);
+    await screen.findByText("Hold a spool to the back of your phone");
+    await userEvent.click(screen.getByRole("button", { name: "Delivery" }));
+
+    native.tap(tagRead(tags[0].blocks));
+
+    expect(await screen.findByText(/only from your home network/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Scan next" }));
+    expect(screen.getByText("Ready")).toBeInTheDocument();
   });
 });
 

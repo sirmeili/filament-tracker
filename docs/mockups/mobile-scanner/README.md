@@ -41,6 +41,6 @@ The Delivery toggle is hidden while a spool is on screen or just recorded, so th
 
 The spec covers the one-spool flow. The owner decided these on 2026-11-06:
 
-1. **The unpacking mode** and its **Delivery** toggle. The spec keeps only the last scan; this keeps a list for the session. Only the newest row has Undo, matching the spec's single Undo. **Decided:** the list lasts until the app is closed (leaving Scan keeps it), with a Clear button. To be built after the one-spool screen.
+1. **The unpacking mode** and its **Delivery** toggle. The spec keeps only the last scan; this keeps a list for the session. Only the newest row has Undo, matching the spec's single Undo. **Decided and built:** the list lasts until the app is closed (leaving Scan keeps it), with a Clear button. While a result is on screen its Undo is in the panel, not on the row.
 2. **View spool and Scan next** on the one-spool result screen. The spec shows the result for 3 seconds and returns to waiting; these are shortcuts during those 3 seconds. **Approved** and in the spec.
 3. **The Light / Dark / System toggle in the Scan header.** The owner asked for it here for now. **Decided:** it is the web app's own theme choice, shown on Scan too. The full app's header gets a Scan button with the target's phone icon.

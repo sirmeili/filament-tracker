@@ -451,6 +451,77 @@ describe("scan screen parts", async () => {
     expect(screen.queryByRole("link", { name: "View spool" })).toBeNull();
   });
 
+  const DeliveryPanel = (await import("#lib/components/phone/DeliveryPanel.svelte")).default;
+  const DeliveryList = (await import("#lib/components/phone/DeliveryList.svelte")).default;
+  const panel = { onchoose: vi.fn(), onundo: vi.fn(), onnext: vi.fn(), ontoggle: vi.fn() };
+
+  it("shows Looking it up in the delivery panel, without the toggle", () => {
+    render(DeliveryPanel, { view: view({ phase: "looking_up", card: null }), ...panel });
+    expect(screen.getByRole("status")).toHaveTextContent("Looking it up…");
+    expect(screen.queryByRole("button", { name: "Delivery" })).toBeNull();
+  });
+
+  it("shows an offline card and a message while sending, with no countdown", () => {
+    const { container } = render(DeliveryPanel, {
+      view: view({
+        phase: "sending",
+        card: { ...spool, offline: true, spoolId: null },
+        actions: ["received", "opened", "empty"],
+        message: "Can't reach the server. Your choice will be queued.",
+        tone: "warn",
+      }),
+      ...panel,
+    });
+    expect(screen.getByText("Offline")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "New" })).toBeDisabled();
+    expect(container.querySelector(".fill")).toBeNull();
+  });
+
+  it("says when a delivery spool was flagged, and shows messages alone", () => {
+    const flagged = render(DeliveryPanel, {
+      view: view({
+        outcome: "recorded",
+        message: "Recorded Opened, flagged for review.",
+        tone: "warn",
+        card: { ...spool, spoolId: null },
+        last: last(),
+      }),
+      ...panel,
+    });
+    expect(screen.getByText("Recorded Opened")).toBeInTheDocument();
+    expect(screen.getByText("Recorded Opened, flagged for review.")).toHaveClass("warn");
+    expect(screen.getByText("PLA Basic #000000")).toBeInTheDocument();
+    flagged.unmount();
+
+    const notice = render(DeliveryPanel, { view: view({ message: null, card: null }), ...panel });
+    expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+    notice.unmount();
+    render(DeliveryPanel, { view: view({ message: null }), ...panel });
+    expect(screen.getByText("PLA Basic #000000")).toHaveClass("message");
+  });
+
+  it("lists spools with no swatch or number", () => {
+    render(DeliveryList, {
+      rows: [
+        {
+          eventId: "e1",
+          card: { ...spool, spoolId: null },
+          action: "opened",
+          at: 0,
+          queued: false,
+          undone: false,
+        },
+      ],
+      totals: { received: 0, opened: 1, empty: 0 },
+      undoable: "other",
+      fresh: null,
+      onundo: vi.fn(),
+      onclear: vi.fn(),
+    });
+    expect(screen.getByRole("listitem")).not.toHaveTextContent(" · #");
+    expect(screen.queryByRole("button", { name: "Undo" })).toBeNull(); // not the last scan
+  });
+
   it("says Online, Offline and the queue size in the header", () => {
     const theme = new Theme(document.createElement("html"), undefined, undefined);
     const header = render(ScanHeader, { online: null, queueSize: 0, theme });

@@ -1,6 +1,9 @@
 <script lang="ts">
   import ActionKeys from "#lib/components/phone/ActionKeys.svelte";
   import CountdownBar from "#lib/components/phone/CountdownBar.svelte";
+  import DeliveryList from "#lib/components/phone/DeliveryList.svelte";
+  import DeliveryPanel from "#lib/components/phone/DeliveryPanel.svelte";
+  import DeliveryToggle from "#lib/components/phone/DeliveryToggle.svelte";
   import LastScanBar from "#lib/components/phone/LastScanBar.svelte";
   import ScanCard from "#lib/components/phone/ScanCard.svelte";
   import ScanHeader from "#lib/components/phone/ScanHeader.svelte";
@@ -64,6 +67,7 @@
 
   const flow = $derived(phone.session?.flow ?? null);
   const appTheme = theme();
+  const delivery = phone.delivery;
 </script>
 
 <svelte:head><title>Scan · Filament Tracker</title></svelte:head>
@@ -77,14 +81,37 @@
     </div>
   {:else if nfc && nfc !== "ready"}
     <div class="middle"><p class="message warn" role="alert">{NFC_MESSAGES[nfc]}</p></div>
+  {:else if view && flow && delivery.on}
+    <DeliveryList
+      rows={delivery.rows}
+      totals={delivery.totals}
+      undoable={view.phase !== "result" && view.last && !view.last.undone
+        ? view.last.eventId
+        : null}
+      fresh={view.phase === "result" ? (view.last?.eventId ?? null) : null}
+      onundo={() => void flow.undoLast()}
+      onclear={() => delivery.clear()}
+    />
+    <DeliveryPanel
+      {view}
+      onchoose={(action) => void flow.choose(action)}
+      onundo={() => void flow.undoLast()}
+      onnext={() => flow.dismiss()}
+      ontoggle={() => delivery.toggle()}
+    />
   {:else if view && flow}
     {#if view.phase === "idle" || view.phase === "looking_up"}
       <TapTarget busy={view.phase === "looking_up"} />
       <div class="bottom">
         {#if view.message}<p class="message {view.tone}" role="status">{view.message}</p>{/if}
-        {#if view.last}
-          <LastScanBar last={view.last} onundo={() => void flow.undoLast()} />
-        {/if}
+        <div class="idle-row">
+          {#if view.phase === "idle"}
+            <DeliveryToggle on={false} ontoggle={() => delivery.toggle()} />
+          {/if}
+          {#if view.last}
+            <LastScanBar last={view.last} onundo={() => void flow.undoLast()} />
+          {/if}
+        </div>
       </div>
     {:else if view.phase === "choosing" || view.phase === "sending"}
       <div class="middle">
@@ -139,22 +166,11 @@
     padding: 12px 20px 28px;
   }
 
-  .scan :global(.bottom button),
-  .scan :global(.bottom a.button) {
+  .scan :global(.bottom > button),
+  .scan :global(.bottom > .pair > *) {
     min-height: 52px;
     border-radius: 14px;
     font-size: 16px;
-  }
-
-  .scan :global(.bottom .key) {
-    min-height: 72px;
-    border-radius: 16px;
-  }
-
-  .scan :global(.bottom .last button) {
-    min-height: 40px;
-    border-radius: 10px;
-    font-size: 14px;
   }
 
   .scan :global(.message) {
@@ -169,6 +185,12 @@
   .scan :global(.message.error) {
     background: var(--lowbg);
     color: var(--lowtext);
+  }
+
+  .idle-row {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
   }
 
   .sending {

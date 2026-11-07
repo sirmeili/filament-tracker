@@ -1,6 +1,7 @@
 <script lang="ts">
   import Ring from "#lib/components/ui/Ring.svelte";
-  import { cardLine, chipKind, chipText } from "#lib/phone/card-text.ts";
+  import CardChip from "#lib/components/phone/CardChip.svelte";
+  import { cardLine } from "#lib/phone/card-text.ts";
   import type { Card } from "#lib/phone/scan-flow.ts";
 
   /** The scanned spool, large: color ring, state chip, name and when it reached its state. */
@@ -27,7 +28,7 @@
   </div>
   {#if !done}
     <div class="text">
-      <span class="st {chipKind(card)}">{chipText(card)}</span>
+      <CardChip {card} />
       <h2>{card.name}</h2>
       <p class="muted">{cardLine(card)}</p>
     </div>
@@ -79,34 +80,5 @@
   p {
     margin: 0;
     font-size: 16px;
-  }
-
-  .st {
-    display: inline-flex;
-    font-size: 12px;
-    font-weight: 700;
-    padding: 3px 9px;
-    border-radius: 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    border: 1px solid transparent;
-  }
-
-  .st.sealed {
-    background: var(--text);
-    color: var(--bg);
-  }
-
-  .st.open {
-    background: var(--chip);
-    color: var(--text);
-    border-color: var(--line);
-  }
-
-  .st.empty,
-  .st.unknown,
-  .st.new {
-    color: var(--muted);
-    border: 1px dashed var(--muted);
   }
 </style>
