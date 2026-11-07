@@ -78,6 +78,81 @@ describe("phone session", () => {
     session.stop();
   });
 
+  it("sends the whole queue as soon as the server answers, before its backoff runs out", async () => {
+    await savePairing(PAIRING, "AA");
+    let up = false;
+    const fetch = fakeFetch({
+      "POST /api/v1/devices/heartbeat": () => (up ? { status: 204 } : new TypeError("down")),
+      "POST /api/v1/scans": () => (up ? ok() : new TypeError("down")),
+    });
+    const session = (await PhoneSession.open(native, fetch))!;
+    await session.queue.add(scanEvent(PAIRING, tagRead(), "opened", "1"), Date.now());
+    session.start();
+    await vi.advanceTimersByTimeAsync(0);
+    await session.retry(true); // fails again: backed off further
+    expect(session.queue.size).toBe(1);
+    expect(session.online).toBe(false);
+
+    up = true;
+    document.dispatchEvent(new Event("visibilitychange")); // back to the front: a heartbeat
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(session.online).toBe(true);
+    expect(session.queue.size).toBe(0);
+    session.stop();
+  });
+
+  it("sends the queue once a lookup gets through", async () => {
+    await savePairing(PAIRING, "AA");
+    let up = false;
+    const fetch = fakeFetch({
+      "POST /api/v1/devices/heartbeat": () => (up ? { status: 204 } : new TypeError("down")),
+      "POST /api/v1/scans": () => (up ? ok() : new TypeError("down")),
+    });
+    const session = (await PhoneSession.open(native, fetch))!;
+    await session.queue.add(scanEvent(PAIRING, tagRead(), "opened", "1"), Date.now());
+    session.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(session.online).toBe(false);
+
+    up = true;
+    void session.flow.tapped(tagRead());
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(session.queue.size).toBe(0);
+    const sent = fetch.calls.filter((c) => c.url.endsWith("/scans")).length;
+    expect(sent).toBeGreaterThanOrEqual(2); // the lookup, then the queued scan
+    session.stop();
+  });
+
+  it("runs one send at a time", async () => {
+    await savePairing(PAIRING, "AA");
+    const fetch = fakeFetch({ "POST /api/v1/scans": () => ok() });
+    const session = (await PhoneSession.open(native, fetch))!;
+    await session.queue.add(scanEvent(PAIRING, tagRead(), "opened", "1"), Date.now());
+
+    await Promise.all([session.retry(true), session.retry(true)]);
+
+    expect(fetch.calls.filter((c) => c.url.endsWith("/scans"))).toHaveLength(1);
+  });
+
+  it("ignores the app going to the background", async () => {
+    await savePairing(PAIRING, "AA");
+    const fetch = fakeFetch({ "POST /api/v1/devices/heartbeat": () => ({ status: 204 }) });
+    const session = (await PhoneSession.open(native, fetch))!;
+    session.start();
+    await vi.advanceTimersByTimeAsync(0);
+    const before = fetch.calls.length;
+    const hidden = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+
+    document.dispatchEvent(new Event("visibilitychange"));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(fetch.calls).toHaveLength(before);
+    hidden.mockRestore();
+    session.stop();
+  });
+
   it("keeps the queue in secure storage", async () => {
     await savePairing(PAIRING, "AA");
     const session = (await PhoneSession.open(native, fakeFetch({})))!;

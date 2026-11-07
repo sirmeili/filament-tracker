@@ -1,8 +1,9 @@
 /** The phone app's running scanner: pairing, queue, scan flow, heartbeat and retries.
  *
- * Started when the app opens (if it is paired) and stopped when it closes. Every 5 minutes
- * it sends a heartbeat with the queue size; queued scans are retried when due and after
- * each heartbeat that gets through.
+ * Started when the app opens (if it is paired) and stopped when it closes. Every 5 minutes,
+ * and when the app comes back to the front, it sends a heartbeat with the queue size.
+ * Queued scans are retried when due, and all of them at once as soon as the server answers
+ * again (a heartbeat, a lookup or any other request).
  */
 
 import { bridge, type PhoneBridge } from "#lib/phone/bridge.ts";
@@ -29,6 +30,10 @@ export class PhoneSession {
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private unsubscribe: (() => void) | null = null;
+  private flushing: Promise<void> | null = null;
+  private readonly onVisible = () => {
+    if (document.visibilityState === "visible") void this.beat();
+  };
 
   constructor(
     readonly pairing: Pairing,
@@ -57,6 +62,8 @@ export class PhoneSession {
     if (this.online === online) return;
     this.online = online;
     this.onlineListeners.forEach((listener) => listener(online));
+    // The server is back: send what was queued now, not when its backoff runs out.
+    if (online && this.queue.size > 0) void this.retry(true);
   }
 
   /** The session for this phone, or null if it has not been paired. */
@@ -76,9 +83,11 @@ export class PhoneSession {
     void this.beat();
     this.heartbeatTimer = setInterval(() => void this.beat(), HEARTBEAT_MS);
     this.scheduleRetry();
+    document.addEventListener("visibilitychange", this.onVisible);
   }
 
   stop(): void {
+    document.removeEventListener("visibilitychange", this.onVisible);
     if (this.heartbeatTimer !== null) clearInterval(this.heartbeatTimer);
     if (this.retryTimer !== null) clearTimeout(this.retryTimer);
     this.heartbeatTimer = this.retryTimer = null;
@@ -95,11 +104,20 @@ export class PhoneSession {
       return; // The next heartbeat tries again.
     }
     this.reached(true);
-    await this.retry();
+    await this.retry(true);
   }
 
-  async retry(): Promise<void> {
-    await this.queue.flush((event) => this.api.scan(event));
+  /** Send the queue: what is due, or everything with `all`. One send runs at a time. */
+  async retry(all = false): Promise<void> {
+    if (this.flushing) return this.flushing;
+    this.flushing = (async () => {
+      try {
+        await this.queue.flush((event) => this.api.scan(event), Date.now(), all);
+      } finally {
+        this.flushing = null;
+      }
+    })();
+    return this.flushing;
   }
 
   private scheduleRetry(): void {

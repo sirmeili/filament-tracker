@@ -87,16 +87,18 @@ export class OfflineQueue {
     return this.items.length ? Math.min(...this.items.map((i) => i.nextAt)) : null;
   }
 
-  /** Send every event that is due. Stops at the first one the server cannot be reached for. */
+  /** Send every event that is due (every event with `all`, once the server is known to be
+   * back). Stops at the first one the server cannot be reached for. */
   async flush(
     send: (event: ScanEvent) => Promise<unknown>,
     now: number = Date.now(),
+    all = false,
   ): Promise<FlushResult> {
     const result: FlushResult = { sent: 0, refused: 0, waiting: 0 };
     const keep: Queued[] = [];
     let reachable = true;
     for (const item of this.items) {
-      if (!reachable || item.nextAt > now) {
+      if (!reachable || (!all && item.nextAt > now)) {
         keep.push(item);
         continue;
       }

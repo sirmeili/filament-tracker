@@ -205,7 +205,7 @@ An Android phone can act as one more scanner, so spools can be scanned before th
 **Device behavior**
 
 - Scans and undo of its own events use the device token, exactly as the scanner does. A heartbeat is sent every 5 minutes while the app is open.
-- Offline, as on the scanner: if the lookup fails, the product, type and color are decoded on the phone from the raw tag, New, Opened and Empty are offered, and chosen actions are queued (at least 50) and retried with backoff. The `event_id` makes retries idempotent. The Scan screen shows the queue size.
+- Offline, as on the scanner: if the lookup fails, the product, type and color are decoded on the phone from the raw tag, New, Opened and Empty are offered, and chosen actions are queued (at least 50) and retried with backoff. As soon as the server answers again (a heartbeat, which is also sent when the app comes back to the front, or any lookup or action), the whole queue is sent without waiting for the backoff. The `event_id` makes retries idempotent. The Scan screen shows the queue size.
 
 **Pairing**
 
