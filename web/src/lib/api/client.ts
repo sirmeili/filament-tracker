@@ -14,6 +14,8 @@ export class ApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    /** The error body's `detail`, for pages that show problems field by field. */
+    readonly detail?: unknown,
   ) {
     super(message);
     this.name = "ApiError";
@@ -21,7 +23,7 @@ export class ApiError extends Error {
 }
 
 export interface RequestOptions {
-  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   signal?: AbortSignal;
 }
@@ -119,7 +121,13 @@ export async function api<T>(
   }
   if (!response.ok) {
     if (response.status === 401) unauthorizedListeners.forEach((listener) => listener());
-    throw new ApiError(response.status, errorMessage(body, `Request failed (${response.status})`));
+    const detail =
+      body && typeof body === "object" ? (body as { detail?: unknown }).detail : undefined;
+    throw new ApiError(
+      response.status,
+      errorMessage(body, `Request failed (${response.status})`),
+      detail,
+    );
   }
   return body as T;
 }

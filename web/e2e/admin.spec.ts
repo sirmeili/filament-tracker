@@ -122,3 +122,31 @@ test("admins create a user who then changes their password", async ({ page, brow
   await expect(other.getByRole("link", { name: "e2e-new" })).toBeVisible();
   await other.close();
 });
+
+test("admins save a Home Assistant setting, test it and go back to the default", async ({
+  page,
+}) => {
+  await signInAt(page, "/settings", "e2e-admin");
+  const prefix = page.getByLabel("Discovery prefix", { exact: true });
+  await expect(prefix).toHaveValue("homeassistant");
+
+  await prefix.fill("e2e-ha");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("status")).toHaveText(/Saved\./);
+  await expect(page.getByText("Saved here", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Test" }).click();
+  const results = page.getByRole("list", { name: "Test results" });
+  await expect(results).toContainText("No broker set");
+  await expect(results).toContainText("No address and token set");
+
+  await page.getByRole("button", { name: "Use the .env value for Discovery prefix" }).click();
+  await expect(prefix).toHaveValue("homeassistant");
+  await expect(page.getByText("Saved here", { exact: true })).toHaveCount(0);
+});
+
+test("the Settings page is for admins only", async ({ page }) => {
+  await signInAt(page, "/settings", "e2e-editor");
+  await expect(page.getByRole("heading", { name: "Settings" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Settings" })).toHaveCount(0);
+});

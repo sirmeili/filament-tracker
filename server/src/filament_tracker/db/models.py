@@ -235,3 +235,17 @@ class PrinterSlot(Base):
 
     printer: Mapped[Printer] = relationship(back_populates="slots")
     spool: Mapped[Spool | None] = relationship()
+
+
+class Setting(Base):
+    """A setting saved in the app, which wins over the `.env` value (see Settings and first
+    start in docs/SPEC.md). Secrets hold AES-GCM ciphertext, never the plain value. No row
+    means the `.env` value or the default is used."""
+
+    __tablename__ = "setting"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(String(4096))
+    secret: Mapped[bool] = mapped_column(Boolean, default=False)
+    updated_at: Mapped[datetime] = mapped_column(default=utcnow)
+    updated_by: Mapped[int | None] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"))

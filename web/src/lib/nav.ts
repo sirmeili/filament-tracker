@@ -20,6 +20,7 @@ export const NAV: readonly NavItem[] = [
   { href: "/activity", label: "Activity", role: "viewer" },
   { href: "/devices", label: "Devices", role: "admin" },
   { href: "/users", label: "Users", role: "admin" },
+  { href: "/settings", label: "Settings", role: "admin" },
 ];
 
 export function visibleNav(role: Role | null | undefined): NavItem[] {

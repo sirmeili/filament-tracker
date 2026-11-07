@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", hide_input_in_errors=True)
 
     database_url: str = "sqlite:///./data/filament.db"
+    # Encrypts the secrets saved in the app: 32 random bytes in base64. Unset: a key file
+    # (settings.key) is created beside the database. Never logged.
+    settings_key: SecretStr | None = None
     admin_token: SecretStr | None = None
     # LAN ranges allowed to use bearer tokens, scanner routes and the API docs.
     trusted_networks: Networks = Field(default=PRIVATE_NETWORKS, validate_default=True)

@@ -16,15 +16,15 @@ from filament_tracker.api import (
     stock,
     users,
 )
+from filament_tracker.api import settings as app_settings
 from filament_tracker.api.limits import BodySizeLimitMiddleware
 from filament_tracker.api.security import SecurityHeadersMiddleware
+from filament_tracker.app_settings.crypto import SecretBox, load_key
+from filament_tracker.app_settings.store import SettingsStore
 from filament_tracker.config import Settings
 from filament_tracker.db.engine import create_db_engine, create_session_factory
 from filament_tracker.db.migrate import upgrade
-from filament_tracker.ha.broker import broker_config
-from filament_tracker.ha.events import HaEventSender
-from filament_tracker.ha.publisher import HaPublisher
-from filament_tracker.ha.rest import ha_rest
+from filament_tracker.ha.link import HomeAssistantLink
 from filament_tracker.printer.manager import PrinterManager
 from filament_tracker.services.throttle import LoginThrottle
 from filament_tracker.webapp import default_web_dir, mount_web_app
@@ -43,20 +43,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         printer_links = PrinterManager(settings.printers, app.state.session_factory)
         app.state.printers = printer_links
         printer_links.start()
-        home_assistant = HaPublisher(
-            broker_config(settings.mqtt_url, settings.mqtt_user, settings.mqtt_password),
-            settings.ha_discovery_prefix,
-            app.state.session_factory,
-        )
+        box = SecretBox(load_key(settings.settings_key, settings.database_url))
+        store = SettingsStore(settings, app.state.session_factory, box)
+        app.state.settings_store = store
+        home_assistant = HomeAssistantLink(store, app.state.session_factory)
         app.state.home_assistant = home_assistant
         home_assistant.start()
-        ha_events = HaEventSender(ha_rest(settings), app.state.session_factory)
-        app.state.ha_events = ha_events
-        ha_events.start()
         try:
             yield
         finally:
-            ha_events.stop()
             home_assistant.stop()
             printer_links.stop()
             engine.dispose()
@@ -79,6 +74,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         printers,
         events,
         users,
+        app_settings,
     ):
         app.include_router(module.router, prefix=API_PREFIX)
     mount_web_app(app, settings.web_dir or default_web_dir())

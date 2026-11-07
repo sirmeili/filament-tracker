@@ -125,7 +125,7 @@ The server publishes Home Assistant entities through MQTT discovery, under one d
 
 Entities from an earlier version of the server (such as per-product sensors) are removed automatically.
 
-Set these in `server/.env` and restart the server:
+Set the broker on the **Settings** page (Admin), or in `server/.env`:
 
 ```sh
 MQTT_URL=mqtt://homeassistant.local:1883   # Home Assistant's address, for the Mosquitto add-on
@@ -143,7 +143,7 @@ The password is never logged or shown, and `MQTT_URL` must not contain it. Use `
 
 ### Events for automations
 
-With these set, the server also fires Home Assistant events:
+With these set (on the Settings page or in `server/.env`), the server also fires Home Assistant events:
 
 ```sh
 HA_URL=http://homeassistant.local:8123
@@ -156,6 +156,17 @@ HA_TOKEN=...   # a long-lived access token: your Home Assistant profile → Secu
 Only actions after the server starts are fired (a restart replays nothing), within about 5 seconds. An action undone before then is not fired. A failed request is retried three times and then dropped with a warning in the log; `GET /api/v1/health` reports events as `off`, `ready` or `failing`. The token is never logged, and redirects are not followed so it only goes to `HA_URL`.
 
 To see them, open Developer tools → Events in Home Assistant, listen to `filament_tracker_low_stock` (or another), and record an action.
+
+### The Settings page
+
+Admins can set everything above on the **Settings** page, without restarting the server:
+
+- **Where values come from**: each one is labelled **From .env**, **Saved here** or **Default**. A value saved on the page is used instead of the `.env` one; **Use the .env value** goes back to it. An empty value saved on the page turns that setting off, even if `.env` sets it.
+- **Passwords and tokens** are stored encrypted and never shown again. Leave the box empty to keep the saved one; **Clear** removes it.
+- **Save** applies at once: the server reconnects to the broker and starts sending events with the new values.
+- **Test** tries the values in the boxes (saved or not) once, and says only whether it worked: connected, unreachable, refused or an error.
+
+Secrets are encrypted with a key from `SETTINGS_KEY`, or else from `data/settings.key`, which the server creates beside the database on first start. Back the key up with the database, or set `SETTINGS_KEY` instead, so the key is not stored next to the data it protects. A database restored without its key keeps everything except the saved secrets, which the Settings page then asks for again.
 
 **Example automation**: [docs/home-assistant/low-stock-automation.yaml](../docs/home-assistant/low-stock-automation.yaml) adds a low product to the shopping list and notifies your phone. Paste it into a new automation's YAML editor, set your phone's notify action, save, and give it the `Claude` label.
 
