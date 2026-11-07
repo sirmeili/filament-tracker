@@ -10,8 +10,9 @@
 *.zip
 tag-dumps/
 
-# Local database
+# Local database, and the key that encrypts the secrets saved in the app
 server/data/
+settings.key
 *.db
 *.db-wal
 *.db-shm
