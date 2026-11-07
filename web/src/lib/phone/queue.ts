@@ -82,6 +82,11 @@ export class OfflineQueue {
     return true;
   }
 
+  /** Whether an event is still waiting to be sent. */
+  has(eventId: string): boolean {
+    return this.items.some((item) => item.event.event_id === eventId);
+  }
+
   /** When the next retry is due, or null if the queue is empty. */
   nextDue(): number | null {
     return this.items.length ? Math.min(...this.items.map((i) => i.nextAt)) : null;

@@ -4,6 +4,7 @@ import { ApiError, setApiBase } from "#lib/api/client.ts";
 import type { PairingFields } from "#lib/pairing.ts";
 import { bridge } from "#lib/phone/bridge.ts";
 import { DeviceApi } from "#lib/phone/device-api.ts";
+import { Delivery } from "#lib/phone/delivery.svelte.ts";
 import { forgetPairing, savePairing } from "#lib/phone/pairing-store.ts";
 import { PhoneSession } from "#lib/phone/session.ts";
 
@@ -32,6 +33,8 @@ class PhoneState {
   queueSize = $state(0);
   /** Whether the server answered the last request; null until it is known. */
   online = $state<boolean | null>(null);
+  /** The Delivery list, kept while the app is open. */
+  readonly delivery = new Delivery();
   private unsubscribe: (() => void) | null = null;
 
   get app(): boolean {
@@ -57,6 +60,8 @@ class PhoneState {
   async unpair(): Promise<void> {
     await forgetPairing();
     this.attach(null);
+    this.delivery.clear();
+    this.delivery.on = false;
   }
 
   private attach(session: PhoneSession | null): void {
@@ -68,11 +73,16 @@ class PhoneState {
     this.queueSize = session ? session.queue.size : 0;
     this.online = null;
     if (session) {
-      const queue = session.queue.subscribe((size) => (this.queueSize = size));
+      const queue = session.queue.subscribe((size) => {
+        this.queueSize = size;
+        this.delivery.sent((id) => session.queue.has(id));
+      });
       const online = session.subscribeOnline((value) => (this.online = value));
+      const flow = session.flow.subscribe((view) => this.delivery.seen(view.last));
       this.unsubscribe = () => {
         queue();
         online();
+        flow();
       };
       session.start();
     }

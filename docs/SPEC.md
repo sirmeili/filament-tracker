@@ -198,6 +198,12 @@ An Android phone can act as one more scanner, so spools can be scanned before th
   - Result: the action in large type with the spool, and a bar counting down the 3 seconds. Undo, View spool (for a spool the server knows) and Scan next, which goes back to waiting at once.
   - The countdown bars follow the real timers: each new spool or result starts a new bar.
   - Online means the server answered the last request (a heartbeat, lookup, action or undo); Offline means it could not be reached.
+- **Unpacking a delivery** (owner's choice, 2026-11-06): a **Delivery** toggle beside the last scan turns on a list of the spools recorded in this session, for checking off a whole box.
+  - The top of the screen is the list, newest at the bottom, with totals ("4 new · 1 opened", and empty when there are any). Each row has the spool's color, name, time and number; a spool still in the offline queue is marked queued; an undone one is marked Undone and leaves the totals.
+  - Only the newest row has Undo, matching the single Undo; while its result is on screen, the Undo is in the panel instead.
+  - The bottom is one panel that changes with the step: Ready, then the spool with its keys and the 15-second bar, then what was recorded with Undo and the 3-second bar. A tag not tracked yet shows "Not tracked yet", with New suggested.
+  - The toggle shows only while waiting, so the mode cannot change halfway through a choice.
+  - The list lasts until the app is closed: leaving Scan, or turning Delivery off and on, keeps it. **Clear** empties it; the recorded events stay. Forgetting the pairing also clears it.
 - **The full web app**: every page, after a normal user sign-in. Scanning uses the device token, not the user's session. In the app, the header has a Scan button (the same phone icon as Scan's target) that goes back to Scan, and the Account page links to the phone's pairing.
 - Scan and Pairing work without a user sign-in, and Scan works without the server (offline). The app opens on Scan once paired, and on Pairing until then. In a browser these two screens only say they belong to the app.
 - Like the scanner's "Last scan", Scan keeps the last scan with an Undo: it reverts the event, or takes it out of the queue if it has not been sent yet. Info shows the AMS remaining % and links to the spool's page.
@@ -454,6 +460,9 @@ Each milestone ends with something usable. Reading is proved first with a phone,
 - **Spoolman sync**: one-way export, as described under Integrations.
 - **Non-Bambu filament**: NTAG stickers in an open format, or QR labels printed by the server.
 - **Second scanner by the printer**: same firmware, its own device token.
+- **Theme choice in Account**: move the light, dark and system theme choice off the web app header and the phone Scan screen onto the Account page, to free space on both.
+- **Phone app start screen**: a setting in the phone app for which screen it opens on, Scan or the web app (today it opens on Scan).
+- **Phone bottom bar**: on a phone, the web app's menu moves behind a menu button instead of running across the top. The menu button, the Scan button (in the phone app) and the signed-in user sit in a bar at the bottom of the screen, for one-handed use.
 
 ## Open questions
 
