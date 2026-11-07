@@ -108,3 +108,11 @@ def test_entities_reach_the_broker_and_go_unavailable_on_stop(engine: Engine) ->
     assert (low["low"], [p["name"] for p in low["products"]]) == (True, ["Black PLA Basic"])
     assert json.loads(seen[TOTALS_TOPIC])["sealed"] == 2
     assert seen["after stop"] == "offline"
+
+
+def test_the_settings_test_connects_and_spots_a_wrong_password() -> None:
+    from filament_tracker.ha.check import CheckResult, check_broker
+
+    assert check_broker(broker()) is CheckResult.OK
+    wrong = BrokerConfig(broker().host, broker().port, False, USER, SecretStr("wrong-password"))
+    assert check_broker(wrong) is CheckResult.REFUSED

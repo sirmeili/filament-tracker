@@ -57,12 +57,16 @@ ROUTES = [
     ("get", "/api/v1/users", Role.ADMIN),
     ("post", "/api/v1/users", Role.ADMIN),
     ("patch", "/api/v1/users/99", Role.ADMIN),
+    ("get", "/api/v1/settings/home-assistant", Role.ADMIN),
+    ("put", "/api/v1/settings/home-assistant", Role.ADMIN),
+    ("delete", "/api/v1/settings/home-assistant/ha_url", Role.ADMIN),
+    ("post", "/api/v1/settings/home-assistant/test", Role.ADMIN),
     ("post", f"/api/v1/events/{uuid4()}/revert", Role.EDITOR),
 ]
 
 
 def _call(client: TestClient, method: str, path: str, headers: dict[str, str] | None = None):  # noqa: ANN202
-    if method in ("post", "patch"):
+    if method in ("post", "patch", "put"):
         return client.request(method.upper(), path, json={}, headers=headers)
     return client.request(method.upper(), path, headers=headers)
 
