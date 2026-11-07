@@ -241,7 +241,9 @@ The server is event-sourced: every scan, AMS observation and UI edit is an immut
 | `device` | id, name, token\_hash, revoked\_at, last\_seen\_at, fw\_version, queue\_length | Registered scanners; firmware version and offline queue length come from the last heartbeat |
 | `user` | id, username (unique, case-insensitive), password\_hash, role, disabled\_at, last\_login\_at | Web app accounts; see Users and roles |
 | `session` | id, token\_hash, user\_id, expires\_at, last\_seen\_at | Signed-in browsers; only a hash of the cookie value is stored |
-| `printer` | id, name, serial, host, port, cert\_sha256, last\_report\_at | Printers watched over MQTT, synced from `PRINTERS` at startup. `cert_sha256` is the pinned TLS certificate fingerprint |
+| `printer` | id, name, serial, host, port, access\_code (encrypted), cert\_sha256, last\_report\_at | Printers watched over MQTT, added on the Devices page or seeded once from `PRINTERS`. `cert_sha256` is the pinned TLS certificate fingerprint |
+| `setting` | key, value (encrypted for secrets), updated\_at, updated\_by | Values saved in the app; no row means the `.env` value or the default is used |
+| `machine_token` | id, name, role, token\_hash, created\_by, created\_at, last\_used\_at, revoked\_at | Bearer tokens for Home Assistant and scripts, accepted only from the LAN |
 | `printer_slot` | id, printer\_id, ams\_index, tray\_index, tray\_uuid, spool\_id, filament\_type, color\_rgba, remaining\_pct, updated\_at | What the AMS last reported in each slot, and the spool it is. `ams_index` is the printer's unit ID: 0 to 3 for an AMS, 128 and up for an AMS HT |
 
 **Spool states and transitions**
@@ -265,7 +267,7 @@ The server is event-sourced: every scan, AMS observation and UI edit is an immut
 
 ## Server: API
 
-A versioned REST API under `/api/v1`, documented by FastAPI's generated OpenAPI page (LAN only). Scanners authenticate with a device token and Home Assistant with the admin token, both bearer tokens accepted only from the LAN. The web app uses a session cookie, and each route requires a minimum role (see Users and roles).
+A versioned REST API under `/api/v1`, documented by FastAPI's generated OpenAPI page (LAN only). Scanners authenticate with a device token, and Home Assistant and scripts with a machine token (or `ADMIN_TOKEN`); bearer tokens are accepted only from the LAN. The web app uses a session cookie, and each route requires a minimum role (see Users and roles).
 
 | Method | Path | Caller | Purpose |
 | --- | --- | --- | --- |
@@ -294,6 +296,12 @@ A versioned REST API under `/api/v1`, documented by FastAPI's generated OpenAPI 
 | GET / POST / DELETE | `/devices`, `/devices/{id}` | Admin | Register a scanner and issue or revoke its token |
 | POST | `/devices/{id}/rotate` | Admin | Issue a new token, invalidating the old one; also re-enables a revoked scanner |
 | GET / POST / PATCH | `/users`, `/users/{id}` | Admin | List and create users, change role, disable, reset password |
+| POST / PATCH / DELETE | `/printers`, `/printers/{id}` | Admin | Add, edit and remove a printer; the access code is write-only |
+| GET / PUT | `/settings/{group}` | Admin | Read and change app settings by group (`general`, `home-assistant`, `scanners`). Each value says where it comes from (`env`, `app` or `default`); secrets read back only as set or not set |
+| DELETE | `/settings/{group}/{key}` | Admin | Go back to the `.env` value (or the default) for one setting |
+| POST | `/settings/home-assistant/test`, `/printers/{id}/test` | Admin | Try the saved or entered values once and report the result, without repeating secrets |
+| GET / POST / DELETE | `/tokens`, `/tokens/{id}` | Admin | Machine tokens for Home Assistant and scripts: named, with a role, shown once, revocable |
+| GET / POST | `/setup` | LAN, with the setup code to POST | First-start setup: whether it is open; create the first admin and the starter settings, which closes it for good |
 | GET | `/health` | Docker, HA | Liveness and dependency status |
 
 **Scan response feedback codes**: `ok`, `ok_created` (implicit receive), `already_in_state`, `flagged` (out of order), `unreadable`, `error`. The device maps each to a screen message and sound.
@@ -308,12 +316,38 @@ The web app has personal accounts, so a few people can use it from anywhere, som
 | --- | --- |
 | Viewer | See every page: inventory, spools, products, review, activity |
 | Editor | Also record actions, undo, edit spools and products, add spools by hand, resolve review items |
-| Admin | Also manage users and scanners |
+| Admin | Also manage users, scanners, printers, machine tokens and settings |
 
-- Accounts are created by an admin; there is no sign-up. The first admin is created from the command line (`ft-admin create-user`), so there is never a default account. `ft-admin reset-password` recovers an account when no admin can sign in.
+- Accounts are created by an admin; there is no sign-up. The first admin is created during first-start setup (see Settings and first start) or from the command line with `ft-admin create-user`, so there is never a default account. `ft-admin reset-password` recovers an account when no admin can sign in.
 - Passwords are at least 12 characters and stored as Argon2id hashes. Users can change their own; an admin can reset one or disable an account.
 - Signing in sets a session cookie (HttpOnly, Secure, SameSite=Strict) valid for `SESSION_DAYS`. Sessions end on sign-out, on a password change (other sessions), or when the account is disabled.
 - Events recorded in the web app store who made them, and the Activity page shows it.
+
+## Settings and first start
+
+Most settings live in the app, so a deployment needs only a short `.env` file (owner's choice, 2026-11-07).
+
+**Where each setting lives**
+
+- **In the app** (Admin › Settings, and printers on the Devices page): the Home Assistant settings (MQTT broker, user and password, discovery prefix, HA URL and token), printers (name, host, port, serial, access code), `BAMBU_KDF_SALT`, the time zone and `SESSION_DAYS`. Machine tokens made in the app replace `ADMIN_TOKEN` for Home Assistant and scripts.
+- **Only in `.env`**: `SETTINGS_KEY`, the database location, `WEB_DIR`, `TRUSTED_NETWORKS`, `FORWARDED_ALLOW_IPS` and `COOKIE_SECURE`. A mistake in these could lock the admin out, or open LAN-only routes to the internet, with no way back through the app.
+- **Precedence**: a value in `.env` is the starting value. Once an admin saves a value in the app, the app's value is used. The Settings page shows where each value comes from (`.env`, the app or the default), and "Use the .env value" goes back to it. `PRINTERS` in `.env` adds its printers once, the first time the server sees them; after that they are edited in the app.
+- Changes apply without a restart: saving the Home Assistant settings reconnects the MQTT link and the event sender, and saving a printer reconnects that printer. Changing a printer's host or port keeps its certificate pin, so a different certificate is refused and shown as usual.
+- `ADMIN_TOKEN` in `.env` keeps working, so existing setups do not break.
+
+**Secrets**
+
+- Passwords, tokens, access codes and the salt are stored encrypted (AES-256-GCM, a fresh nonce per value, the setting's name as associated data) with the key from `SETTINGS_KEY`. If it is unset, the server creates a random key file beside the database on first start, readable only by the server's user.
+- The API never returns a stored secret, only whether one is set. Saving with a secret field left empty keeps the current value; a separate Clear removes it.
+- Encryption protects copies of the database, such as backups. It does not protect against someone who can read the server's disk, where the key file also is; set `SETTINGS_KEY` in the environment to keep the key off the database volume. A database moved to another server without its key keeps everything except the stored secrets, which the Settings page then asks for again.
+- Each settings change is logged with who made it and which setting, never the value.
+
+**First-start setup**
+
+- While no admin account exists, the web app shows a Setup page instead of the sign-in page. It creates the first admin (same password rules as any account) and asks for the starter settings: the time zone and `BAMBU_KDF_SALT`, both optional and skipped when already set in `.env`.
+- Setup answers only from `TRUSTED_NETWORKS`, so it cannot be reached through the reverse proxy.
+- Setup also needs a one-time setup code. While setup is open, the server makes a new random code at each start and writes it to its log, so only someone who can see the server's log can finish setup. Wrong codes are throttled like sign-ins.
+- Once an admin exists, setup is closed for good. `ft-admin` stays for recovery.
 
 ## Server: web UI
 
@@ -326,8 +360,10 @@ A small, mobile-friendly web app for checking stock and fixing mistakes; day-to-
 | Spool detail | Tag data, AMS remaining % and grams left (remaining % of the tag's spool weight), the AMS slot while loaded (for example "AMS 1, slot 2 on P1S"), event timeline | Manual action, undo, edit notes and location |
 | Products | Decoded product IDs and colors | Set display name, low-stock threshold and nearly-out % |
 | Review | Flagged events, `unidentified` tags, "likely empty" suggestions | Flagged event: Accept (it was right), Undo (revert it) or Open spool (fix by hand). Unidentified tag: dismiss. Likely empty: mark used up or dismiss. After an Accept or a dismiss, Bring back returns the item to Review |
-| Devices | Scanners (including phones) and printers with online status, firmware, queue; each printer shows its AMS slots and the spool in each, and warns when its certificate does not match the pin | Register device (token shown once, with a QR code for the phone app), rotate token, revoke; forget a printer's certificate pin |
+| Devices | Scanners (including phones) and printers with online status, firmware, queue; each printer shows its AMS slots and the spool in each, and warns when its certificate does not match the pin | Register device (token shown once, with a QR code for the phone app), rotate token, revoke; add, edit, test and remove a printer; forget a printer's certificate pin |
 | Users | Accounts and roles (Admin only), with a short description of what each role can do | Create, change role, reset password, disable |
+| Settings | App settings by group (Admin only): General (time zone, sign-in length), Home Assistant, Scanners (the key-derivation salt) and machine tokens; each value shows where it comes from | Save, Test (Home Assistant), Use the .env value, create and revoke machine tokens (each shown once) |
+| Setup | First-start setup, shown only until the first admin exists | Create the first admin and the starter settings, with the setup code |
 | Account | The signed-in user | Change password (with a meter showing progress to the 12-character minimum), sign out |
 | Activity | Global event log, newest first, grouped by day | Filter by source (scanners, web app, printer); undo |
 
@@ -344,7 +380,8 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 - Read-only, with one exception: the server publishes `pushall`, which requests full state, on connect and every 30 minutes. It never publishes anything else to the printer.
 - A printer is online when it reported in the last 5 minutes.
 - **Certificate pinning**: the printer's TLS certificate is not from a public authority, so the server pins it on first use. The first connection only completes a TLS handshake and stores the certificate's SHA-256 fingerprint; every connection after that trusts only the pinned certificate, so the access code is never sent to anything else. A different certificate is refused and shown on the Devices page, where an admin can forget the pin (for example after a firmware update).
-- **MQTT proxies**: `PRINTERS` may point at an MQTT proxy instead of the printer, to stay under the printer's connection limit. A proxy such as `bambu-mqtt-proxy` speaks the same protocol (TLS on 8883 with its own certificate, user `bblp`, the access code, the same topics, and it forwards `pushall`), so it needs no special support: set its host and port, and use the alias as the serial if the proxy renames the printer. The pin is then the proxy's certificate. Any proxy is a separate project, not part of this system.
+- Printers are added and edited on the Devices page; `PRINTERS` in `.env` seeds them (see Settings and first start).
+- **MQTT proxies**: a printer may point at an MQTT proxy instead of the printer, to stay under the printer's connection limit. A proxy such as `bambu-mqtt-proxy` speaks the same protocol (TLS on 8883 with its own certificate, user `bblp`, the access code, the same topics, and it forwards `pushall`), so it needs no special support: set its host and port, and use the alias as the serial if the proxy renames the printer. The pin is then the proxy's certificate. Any proxy is a separate project, not part of this system.
 - A **fake printer** replays recorded or documentation-based report messages over TLS, so this integration can be tested without a printer.
 
 **Home Assistant**
@@ -360,12 +397,13 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 - While the server is stopped or cannot reach the broker, the entities are unavailable: the server publishes `online` and `offline` on an availability topic, with `offline` as its MQTT will.
 - When Home Assistant restarts (its `online` birth message), everything is published again.
 - `/health` reports the MQTT link as `off`, `connecting`, `connected` or `disconnected`.
-- Fire HA events through the REST API (`POST /api/events/<type>` with `HA_TOKEN`) for automations:
+- The broker and Home Assistant settings are set on the Settings page, starting from `.env`; see Settings and first start.
+- Fire HA events through the REST API (`POST /api/events/<type>` with the HA token) for automations:
   - `filament_tracker_spool_received`, `filament_tracker_spool_opened` and `filament_tracker_spool_emptied`, for each such event from any source (scanner, phone, web app, printer), with `event_id`, `spool_id`, `product_id`, `product`, `filament_type`, `color` (`#RRGGBB`), `state`, `source`, `flagged` and `occurred_at`;
   - `filament_tracker_low_stock`, when a product goes from not low to low, with `product_id`, `product`, `filament_type`, `color`, `sealed` and `threshold`. It fires again only after the product has recovered and gone low again.
 - Events are read from the database every 5 seconds. Only events recorded after the server started are fired, so a restart never replays history. An event undone before it is fired is skipped; one undone later stays fired. Products already low when the server starts do not fire.
-- A failed request is retried after 1, 4 and 15 seconds and then dropped with a warning; a refused token (401 or 403) is not retried. Redirects are not followed, so the token is sent only to `HA_URL`.
-- `/health` reports events as `off` (no `HA_URL` and `HA_TOKEN`), `ready` or `failing` (the last event could not be sent).
+- A failed request is retried after 1, 4 and 15 seconds and then dropped with a warning; a refused token (401 or 403) is not retried. Redirects are not followed, so the token is sent only to the configured HA URL.
+- `/health` reports events as `off` (no HA URL and token), `ready` or `failing` (the last event could not be sent).
 - Example automation, in `docs/home-assistant/low-stock-automation.yaml`: on low stock, add the product to the shopping list and notify a phone.
 - Any automations or scripts created for this project get the `Claude` label.
 
@@ -382,32 +420,34 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 - Scanner routes, bearer tokens (device and admin) and the API docs are accepted only from `TRUSTED_NETWORKS`, so they stay on the LAN even if the proxy forwards everything. The proxy should forward only the web app and `/api/v1` anyway.
 - Nightly SQLite backup (online backup API) to a second volume, 14 kept.
 
-**Configuration** (environment variables or a `.env` file, never committed)
+**Configuration** (environment variables or a `.env` file, never committed). Settings marked *app* can also be set in the app, where a saved value wins; see Settings and first start.
 
 | Setting | Example | Purpose |
 | --- | --- | --- |
-| `ADMIN_TOKEN` | random 32 bytes | Machine access for Home Assistant and scripts, from the LAN only |
-| `BAMBU_KDF_SALT` | hex string | Key-derivation constant, served to provisioned devices |
-| `PRINTERS` | `[{"name": "P1S", "host": "192.168.1.40", "serial": "01P00A...", "access_code": "..."}]` | Printers to watch over MQTT, as a JSON list; each entry may also set `port` (default 8883). `host` and `port` may be an MQTT proxy's |
-| `MQTT_URL`, `MQTT_USER`, `MQTT_PASSWORD` | `mqtt://homeassistant.local:1883` | Home Assistant's MQTT broker, for discovery and state publishing; `mqtts://` for TLS. Unset: nothing is published. The URL must not hold the password |
-| `HA_DISCOVERY_PREFIX` | `homeassistant` | Home Assistant's MQTT discovery prefix |
-| `HA_URL`, `HA_TOKEN` | `http://homeassistant.local:8123`, long-lived token | Home Assistant's address and a long-lived access token, for firing events. Unset: no events are fired. The URL must not hold a user name or password |
-| `TZ` | `America/New_York` | Timestamps in the UI |
+| `ADMIN_TOKEN` | random 32 bytes | Machine access for Home Assistant and scripts, from the LAN only; machine tokens made in the app replace it, and it keeps working if set |
+| `SETTINGS_KEY` | random 32 bytes, base64 | Encrypts the secrets stored in the app. Unset: a key file is created beside the database |
+| `BAMBU_KDF_SALT` | hex string | *app*. Key-derivation constant, served to provisioned devices |
+| `PRINTERS` | `[{"name": "P1S", "host": "192.168.1.40", "serial": "01P00A...", "access_code": "..."}]` | *app*, seeded once. Printers to watch over MQTT, as a JSON list; each entry may also set `port` (default 8883). `host` and `port` may be an MQTT proxy's |
+| `MQTT_URL`, `MQTT_USER`, `MQTT_PASSWORD` | `mqtt://homeassistant.local:1883` | *app*. Home Assistant's MQTT broker, for discovery and state publishing; `mqtts://` for TLS. Unset: nothing is published. The URL must not hold the password |
+| `HA_DISCOVERY_PREFIX` | `homeassistant` | *app*. Home Assistant's MQTT discovery prefix |
+| `HA_URL`, `HA_TOKEN` | `http://homeassistant.local:8123`, long-lived token | *app*. Home Assistant's address and a long-lived access token, for firing events. Unset: no events are fired. The URL must not hold a user name or password |
+| `TZ` | `America/New_York` | *app*. Timestamps in the UI |
 | `TRUSTED_NETWORKS` | `192.168.0.0/16,10.0.0.0/8` | LAN ranges allowed to use bearer tokens, scanner routes and API docs; defaults to the private ranges |
 | `FORWARDED_ALLOW_IPS` | `192.168.1.5` | Address of the reverse proxy whose `X-Forwarded-For` is trusted |
-| `SESSION_DAYS` | `30` | How long a web sign-in lasts |
+| `SESSION_DAYS` | `30` | *app*. How long a web sign-in lasts |
 | `COOKIE_SECURE` | `true` | Set `false` only to sign in over plain HTTP on the LAN during development; production is HTTPS |
 | `WEB_DIR` | `/app/web` | The built web app; defaults to `web/build` in a source checkout |
 
 **Security requirements**
 
-- Every endpoint except `/health`, `/auth/login` and `/auth/logout` (which only ends the caller's own session, if any) requires authentication, and each enforces a minimum role.
+- Every endpoint except `/health`, `/auth/login`, `/auth/logout` (which only ends the caller's own session, if any) and `/setup` (LAN only, needs the setup code, and only until the first admin exists) requires authentication, and each enforces a minimum role.
 - Sign-in attempts are throttled per username and per client address (HTTP 429), and failures give the same message whether the username exists or not.
 - State-changing requests made with a session cookie must carry the `X-Requested-With: filament-tracker` header, which other sites cannot send, in addition to SameSite cookies.
 - Responses carry a Content Security Policy, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` and a strict referrer policy.
 - Device tokens are stored hashed, revocable, and scoped to `/scans`, `/devices/heartbeat`, `/devices/provisioning` and `/events/{id}/revert` for events from that same device.
 - Input validation on all payloads (Pydantic); block arrays capped in size.
 - No tag UIDs or derived keys in logs above debug level, in line with the RFID guide's request not to publish UID/key pairs.
+- Secrets saved in the app are encrypted at rest and never returned by the API (see Settings and first start). Machine tokens are stored hashed, like device tokens. The setup code is written to the log once per start while setup is open, and nowhere else.
 - The printer access code, HA token, MQTT password and `BAMBU_KDF_SALT` never appear in logs, and a rejected setting's error message does not repeat its value. The salt is returned only by `/devices/provisioning`, to a device token from the LAN.
 - The printer access code and HA token never leave the server or appear in API responses or logs. The access code is sent only to a printer (or proxy) whose certificate matches the pin.
 
@@ -420,7 +460,7 @@ The server is fully testable without hardware. Firmware logic is unit tested on 
 | Decoder | Every field; two rolls of the same product yield the same product key | pytest against generated tags in CI, plus own spools and the public Bambu RFID library locally |
 | State machine | Every transition in the table, out-of-order flags, undo | pytest, property tests for event replay |
 | API | Auth on every route, idempotent scans, validation errors | pytest with FastAPI TestClient |
-| Security | Unauthenticated access refused, role checked on every route, revoked tokens and ended sessions refused, sign-in throttling, bearer tokens refused from outside the LAN, CSRF header, security headers, oversized payloads rejected | pytest security suite, run in CI |
+| Security | Setup refused from outside the LAN, with a wrong code or once an admin exists; stored secrets never returned or logged, and unreadable without the key; machine tokens limited to their role and refused once revoked; unauthenticated access refused, role checked on every route, revoked tokens and ended sessions refused, sign-in throttling, bearer tokens refused from outside the LAN, CSRF header, security headers, oversized payloads rejected | pytest security suite, run in CI |
 | Web app | Components, API client, role-based visibility | Vitest with Testing Library; 90% coverage; `svelte-check` and `npm audit` in CI |
 | Web end to end | Sign in as each role, inventory, record and undo an action, review | Playwright against the real server with a database seeded by the scan simulator |
 | Phone app | Scan flow, offline queue, on-phone decode, pairing | Vitest; 90% coverage |
@@ -446,12 +486,13 @@ Each milestone ends with something usable. Reading is proved first with a phone,
 3. **M2 Web UI**: user accounts and roles, inventory, spools, spool detail, products, review, activity, devices, users, manual entry.
 4. **M5 Printer link**: P1S MQTT ingest, automatic Opened, remaining %, likely-empty suggestions, built against the fake printer and checked against the real P1S.
 5. **M8 Phone scanner**: Android app (Capacitor around the web app, with a Kotlin NFC plugin), QR pairing on the Devices page, `/devices/provisioning`, offline queue.
-6. **M6 Home Assistant**: MQTT discovery entities, events, low-stock automation.
-7. **M3a Firmware without hardware**: scan flow, offline queue and dedupe logic with PC tests, screen simulator.
-8. **M0b Prove reading, PN532**: repeat the read tests on the bench rig and measure reading through the 1 mm lid and shipping box.
-9. **M3b Firmware on hardware**: breadboard build, real drivers, provisioning, OTA.
-10. **M4 Enclosure**: printed case, button labels, antenna placement, final wiring.
-11. **M7 Later**: see Future enhancements.
+6. **M6 Home Assistant**: MQTT discovery entities, events, low-stock automation, and the Settings page with the Home Assistant settings in the app.
+7. **M9 Deployment**: printers and the remaining settings in the app, machine tokens, first-start setup, the Docker image and Compose file, nightly backups.
+8. **M3a Firmware without hardware**: scan flow, offline queue and dedupe logic with PC tests, screen simulator.
+9. **M0b Prove reading, PN532**: repeat the read tests on the bench rig and measure reading through the 1 mm lid and shipping box.
+10. **M3b Firmware on hardware**: breadboard build, real drivers, provisioning, OTA.
+11. **M4 Enclosure**: printed case, button labels, antenna placement, final wiring.
+12. **M7 Later**: see Future enhancements.
 
 ## Future enhancements
 
