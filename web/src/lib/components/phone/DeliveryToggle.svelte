@@ -33,10 +33,10 @@
 
 <style>
   .toggle {
-    width: 64px;
+    min-width: 64px;
     min-height: 64px;
     flex: none;
-    padding: 0;
+    padding: 8px 12px;
     border-radius: 16px;
     border: 1px solid var(--line);
     background: var(--surface);
