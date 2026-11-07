@@ -35,7 +35,11 @@
     <div class="ready-row">
       {#if view.phase === "idle"}<DeliveryToggle on={true} {ontoggle} />{/if}
       <div class="ready">
-        <span class="icon" aria-hidden="true"><ScanIcon size={34} /></span>
+        <span class="target" class:busy={view.phase === "looking_up"} aria-hidden="true">
+          <span class="ping"></span>
+          <span class="ping b"></span>
+          <span class="icon"><ScanIcon size={34} /></span>
+        </span>
         <span>
           {#if view.phase === "looking_up"}
             <span class="title" role="status">Looking it up…</span>
@@ -131,12 +135,55 @@
     border-radius: 20px;
     border: 1px solid var(--line);
     background: var(--surface);
+    overflow: hidden;
   }
 
-  .icon {
+  .target {
+    position: relative;
     width: 64px;
     height: 64px;
     flex: none;
+  }
+
+  /* The same pulse as the waiting screen's target, sized to this icon. */
+  .ping {
+    position: absolute;
+    inset: -15px;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    animation: ping 2s ease-out infinite;
+  }
+
+  .ping.b {
+    animation-delay: 1s;
+  }
+
+  .busy .ping {
+    animation-duration: 0.8s;
+  }
+
+  @keyframes ping {
+    0% {
+      transform: scale(0.7);
+      opacity: 0.7;
+    }
+    100% {
+      transform: scale(1.25);
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ping {
+      animation: none;
+      opacity: 0.4;
+    }
+  }
+
+  .icon {
+    position: relative;
+    width: 64px;
+    height: 64px;
     display: flex;
     align-items: center;
     justify-content: center;
