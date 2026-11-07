@@ -46,18 +46,22 @@
 
 - M6, Home Assistant. Plan approved (2026-11-06): four branches (MQTT discovery entities; HA events and an example automation; an Admin Settings page for the Home Assistant settings, with secrets encrypted in the database; a check against the owner's Home Assistant, which uses the Mosquitto add-on).
 - Phone Scan screen redesign, from the mockups in `docs/mockups/mobile-scanner/` (merged in PR #30). Plan approved (2026-11-06): two branches, before M6 part 3.
-- `feature/scan-delivery` (part 2, the Delivery mode): a Delivery toggle on the waiting screen; while it is on, the top of Scan lists the spools recorded in the session (color, name, time, number, queued until sent, Undone), with totals and Clear, and the bottom is one panel (Ready, the spool with its keys and 15 s bar, then what was recorded with Undo and a 3 s bar). Only the newest row has Undo. The list is kept in memory until the app closes (leaving Scan keeps it) and cleared when the pairing is forgotten. The last scan now carries the spool as the server has it, so a new tag's row shows its number. The Delivery button widens to fit its label at large phone text sizes, and the Ready icon pulses like the waiting screen's target. Spec updated (Phone scanner, Unpacking a delivery).
-  - Next: review by the owner on the phone, then the PR. Then M6 part 3, the Admin Settings page.
+- Phone Scan screen redesign complete: part 1 merged in PR #31, part 2 (the Delivery mode) in PR #32.
+- `feature/settings-spec`: spec for settings in the app and first-start setup (owner's choice, 2026-11-07). A new Settings and first start section: Home Assistant settings, printers, the salt, time zone and sign-in length set in the app with `.env` as the starting value and the app's saved value winning; secrets encrypted with AES-256-GCM and never returned; machine tokens replacing `ADMIN_TOKEN` (which keeps working); a Setup page for the first admin, LAN only with a one-time code from the server log. New milestone M9 Deployment. API, data model, configuration, security and testing sections updated to match.
+  - Next: the PR, then M6 part 3 under the new spec.
+- Done, PR #32 (part 2, the Delivery mode): a Delivery toggle on the waiting screen; while it is on, the top of Scan lists the spools recorded in the session (color, name, time, number, queued until sent, Undone), with totals and Clear, and the bottom is one panel (Ready, the spool with its keys and 15 s bar, then what was recorded with Undo and a 3 s bar). Only the newest row has Undo. The list is kept in memory until the app closes (leaving Scan keeps it) and cleared when the pairing is forgotten. The last scan now carries the spool as the server has it, so a new tag's row shows its number. The Delivery button widens to fit its label at large phone text sizes, and the Ready icon pulses like the waiting screen's target. Spec updated (Phone scanner, Unpacking a delivery).
 
 ## Next
 
-- M6 part 3: the Admin Settings page for the Home Assistant settings.
-- Later (owner's request, 2026-11-06): make printers configurable from the web app too, like the Home Assistant settings in M6 part 3, instead of only `PRINTERS` in `server/.env`.
+- M6 part 3: the settings store (encrypted secrets, `.env` as the starting value), the Admin Settings page and the Home Assistant settings in it.
+- M6 part 4: the check against the owner's Home Assistant.
+- M9 Deployment: printers and the remaining settings in the app, machine tokens, first-start setup, the Docker image and Compose file, nightly backups.
 - Later (owner's request, 2026-11-06, in SPEC Future enhancements): the theme choice moves to the Account page; a phone app setting for the start screen (Scan or the web app); a bottom bar on phones with a menu button, Scan and the user.
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
 
 ## Decisions
 
+- 2026-11-07: Most settings move into the app, with `.env` as the starting value and a value saved in the app winning (this reverses the M6 part 3 plan, where `.env` won). Settings that could lock the admin out or open LAN-only routes stay in `.env` only. First start uses a Setup page instead of `ft-admin`, guarded by `TRUSTED_NETWORKS` and a one-time code in the server log. Deployment becomes milestone M9.
 - 2026-11-06: Scan screen decisions (owner): the Delivery session list lasts until the app is closed, with a Clear button; View spool and Scan next on the result; the Scan theme toggle is the web app's theme choice; the full app gets a Scan button in its header in the phone app.
 - 2026-11-06: Home Assistant events are found by reading new events from the database every 5 seconds, like the entities, so every source is covered; only events after the server starts are fired, so a restart never replays history into automations.
 - 2026-11-06: Home Assistant entities come from a 5-second snapshot of the database, published only when changed, because it covers every way stock changes without hooking each write path.

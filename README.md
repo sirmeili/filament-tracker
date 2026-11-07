@@ -59,7 +59,8 @@ Select the image above to open the interactive 3D mockup. The source is in [hard
 | M2 Web UI | User accounts and roles, inventory, spools, spool detail, products, review, activity, devices, users, manual entry |
 | M5 Printer link | P1S MQTT ingest, automatic Opened, remaining %, likely-empty suggestions |
 | M8 Phone scanner | Android app (Capacitor around the web app, Kotlin NFC plugin), QR pairing, offline queue |
-| M6 Home Assistant | MQTT discovery entities, events, low-stock automation |
+| M6 Home Assistant | MQTT discovery entities, events, low-stock automation, the Settings page with the Home Assistant settings |
+| M9 Deployment | Printers and the remaining settings in the app, machine tokens, first-start setup, Docker image and Compose file, nightly backups |
 | M3a Firmware without hardware | Scan flow, offline queue and dedupe logic with PC tests, screen simulator |
 | M0b Prove reading, PN532 | Repeat the read tests on the bench rig; measure reading through the lid and shipping box |
 | M3b Firmware on hardware | Breadboard build, real drivers, provisioning, OTA |
