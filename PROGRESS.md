@@ -53,6 +53,7 @@
 
 - M6 part 3: the Admin Settings page for the Home Assistant settings.
 - Later (owner's request, 2026-11-06): make printers configurable from the web app too, like the Home Assistant settings in M6 part 3, instead of only `PRINTERS` in `server/.env`.
+- Later (owner's request, 2026-11-06, in SPEC Future enhancements): the theme choice moves to the Account page; a phone app setting for the start screen (Scan or the web app); a bottom bar on phones with a menu button, Scan and the user.
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
 
 ## Decisions
