@@ -428,3 +428,28 @@ describe("scan flow, for the screen", () => {
     expect(reached).toEqual([true, false, true]); // a refusal is still an answer
   });
 });
+
+describe("scan flow, the last scan", () => {
+  it("remembers the spool as the server now has it", async () => {
+    const { flow } = await setup(async (event) =>
+      event.action === "lookup"
+        ? result({ spool: null, state: "unknown", actions: ["received", null, "cancel"] })
+        : result({ feedback: "ok_created" }),
+    );
+    await flow.tapped(blackTag());
+    expect(flow.view.card?.spoolId).toBeNull();
+
+    await flow.choose("received");
+
+    expect(flow.view.last?.card.spoolId).toBe(7);
+  });
+
+  it("keeps the card it had when the server names no product", async () => {
+    const { flow } = await setup(async (event) =>
+      event.action === "lookup" ? result() : result({ product: null }),
+    );
+    await flow.tapped(blackTag());
+    await flow.choose("opened");
+    expect(flow.view.last?.card.name).toBe("Black PLA Basic");
+  });
+});

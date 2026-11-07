@@ -35,6 +35,11 @@ export function shortDate(iso: string | null, now: Date = new Date()): string {
   return (date.getFullYear() === now.getFullYear() ? DAY : DAY_YEAR).format(date);
 }
 
+/** "4:05 PM" */
+export function clockTime(at: number | Date): string {
+  return TIME.format(at);
+}
+
 /** "Oct 12, 4:05 PM" */
 export function dateTime(iso: string, now: Date = new Date()): string {
   return `${shortDate(iso, now)}, ${TIME.format(new Date(iso))}`;

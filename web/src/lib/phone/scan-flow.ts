@@ -266,11 +266,13 @@ export class ScanFlow {
     try {
       const result = await this.reach(this.deps.api.scan(event));
       const tone: Tone = result.feedback === "flagged" ? "warn" : "ok";
-      this.set({ last: remember(false) });
+      // Remember the spool as the server now has it (a new tag gets its spool number).
+      const after = result.product ? cardFrom(result) : card;
+      this.set({ last: { ...remember(false), card: after } });
       this.showResult(
         feedbackText(result.feedback, action, result.state),
         tone,
-        cardFrom(result),
+        after,
         result.feedback === "already_in_state" ? "notice" : "recorded",
       );
     } catch (error) {

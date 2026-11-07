@@ -184,8 +184,19 @@ describe("phone state", () => {
     await phone.session!.queue.add(scanEvent(PAIRING, tagRead(), "opened", "1"));
     expect(phone.queueSize).toBe(1);
 
+    phone.delivery.on = true;
+    phone.delivery.rows.push({
+      eventId: "e1",
+      card: {} as never,
+      action: "received",
+      at: 0,
+      queued: false,
+      undone: false,
+    });
     await phone.unpair();
     expect(phone.paired).toBe(false);
+    expect(phone.delivery.on).toBe(false);
+    expect(phone.delivery.rows).toEqual([]);
     expect(apiUrl("/me")).toBe("/api/v1/me");
     expect(native.storage.has("pairing")).toBe(false);
   });
