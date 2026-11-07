@@ -1,10 +1,14 @@
-# Filament Tracker — Spec
+# Spoolhouse — Spec
+
+*Spoolhouse is a working name (2026-11-07) and may change. The project was called Filament Tracker, and the code, the phone app and the Home Assistant names still use that name until the rename; see Future enhancements: print requests, Name and rename.*
 
 Oct 31, 2026 · @Frank
 
 ## Overview
 
 A self-hosted system that tracks every Bambu Lab filament spool from delivery to empty, using the RFID tags already on the spools. You tap a spool on a small touchscreen scanner, or on an Android phone running the companion app; it shows what the spool is and asks whether it is new, just opened or empty. A central server keeps the inventory, feeds Home Assistant and serves a web app that a few people can use, some only to view.
+
+Later phases turn it into a combined inventory and print request tool: a co-owner of the printer submits print requests, chooses from the filament in stock or the full Bambu catalog, and follows each print to pick-up. See Future enhancements: print requests; nothing in it changes the milestones up to M9.
 
 **Goals**
 
@@ -20,7 +24,7 @@ A self-hosted system that tracks every Bambu Lab filament spool from delivery to
 - Writing or cloning Bambu tags. Tags are read-only; Bambu's RSA signature makes new tags impossible anyway.
 - Weighing spools with a load cell (possible later add-on).
 - Third-party filament without Bambu tags (see Open questions).
-- Slicer integration or automatic filament usage from G-code.
+- Slicer integration or automatic filament usage from G-code. (Phase 3 of print requests reads slicer estimates from 3MF files, not G-code.)
 
 ## Background: Bambu RFID tags
 
@@ -317,6 +321,7 @@ The web app has personal accounts, so a few people can use it from anywhere, som
 | Viewer | See every page: inventory, spools, products, review, activity |
 | Editor | Also record actions, undo, edit spools and products, add spools by hand, resolve review items |
 | Admin | Also manage users, scanners, printers, machine tokens and settings |
+| Requester (Phase 2, planned) | Only submit print requests, follow their own, and browse the filament in stock and the catalog; no other page. See Future enhancements: print requests |
 
 - Accounts are created by an admin; there is no sign-up. The first admin is created during first-start setup (see Settings and first start) or from the command line with `ft-admin create-user`, so there is never a default account. `ft-admin reset-password` recovers an account when no admin can sign in.
 - Passwords are at least 12 characters and stored as Argon2id hashes. Users can change their own; an admin can reset one or disable an account.
@@ -488,11 +493,13 @@ Each milestone ends with something usable. Reading is proved first with a phone,
 5. **M8 Phone scanner**: Android app (Capacitor around the web app, with a Kotlin NFC plugin), QR pairing on the Devices page, `/devices/provisioning`, offline queue.
 6. **M6 Home Assistant**: MQTT discovery entities, events, low-stock automation, and the Settings page with the Home Assistant settings in the app.
 7. **M9 Deployment**: printers and the remaining settings in the app, machine tokens, first-start setup, the Docker image and Compose file, nightly backups.
-8. **M3a Firmware without hardware**: scan flow, offline queue and dedupe logic with PC tests, screen simulator.
-9. **M0b Prove reading, PN532**: repeat the read tests on the bench rig and measure reading through the 1 mm lid and shipping box.
-10. **M3b Firmware on hardware**: breadboard build, real drivers, provisioning, OTA.
-11. **M4 Enclosure**: printed case, button labels, antenna placement, final wiring.
-12. **M7 Later**: see Future enhancements.
+8. **M10 Print requests, Phase 2**: the filament catalog and color codes, the Requester role, print requests and their status pipeline, holding filament, the shopping list. See Future enhancements: print requests.
+9. **M11 Print requests, Phase 3**: reading 3MF files, print jobs from the printer, push notifications, picking colors on the model, the MCP server.
+10. **M3a Firmware without hardware**: scan flow, offline queue and dedupe logic with PC tests, screen simulator.
+11. **M0b Prove reading, PN532**: repeat the read tests on the bench rig and measure reading through the 1 mm lid and shipping box.
+12. **M3b Firmware on hardware**: breadboard build, real drivers, provisioning, OTA.
+13. **M4 Enclosure**: printed case, button labels, antenna placement, final wiring.
+14. **M7 Later**: see Future enhancements, including the Later items of print requests.
 
 ## Future enhancements
 
@@ -505,6 +512,307 @@ Each milestone ends with something usable. Reading is proved first with a phone,
 - **Phone app start screen**: a setting in the phone app for which screen it opens on, Scan or the web app (today it opens on Scan).
 - **Phone bottom bar**: on a phone, the web app's menu moves behind a menu button instead of running across the top. The menu button, the Scan button (in the phone app) and the signed-in user sit in a bar at the bottom of the screen, for one-handed use.
 
+## Future enhancements: print requests
+
+None of this is built or scheduled inside the current milestones, and none of it changes them. It turns the inventory into a combined inventory and print request tool. The owner's brother co-owns the printer, which lives at the owner's house, and today he sends models through a Google Form. With accurate stock, a request can offer the filaments actually on the shelf, and the full Bambu catalog when a color is missing, which feeds a shopping list. Phase 2 and Phase 3 come after M9 and before the firmware milestones (the phone scans until then); Later comes after them. The owner's decisions (2026-11-07) are below; items whose claims were checked end with what was found, and the full list is under Verification findings.
+
+### Name and rename
+
+- **Working name: Spoolhouse.** It is not final and may change. The spec uses it from now on; the code keeps "Filament Tracker" until the rename is done as its own piece of work, after the name is settled. No other filament or 3D printing product called Spoolhouse turned up in a search on 2026-11-07, but similar names are common (Spoolman, Spoolstock, SpoolTool, SpoolTap).
+- **What a rename touches**, and what breaks (the owner accepted reinstalling the phone app and renaming the Home Assistant names, since everything so far is testing):
+
+| Area | Today | Effect of renaming |
+| --- | --- | --- |
+| GitHub repo | `sirmeili/filament-tracker` | Safe: GitHub redirects the old URL. Update the git remote, README links and the 3D viewer links |
+| Python package, project and commands | `filament_tracker`, `ft-admin`, `ft-sim`, `ft-printer`, `ft-fakeprinter` | Safe in code; every documented command changes (AGENTS.md, READMEs). The `ft-` prefix can stay |
+| Server start command | `filament_tracker.main:create_app` | Any script, service or Compose file that starts the server must change |
+| Database and key files | `data/filament.db`, `data/settings.key` | **Breaks an install** if the default file names change: the server would start on an empty database and a new key. Keep the names, or move the files as part of the upgrade |
+| Docker image and container | Not built yet (M9) | Free if the name is settled before M9; afterwards, a new image name, with the same volumes so no data is lost |
+| Android app ID and Kotlin packages | `io.github.sirmeili.filamenttracker` | **Breaks updates**: Android treats it as a new app. Send the offline queue first, uninstall, install, pair again (the device token in the Keystore is lost) |
+| Android Keystore alias | `filament-tracker-storage` | Lost with the uninstall anyway; rename with the app ID |
+| Phone app name | Capacitor `appName` "Filament Tracker" | Safe |
+| Write header | `X-Requested-With: filament-tracker` | **Breaks writes** if the server and web app disagree. The phone app carries its own copy of the web app, so change both together and reinstall the phone app |
+| Session cookie | `ft_session` | Renaming signs everyone out once |
+| Device token prefix | `ftd_` | **Breaks every paired scanner** if the server stops accepting `ftd_`. Keep it, or accept both prefixes |
+| Browser storage keys | `ft-theme` and similar | Saved preferences reset once; harmless |
+| Home Assistant device and entities | node ID `filament_tracker` (discovery topics, `unique_id`s, the availability topic), device "Filament Tracker" | New entities appear and the old ones go. The server clears retained messages only under its own node ID, so the rename must clear the old node's retained discovery messages once, or they stay in Home Assistant |
+| Home Assistant events | `filament_tracker_spool_received`, `_opened`, `_emptied`, `filament_tracker_low_stock` | Automations listening for the old names stop firing; edit them and `docs/home-assistant/low-stock-automation.yaml` |
+| MQTT client IDs, API title, logger names | `filament-tracker-<random>` | Safe |
+| Scanner firmware | Not written yet | Use the final name from the start |
+
+### Structure: one app, two modules
+
+- One application, one database and one Docker image, with two modules: **Inventory** (everything built so far) and **Print Requests** (new). Print Requests uses Inventory; Inventory never imports Print Requests, checked by a test that reads each module's imports.
+- What Print Requests needs from Inventory goes through Inventory's services: stock and available grams, holds on spools (see 2.5, where a hold names its holder only as an opaque reference), products and the catalog.
+- Each module has its own route group under `/api/v1` and its own pages, so the request pages can be found, tested and documented on their own.
+
+### Access from outside the home
+
+- **The whole web app stays reachable from the internet**, as today, through the owner's HTTPS reverse proxy with personal accounts. Only scanning and saving scans stays on the home network (`/scans`, heartbeat, provisioning and bearer tokens, as today); away from home the phone app queues scans and sends them on its return.
+- **Requester role**: see Users and roles. A Requester reaches only the request route group, the catalog and the stock summary, which the server enforces on every route, so it does not depend on what the proxy forwards.
+- **Recommended exposure: a Cloudflare Tunnel** to the web app's hostname. It needs no open port on the home router and hides the home address, and the app's own accounts do the signing in, so the phone app's web view keeps working. Cloudflare Access can be added in front as a second sign-in (for example a one-time code to an allowed email address) at the cost of signing in twice. **Tailscale** is the alternative if both people are happy to install it: nothing is public at all, but every device that uses the app, including the brother's, must join the tailnet. Either way the tunnel forwards only the web app and `/api/v1`, never the API docs.
+
+### Phase 2
+
+#### 2.1 Filament catalog from the Open Filament Database
+
+- **Summary**: a local copy of the Open Filament Database (OFDB) catalog, so requests and the shopping list can offer every Bambu color, not only those on the shelf.
+- **Requirements**:
+  - Download the bulk export from `api.openfilamentdatabase.org` (`json/all.json.gz`, or the SQLite `sqlite/filaments.db.xz`) on a schedule: a setting with off, daily (default) and weekly. Send `If-None-Match`/`If-Modified-Since` so an unchanged file is not downloaded again; OFDB rebuilds once a day.
+  - Keep only the brands that are switched on, Bambu Lab by default; any brand can be switched on later.
+  - Replace the catalog tables in one transaction. A failed or partial download keeps the last good copy. The catalog never writes to `product`, `spool`, `tag` or `event`.
+  - The Settings page shows the last successful sync, the last attempt and its result, the dataset version (for example `v2026.11.07`), and a **Refresh now** button (Admin).
+  - Catalog colors and owned products are separate. A product links to its catalog color by the tag's material and variant IDs through the color code table (2.2), and by brand, material and color name where the table has no row.
+  - **Closest in-stock color**: each catalog color keeps its hex. Distance is CIEDE2000 in CIELAB (sRGB, D65), never raw RGB. It is a pure function with Sharma's published test pairs as unit tests, so no new dependency is needed. Multi-color variants (OFDB `color_hexes`) compare by their first color and are labelled as multi-color.
+- **Data model**: `catalog_brand`, `catalog_filament` (material line, for example PLA Basic, with density and temperatures), `catalog_variant` (color: name, hex, extra hexes, discontinued), `catalog_size` (weight, refill or spool, article number, purchase links), all keyed by OFDB's UUIDs, with `moved_from` so links survive OFDB merges. `catalog_sync` (started_at, finished_at, result, dataset_version, etag). `product.catalog_variant_id` (nullable).
+- **Risks and open questions**: OFDB is community-maintained, so a color can be missing or wrong; the color code table (2.2) can correct it locally. The data is MIT-licensed; attribution is shown on the Settings page.
+- **Dependencies**: M9 settings in the app.
+- **Found** (2026-11-07): OFDB data is on GitHub (`simplyprint/open-filament-database`), rebuilt daily into static JSON, NDJSON, SQLite and CSV at `api.openfilamentdatabase.org`, under the MIT license. Bambu Lab has 50 filament lines with 304 colors, every one with a hex.
+
+#### 2.2 Bambu color codes and store links
+
+- **Summary**: each Bambu color's 5-digit code (for example 10204, PLA Basic Hot Pink), tied to the tag's IDs, so the app can link straight to the store.
+- **Requirements**:
+  - A color code table, seeded at each catalog sync from two sources and editable by an Admin: OFDB's `article_number` on each size, and BambuStudio's `filaments_color_codes.json` (5-digit code, filament ID such as `GFA00`, a two-letter color code such as `R3`, hex and names in 12 languages).
+  - The tag link: a tag's material ID is BambuStudio's filament ID (`GFA00`), and its variant ID is usually the filament ID without `GF`, a hyphen and the color code (`A00-R3`). Exceptions are stored as manual rows, which a sync never overwrites.
+  - Store links: a store base URL setting, default `https://us.store.bambulab.com`, and the link `{base}/search?q={code}`. A shopping list item or a missing color shows **Find in store**.
+- **Data model**: `color_code` (code, filament_id, color_code, tag_variant_id, catalog_variant_id, hex, name, source `ofdb`, `bambustudio` or `manual`, updated_by).
+- **Risks and open questions**:
+  - The store search page shows its results in the browser, so whether a code search finds the right product has to be checked by hand before this is built.
+  - BambuStudio is AGPL-3.0. The app downloads the one data file at sync time rather than copying it into this repo; check that this is acceptable before shipping.
+  - BambuStudio's file can change shape without notice; the sync must fail safely and keep the last good copy.
+- **Dependencies**: 2.1.
+- **Found** (2026-11-07):
+  - OFDB **does** include the 5-digit codes, as `article_number` on sizes: 297 of the 304 Bambu colors have one. Missing examples: PLA Basic Green, PETG Basic Purple, ASA Aero White.
+  - OFDB has no tag material or variant IDs, so the tag link has to come from elsewhere. Its purchase links for the Bambu store carry a `?variant=` number, but the store now redirects them to the product page without it, so the color isn't picked.
+  - BambuStudio's `filaments_color_codes.json` has 342 entries and does map codes to filament IDs and color codes. Checked against the five products with tags in the owner's database: four match exactly (`G02-K0` PETG HF Black 33102, `B00-K0` ABS Black 40101, `B01-R0` ASA Red 45200, `G01-N0` PETG Translucent Brown 32800). PLA Basic Black's tag reads `A00-K00`, while BambuStudio lists `K0` (10101), so exceptions do happen.
+  - BambuStudio's filament profiles (for example `Bambu PLA Basic @base.json`, `filament_id` `GFA00`) hold material properties: density, flow, volumetric speed and cost. They can be an optional second source for temperatures and density.
+  - The store's `/en/search` path redirects to `/search`. The regional store addresses (`eu.`, `uk.`, `ca.`, `au.store.bambulab.com`) all redirected a US visitor to the US store, so the store picks the region from where the visitor is. That's why the base URL is a setting, with the US store as the default.
+
+#### 2.3 Requester role and print requests
+
+- **Summary**: the brother signs in, submits a request with a model and filament choices, and follows it; the owner reviews and runs it. This replaces the Google Form.
+- **Requirements**:
+  - A request has a title, notes, quantity, an optional needed-by date, and either an uploaded file (3MF or STL) or a MakerWorld link, or both.
+  - Filament choice per request, or per part once 3.1 and 3.4 exist: an owned product, shown with its available grams and spools, or a catalog color, shown with its closest in-stock color. Choosing a catalog color the shelf lacks adds it to the shopping list as a request item (2.6).
+  - A Requester sees only their own requests. Admins and Editors see all of them, with a count on the navigation like Review's.
+  - Uploads: at most 100 MB a file, checked by content (a 3MF is a zip; an STL is binary or ASCII STL) rather than by extension, stored outside the web root under a random name, and never run or served back with an active content type.
+  - MakerWorld links are stored and shown as links only (see Found).
+- **Data model**: `print_request` (id, requester_id, title, notes, quantity, needed_by, makerworld_url, status, estimate_grams, estimate_seconds, estimate_source `3mf` or `admin`, created_at, updated_at), `request_file` (id, request_id, original_name, kind `3mf_sliced`, `3mf_project` or `stl`, size, sha256, stored_name, parsed_json), `request_part` (id, request_id, file_id, plate, object_name, estimate_grams, product_id or catalog_variant_id), `request_status` (history: from, to, by user or automatic, at, note).
+- **Risks and open questions**: uploads from the internet are the largest new attack surface: size limits, content checks, zip-bomb limits (3.1), and security tests for each.
+- **Found** (2026-11-07):
+  - MakerWorld has no public API. Its `robots.txt` allows model pages for crawlers, but its terms of use could not be read, so whether automated download is allowed isn't confirmed.
+  - Until it is, the app stores the link only and never fetches from MakerWorld. The requester downloads the 3MF themselves and uploads it.
+
+#### 2.4 Request status pipeline
+
+- **Summary**: one set of states from submission to pick-up, moved by people and, from Phase 3, by the printer.
+- **States**: Submitted, Accepted, Waiting on Filament, Queued, Printing, Done, Picked Up; and Rejected, Cancelled, Failed.
+
+| From | To | How |
+| --- | --- | --- |
+| Submitted | Accepted, Rejected | Admin (Rejected needs a reason) |
+| Submitted, Accepted, Waiting on Filament, Queued | Cancelled | Requester (own request) or Admin |
+| Accepted | Queued | Automatic, when holds (2.5) cover every filament |
+| Accepted | Waiting on Filament | Automatic, when something can't be held; links to its shopping list items |
+| Waiting on Filament | Queued | Automatic, when a matching spool is received and the holds then cover it; or Admin |
+| Queued | Printing | Automatic (3.2) when the printer starts the job linked to the request; or Admin |
+| Printing | Done, Failed | Automatic (3.2) on the printer's finish or failure; or Admin |
+| Failed | Queued | Admin, **Reprint**: a new attempt that holds the filament again |
+| Failed | Cancelled | Admin |
+| Done | Picked Up | Admin or Requester |
+
+- **Notifications to the requester**: email (an `email` settings group: SMTP host, port, user, password as a secret, sender) on Accepted, Rejected, Waiting on Filament, Printing, Done and Failed. Each Requester can turn them off. On Done the Admin can attach a photo of the print (JPEG or PNG, re-encoded on upload to strip metadata).
+- **Notifications to the owner**: a new request, by email, and by push from Phase 3 (3.3).
+- **Data model**: `print_request.status`, `request_status` (2.3), `request_photo` (request_id, stored_name, uploaded_by, at).
+- **Dependencies**: 2.3; 2.5 for the automatic moves out of Accepted; 3.2 for the printer moves.
+
+#### 2.5 Holding filament for accepted requests
+
+- **Summary**: accepting a request holds its estimated grams on specific spools, so the same filament isn't promised twice.
+- **Requirements**:
+  - **Grams per spool**: sealed counts as the tag's net weight (the decoder already reads it), or the catalog size's weight if there's no tag. Open counts as the net weight times the AMS remaining %, if the printer has reported one; otherwise its grams are unknown and the Admin enters a figure.
+  - **Available** is grams minus active holds. It is shown on Inventory, Spool detail and in requests.
+  - **Placing holds**: on Accepted, open spools are held first, then sealed ones, and the Admin can change which spools. What can't be held sends the request to Waiting on Filament.
+  - **Releasing holds**: holds are released on Cancelled, Rejected and Failed (a reprint holds again).
+  - **Reconciling**: on Done, the holds are replaced by the measured use (3.2). With no printer measurement, the estimate is taken as used.
+- **Data model**: `spool_hold` (id, spool_id, grams, holder_type, holder_id, created_at, released_at, release_reason). This is Inventory's table, and it names its holder only by type and ID, so Inventory never depends on Print Requests. `spool.used_grams`, adjusted by usage events.
+- **Risks**: AMS remaining % is coarse and is missing for spools the AMS hasn't seen. Available grams are an estimate, so they are shown with "about".
+- **Dependencies**: 2.3, 2.4.
+
+#### 2.6 Low stock and the shopping list
+
+- **Summary**: extend the low-stock rules that exist, rather than adding new ones, and add a shopping list.
+- **Already built**:
+  - Each product has a low-stock threshold, and it is low when its sealed count is at or below the threshold (0 turns this off). "Always keep 2 Black PLA Basic" is already this rule.
+  - Low stock feeds the Home Assistant Low filament sensor and the `low_stock` event, and the example automation adds the product to Home Assistant's shopping list.
+- **Extensions**:
+  - **A rule for a color not yet owned**: create a provisional product from a catalog color, with its threshold. Provisional products exist already for manual entry, so no new rule table is needed.
+  - **Shopping list**, in the app. Items come from three sources:
+    - Low stock, automatically: the quantity needed to stop being low, `threshold - sealed + 1`.
+    - Catalog colors chosen in requests.
+    - Items added by hand.
+  - **Grouping**: items are grouped by material line (PLA Basic, PETG HF and so on), with the line's total, so bulk deals are easy to reach.
+  - **Item actions**: Find in store (2.2), Ordered and Dismiss. Receiving a spool of that product closes its item automatically.
+- **Data model**: `shopping_item` (id, product_id or catalog_variant_id, quantity, source `low_stock`, `request` or `manual`, request_id, status `open`, `ordered`, `received` or `dismissed`, created_by, created_at, updated_at).
+- **Dependencies**: 2.1 and 2.2 for catalog colors and store links.
+
+### Phase 3
+
+#### 3.1 Reading 3MF files
+
+- **Summary**: take what a 3MF already says about plates, parts, colors, grams and time, so the Admin doesn't have to estimate by hand.
+- **What's in each kind of file**:
+  - **Sliced 3MF** (Bambu Studio "Export plate sliced file", `.gcode.3mf`): `Metadata/slice_info.config` has each plate's predicted time and weight, and a `<filament>` entry for each slot used, with type, color, `used_m` and `used_g`. Its `id` counts from 1, while the arrays in `project_settings.config` count from 0.
+  - **Project 3MF** (saved, not sliced): `Metadata/model_settings.config` has the objects, their parts, their plates and the filament assigned to each part, and `Metadata/project_settings.config` has each filament slot's type and color. There are no gram or time estimates.
+  - **Plain 3MF** from other software: only objects, and maybe colors.
+  - **STL**: one part and nothing else.
+- **Requirements**:
+  - Read what's there and show it on the request.
+  - **Fallback**: anything missing is left for the Admin to enter (grams per filament, time). An STL always gets the Admin's estimate. A file that can't be read is kept and flagged, never refused, so nothing the requester sent is lost.
+  - **Safe parsing**:
+    - At most 2,000 zip entries and 500 MB uncompressed (zip-bomb guard).
+    - XML read with entity expansion off (`defusedxml`, vetted when added).
+    - No path from inside the zip is used as a file name.
+    - The parser runs with a time limit.
+- **Data model**: `request_file.parsed_json` (plates, objects, parts, filaments with grams, seconds, and the slicer and its version), `request_part` rows filled from it.
+- **Risks**:
+  - Bambu's 3MF extensions are not documented. The fields above come from community parsers, so tests use real files from the owner's own prints, kept out of the repo like tag dumps unless they're the owner's own models.
+  - OrcaSlicer and PrusaSlicer write different metadata, so only what the parser recognises is used.
+- **Found** (2026-11-07): as above, from community parsers (`lib3mf-core`, `libprintcalc`) and write-ups. `plate_N.json` files exist in sliced files, but their fields weren't confirmed.
+
+#### 3.2 Print jobs from the printer
+
+- **Summary**: follow print status, progress and the current job, and record what each job used, using the printer link that already exists rather than adding a second connection, and without Home Assistant.
+- **Already built** (M5):
+  - One TLS MQTT connection per printer, with a pinned certificate.
+  - The report merged into a full view, giving the AMS trays' material, color, remaining % and tray ID.
+  - Read-only apart from `pushall`.
+  - The report also carries the job fields, which are received today but not used.
+- **Requirements**:
+  - **Reading jobs**: read the job state (`gcode_state`: idle, preparing, running, paused, finished, failed), progress (`mc_percent`), time left (`mc_remaining_time`), layer (`layer_num` of `total_layer_num`), the job name (`subtask_name`) and the active tray (`tray_now`) from the same reports. Check each field against `ft-printer check` captures before building on it.
+  - **Recording jobs**: each job is a `print_job` row from start to end.
+  - **Linking a job to a request**: the Admin marks a queued request **Next to print**, and the next job that starts is linked to it. A job that starts with nothing marked can be linked afterwards, or left as the owner's own print.
+  - **Usage**: grams per tray come from the 3MF estimate for the linked request (3.1), split across the trays the job used, and checked against each tray's remaining % before and after. The printer reports no grams. A large mismatch is flagged in Review, and the Admin can correct the figure.
+  - **Moves**: the job's start, finish and failure move the request (2.4) and settle its holds (2.5).
+  - **Pages**: the printer page shows the current job and progress.
+  - **Read-only stays**: the app never starts, pauses or stops prints. Doing that would need Developer Mode and is not planned.
+- **Data model**: `print_job` (id, printer_id, started_at, ended_at, result, subtask_name, request_id, usage_json: grams per spool, with the source `estimate`, `ams` or `admin`). Usage is also recorded as a `used` event on each spool, so the spool's history shows it and it can be undone.
+- **Risks**:
+  - Since January 2025, Bambu firmware authenticates control commands. Bambu's wiki says Developer Mode turns that off and accepts every command, without support from Bambu.
+  - Read-only reports work on the owner's P1S today, without Developer Mode (M5). A later firmware could restrict LAN reports too, which would stop this item and AMS detection alike. Watch the release notes before each firmware update.
+  - P1 printers allow few MQTT connections; the MQTT proxy route already covers that.
+- **Dependencies**: M5 (built), 3.1, 2.4, 2.5.
+
+#### 3.3 Push notifications to the phone app
+
+- **Summary**: low stock, and new requests for the owner, arrive as phone notifications from the existing Android app.
+- **Options compared**:
+  - **Firebase Cloud Messaging**: the most reliable on stock Android, but it needs a Google project and a `google-services.json` in the app, and every message goes through Google. That cuts against the no-cloud goal.
+  - **A persistent connection from the app**: no third party, but Android's battery limits (Doze) stop it in the background unless it runs as a foreground service with a permanent notification.
+  - **UnifiedPush with ntfy**: self-hostable, no Google, and messages encrypted end to end (Web Push encryption). The phone needs a distributor app, ntfy, installed.
+- **Recommendation: UnifiedPush, with a self-hosted ntfy server** added to the Compose file, reachable through the same tunnel as the web app, since the phone is often away from home.
+  - **Before the app work**: the owner can subscribe the ntfy app to a private topic, with no app changes.
+- **What the Android app adds**:
+  - The UnifiedPush connector library (vetted under the dependency rules).
+  - Android 13's notification permission.
+  - Registering its endpoint with the server and removing it on unpairing.
+  - A notification that opens the right page.
+- **Server**: sends Web Push-encrypted messages to each registered endpoint. Settings say which events notify whom.
+- **Data model**: `push_endpoint` (id, user_id, device_id, endpoint, public keys, created_at, last_ok_at, failures), dropped after repeated failures.
+- **Dependencies**: M8 (built), M9.
+
+#### 3.4 Picking colors on the model
+
+- **Summary**: on a multi-part 3MF, the requester gives each part a filament by clicking it on the model, using the owner's own viewer (`sirmeili/3d-mockup-viewer`) rather than a new one.
+- **What the viewer already does** (v0.3.0):
+  - Loads STL, 3MF and GLB in the browser.
+  - Splits a 3MF into one part per build item, following Bambu Studio's and PrusaSlicer's multi-file objects and component transforms. Part names come from the object names.
+  - Gives each part a material or a `#rrggbb` color, and highlights a part when its row in the Parts panel is hovered.
+  - An embedding API: an iframe driven by `postMessage`, with `load`, `setFinish`, Arrange, and a `change` event that returns the edited manifest.
+  - Ignores the 3MF's own colors and materials.
+- **To add to the viewer**:
+  - **Click to pick** a part on the 3D view, with a `select` event to the host page.
+  - **An API call to set one part's color** (`setPartColor(id, hex)`), and one to read the part list with ids and names.
+  - **Splitting a Bambu object's parts (volumes)** into separate parts. Today a build item becomes one part, and a multi-color Bambu object is often one object with several parts; check this with a real file.
+  - **Optionally, reading the filament assigned to each part** from `model_settings.config`, to start with the slicer's choices.
+  - **Limit**: painted (per-face) color in a 3MF can't map to parts, so that case uses the list fallback.
+- **Requirements**:
+  - **Slot check**: the number of distinct filaments is checked against the printer's AMS slots (4 per AMS, 1 per AMS HT, from `printer_slot`). Anything over that is flagged as needing manual swaps.
+  - **Fallback**: a simple per-part list is used when parts can't be told apart, or the viewer can't load the file.
+- **Dependencies**: 3.1, 2.3, and a viewer release with the additions above.
+
+#### 3.5 API and MCP server
+
+- **Summary**: the documented REST API covers the new areas, and an MCP server on top lets Claude Code and other agents ask and act.
+- **Requirements**:
+  - **REST**: new route groups for the catalog, requests, holds, the shopping list and printer jobs, in the OpenAPI docs (LAN only, as today).
+  - **MCP**: Streamable HTTP at `/mcp` in the same app, authenticated with a machine token (M9), so from the home network only, like every bearer token. This is the first app in the owner's set to have one, so it sets the pattern for the rest.
+  - **Scopes**: each machine token has a scope, `read` by default. Write tools are listed only to a token with `write`, and every write is recorded in Activity under the token's name.
+  - **Tools**, chosen so the examples work:
+    - `stock_lookup`: by product, material or color, with available grams.
+    - `catalog_search`.
+    - `check_request`: "do we have enough white PETG for this request?" compares the request's estimate with available grams.
+    - `request_list` and `request_get`.
+    - `shopping_list`.
+    - `printer_status`.
+    - Write: `shopping_list_add` ("add 2 rolls of Black PLA Basic"), `request_set_status` and `hold_adjust`.
+  - **Built on the REST services**, so the MCP server has no rules of its own.
+- **Dependencies**: M9 machine tokens; the official MCP Python SDK, vetted when added.
+
+### Later
+
+#### L.1 Ask Spoolhouse (on-demand agent)
+
+- **Summary**: an optional button that asks an LLM agent to reason over the app's data, through the same tools as 3.5.
+- **Examples**:
+  - The best in-stock filament for a request.
+  - A feasibility check on a 3MF: size against the build plate, materials, AMS slots and supports.
+  - A shopping list draft.
+  - A usage summary.
+- **Requirements**:
+  - **Provider**: behind an interface, with the Anthropic API (and the Claude Agent SDK) first and room for a local model.
+  - **Settings**: an `assistant` settings group, with the API key as a secret and the model as a setting rather than written into the code. The feature is off when no key is set.
+  - **How it runs**: started from a button on a request, the shopping list or the dashboard. It runs in the background, and its result is saved on the item as a note.
+  - **The agent only proposes**: it gets read tools only. Changes come back as proposed actions that a person approves, and each approved action runs through the API as that person.
+  - **Logging**: every run is logged with its prompt, the tools called and their results, tokens and cost.
+  - **Data sent to the provider**: only what the tools return. Uploaded files are not sent, only what 3.1 read from them. The Settings page says so.
+- **Data model**: `agent_run` (id, trigger, subject_type, subject_id, provider, model, prompt, tool_calls_json, result, proposed_json, input_tokens, output_tokens, cost, started_by, started_at, finished_at, status).
+- **Dependencies**: 3.5.
+
+#### L.2 Spool lifecycle stats
+
+- **Summary**: from scan events and printer usage, show:
+  - grams used per month;
+  - use by material and color;
+  - how long spools stay open, which helps with drying;
+  - cost per print;
+  - each person's use, with a running cost-split tally for the co-owners.
+- **Requirements**:
+  - **Spool prices**: a price per spool, entered on receiving, or a product default. Neither OFDB nor the tag has prices, and BambuStudio's `filament_cost` is only a default.
+  - **Whose use**: a job linked to a request counts as the requester's, and any other job as the owner's.
+- **Data model**: `product.default_price`, a `price` field on `received` events, and views over `print_job` and `event`.
+- **Dependencies**: 3.2.
+
+### Verification findings
+
+| Claim | Finding (2026-11-07) |
+| --- | --- |
+| Low-stock rules exist | **Yes**: a per-product threshold, low when sealed is at or below it, with Home Assistant entities and events and an example automation. Phase 2 extends it (2.5) instead of adding a second rule system |
+| A printer connection exists | **Yes**: direct, read-only TLS MQTT with a pinned certificate, an MQTT proxy option and a fake printer (M5). Phase 3 builds on it (3.2) |
+| A REST API exists | **Yes**: `/api/v1` with OpenAPI docs on the LAN. Machine tokens with roles are planned in M9; MCP (3.5) uses them |
+| OFDB has Bambu's 5-digit codes | **Yes**: `article_number` on sizes, for 297 of 304 Bambu colors. It has no tag IDs |
+| OFDB has a hex per color | **Yes**, for all 304 Bambu colors, plus `color_hexes` for multi-color filaments |
+| BambuStudio maps color codes | **Yes**: `resources/profiles/BBL/filament/filaments_color_codes.json` (342 entries). It matches the tag IDs of 4 of the owner's 5 tagged products; PLA Basic Black (`A00-K00`) is an exception |
+| BambuStudio profiles give material properties | **Yes**: the `@base` profiles have `filament_id`, density, flow, speed and cost |
+| Store links by code | `https://us.store.bambulab.com/search?q=<code>` is the search URL. **Not confirmed**: whether a code finds the product, since results show only in the browser. OFDB's links to a store variant no longer pick the color |
+| The store is region-aware | **Yes**: the regional addresses redirect by the visitor's location. The base URL is a setting, US by default |
+| Sliced 3MF metadata | **Yes**: per-plate time and weight, and per-filament `used_g`, in `slice_info.config`. Unsliced project files have parts and filament assignments but no estimates. The format is undocumented by Bambu |
+| MakerWorld import | **Not possible to confirm**: there is no public API and the terms couldn't be read. The link is stored only |
+| Bambu LAN access | Read-only reports work on the owner's P1S today. Control needs Developer Mode, which isn't planned. A future firmware change could limit LAN reports (see 3.2) |
+| The 3D viewer can pick parts | **Not yet**: it has per-part colors, an embedding API and hover-highlight from the list, but no clicking on the model and no per-part color call. See 3.4 |
+| Push options | UnifiedPush with ntfy is recommended over FCM (Google dependency) and a persistent connection (Android battery limits) |
+
 ## Open questions
 
 - [ ] Does a tag read through the sealed shipping box with the PN532, and from which side? If not, New needs another trigger (box barcode, or scanning at first opening). A Pixel 9 Pro XL reads tags through sealed refill boxes from either side, but a phone antenna is not a PN532. Tags in TPU's foil bag cannot be read; see Manual entry.
@@ -513,4 +821,4 @@ Each milestone ends with something usable. Reading is proved first with a phone,
 - [x] Buttons on the CYD prototype: resistor ladder on GPIO35. The PCF8574 expander stays as the fallback.
 - [x] Printer data source: direct MQTT from the server, which also works through an MQTT proxy if the printer's connection limit is hit.
 - [x] Refill packs carry Bambu tags that read through the box. A refill has its own tray UID, so it is tracked as a new spool.
-- [ ] Project and repo name.
+- [ ] Project and repo name. Working name Spoolhouse (2026-11-07), not final; the rename waits until it is settled.

@@ -37,6 +37,7 @@
 - M8 part 1, `BAMBU_KDF_SALT`, `/devices/provisioning`, `ft-sim check-salt` and the pairing QR code, merged (PR #24).
 - M8 part 4, the phone checklist on a Pixel 9 Pro XL and the fixes it found (no plugin data in the phone's log, loopback addresses refused, a 5 s request limit, one read at a time, a beep and buzz after a full read), merged (PR #27). **M8 complete.**
 - M8 part 3, the Android app with its Kotlin NFC plugin, Keystore storage, QR scanning and the Android CI job, merged (PR #26).
+- M6 part 3, the Settings page with the Home Assistant settings, secrets encrypted with `SETTINGS_KEY` or `settings.key`, applied without a restart, merged (PR #34).
 - M8 part 2, the phone app's logic in the web app (bridge interface, pairing, device API, offline decode and queue, Scan flow, Scan and Pairing pages), merged (PR #25).
 - M2 part 7, the Review, Activity, Devices, Users and Account pages, manual entry, Review Bring back, the scanner heartbeat and the Activity source filter, merged (PR #18). **M2 complete.**
 - M2 plan approved: seven branches (spec, users and auth, read API, write API, web foundation, stock pages, admin pages).
@@ -48,24 +49,23 @@
 - Phone Scan screen redesign, from the mockups in `docs/mockups/mobile-scanner/` (merged in PR #30). Plan approved (2026-11-06): two branches, before M6 part 3.
 - Phone Scan screen redesign complete: part 1 merged in PR #31, part 2 (the Delivery mode) in PR #32.
 - Settings spec merged (PR #33).
-- `feature/ha-settings` (M6 part 3): settings in the app, starting with Home Assistant.
-  - Done: `cryptography` 50.0.2 added (no advisories on OSV or GitHub, released 2026-09-30); `setting` table and migration; `SETTINGS_KEY` (else a `settings.key` file beside the database, owner-only, git-ignored); the `app_settings` package (AES-256-GCM sealing with the setting's name as associated data, the Home Assistant settings and their checks, and a store where a saved value wins over `.env` and an unreadable secret asks to be entered again).
-  - Done: live apply (`ha/link.py` restarts the MQTT publisher and the event sender when the Home Assistant settings change); the Test checks (`ha/check.py`: one broker connection and one Home Assistant request, answering only ok, off, unreachable, refused or error); the API (`GET`/`PUT /settings/home-assistant`, `DELETE /settings/home-assistant/{key}` to use the `.env` value again, `POST /settings/home-assistant/test`), Admin only, secrets never returned, changes logged by name only.
-  - Done: the Settings page (`/settings`, Admin only, in the menu) with the Home Assistant section: each value labelled with where it comes from, secrets never shown (an empty box keeps the saved one), Clear, Use the .env value (or the default), Save sending only what changed, Test with the entered values, and refused values shown next to their setting. The e2e server now blanks the Home Assistant settings, so a developer's `server/.env` is never used by the tests.
-  - Done: docs (`server/README.md` gains The Settings page and the settings key; `.env.example` gains `SETTINGS_KEY`; README status).
-  - Next: review by the owner, then the PR. Then M6 part 4, the check against the owner's Home Assistant.
+- M6 part 3 merged (PR #34).
+- `feature/spoolhouse-spec`: the print requests direction added to the spec as future work (owner's request, 2026-11-07), with no change to the milestones up to M9.
+  - Done: working name Spoolhouse in the spec title, overview and README, with a list of what a rename touches and what it breaks; the Requester role (planned); a Future enhancements: print requests section in three phases (catalog and Bambu color codes, requests and their status pipeline, holding filament, the shopping list; reading 3MF files, print jobs from the printer, push, picking colors on the model, MCP; Ask Spoolhouse and stats); verification findings; milestones M10 and M11 before the firmware milestones.
+  - Next: review by the owner, then the PR. Then M6 part 4.
 - Done, PR #32 (part 2, the Delivery mode): a Delivery toggle on the waiting screen; while it is on, the top of Scan lists the spools recorded in the session (color, name, time, number, queued until sent, Undone), with totals and Clear, and the bottom is one panel (Ready, the spool with its keys and 15 s bar, then what was recorded with Undo and a 3 s bar). Only the newest row has Undo. The list is kept in memory until the app closes (leaving Scan keeps it) and cleared when the pairing is forgotten. The last scan now carries the spool as the server has it, so a new tag's row shows its number. The Delivery button widens to fit its label at large phone text sizes, and the Ready icon pulses like the waiting screen's target. Spec updated (Phone scanner, Unpacking a delivery).
 
 ## Next
 
-- M6 part 3: the settings store (encrypted secrets, `.env` as the starting value), the Admin Settings page and the Home Assistant settings in it.
 - M6 part 4: the check against the owner's Home Assistant.
 - M9 Deployment: printers and the remaining settings in the app, machine tokens, first-start setup, the Docker image and Compose file, nightly backups.
+- M10 and M11, print requests Phase 2 and Phase 3 (see SPEC Future enhancements: print requests), before the firmware milestones.
 - Later (owner's request, 2026-11-06, in SPEC Future enhancements): the theme choice moves to the Account page; a phone app setting for the start screen (Scan or the web app); a bottom bar on phones with a menu button, Scan and the user.
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
 
 ## Decisions
 
+- 2026-11-07: Print requests direction (owner). Working name Spoolhouse, not final; the rename waits until the name is settled, and reinstalling the phone app and renaming the Home Assistant names are accepted. One app with an Inventory module and a Print Requests module that depends on it, never the reverse. The whole web app stays reachable from the internet; only scanning stays on the LAN. A Requester role is added alongside Viewer, Editor and Admin. Phases 2 and 3 come after M9 and before the firmware milestones. The MCP server is the first in the owner's apps and must cover the examples given.
 - 2026-11-07: Most settings move into the app, with `.env` as the starting value and a value saved in the app winning (this reverses the M6 part 3 plan, where `.env` won). Settings that could lock the admin out or open LAN-only routes stay in `.env` only. First start uses a Setup page instead of `ft-admin`, guarded by `TRUSTED_NETWORKS` and a one-time code in the server log. Deployment becomes milestone M9.
 - 2026-11-06: Scan screen decisions (owner): the Delivery session list lasts until the app is closed, with a Clear button; View spool and Scan next on the result; the Scan theme toggle is the web app's theme choice; the full app gets a Scan button in its header in the phone app.
 - 2026-11-06: Home Assistant events are found by reading new events from the database every 5 seconds, like the entities, so every source is covered; only events after the server starts are fired, so a restart never replays history into automations.
