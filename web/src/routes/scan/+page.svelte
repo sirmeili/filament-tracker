@@ -84,8 +84,6 @@
         {#if view.message}<p class="message {view.tone}" role="status">{view.message}</p>{/if}
         {#if view.last}
           <LastScanBar last={view.last} onundo={() => void flow.undoLast()} />
-        {:else}
-          <p class="muted hint">Your last scan shows here, with Undo.</p>
         {/if}
       </div>
     {:else if view.phase === "choosing" || view.phase === "sending"}
@@ -173,7 +171,6 @@
     color: var(--lowtext);
   }
 
-  .hint,
   .sending {
     margin: 0;
     font-size: 14px;
