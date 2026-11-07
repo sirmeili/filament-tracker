@@ -70,16 +70,16 @@
 {#if phone.app && !phone.loaded}
   <main class="centered"><p class="muted">Loading…</p></main>
 {:else if phonePage}
-  <main>{@render children()}</main>
+  <main class:bare={page.url.pathname === "/scan"}>{@render children()}</main>
 {:else if page.url.pathname === LOGIN_PATH}
   <main class="centered">{@render children()}</main>
 {:else if session.user}
-  {#if phone.app}<a class="to-scan" href="/scan">Back to Scan</a>{/if}
   <Header
     user={session.user}
     pathname={page.url.pathname}
     theme={appTheme}
     reviewCount={reviewBadge.count}
+    scan={phone.app}
   />
   <main>
     {#if session.can(requiredRole(page.url.pathname))}
@@ -98,17 +98,14 @@
 {/if}
 
 <style>
-  .to-scan {
-    display: block;
-    padding: 10px 24px;
-    font-weight: 600;
-    background: var(--chip);
-  }
-
   main {
     max-width: 1240px;
     margin: 0 auto;
     padding: 32px 24px 56px;
+  }
+
+  main.bare {
+    padding: 0;
   }
 
   @media (max-width: 600px) {

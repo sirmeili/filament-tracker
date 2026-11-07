@@ -54,8 +54,19 @@ export interface LastScan {
   undone: boolean;
 }
 
+/** What a result screen shows: an action recorded or queued, Info, or a message. */
+export type Outcome = "recorded" | "queued" | "info" | "notice";
+
+/** A running timer, for the screen's countdown bar. A new id starts a new bar. */
+export interface Countdown {
+  id: number;
+  ms: number;
+}
+
 export interface FlowView {
   phase: Phase;
+  outcome: Outcome | null;
+  countdown: Countdown | null;
   card: Card | null;
   actions: (ScreenAction | null)[];
   suggested: ScreenAction | null;
@@ -73,6 +84,8 @@ export interface FlowDeps {
   appVersion: string;
   now?: () => number;
   newId?: () => string;
+  /** Told whether the server answered, after each request (for the Online pill). */
+  onReach?: (online: boolean) => void;
 }
 
 const ACTION_NAMES: Record<ScanAction, string> = {
@@ -81,6 +94,11 @@ const ACTION_NAMES: Record<ScanAction, string> = {
   empty: "Empty",
   lookup: "Lookup",
 };
+
+/** "New", "Opened" or "Empty": a recorded action's name. */
+export function actionName(action: ScanAction): string {
+  return ACTION_NAMES[action];
+}
 
 export function actionLabel(action: ScreenAction): string {
   return action === "received" ? "New" : action[0].toUpperCase() + action.slice(1);
@@ -129,6 +147,8 @@ function cardFrom(result: ScanResult): Card {
 
 const IDLE: FlowView = {
   phase: "idle",
+  outcome: null,
+  countdown: null,
   card: null,
   actions: [],
   suggested: null,
@@ -141,6 +161,7 @@ export class ScanFlow {
   private current: FlowView = IDLE;
   private read: TagRead | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
+  private timers = 0;
   private listeners = new Set<(view: FlowView) => void>();
   private readonly now: () => number;
   private readonly newId: () => string;
@@ -185,13 +206,18 @@ export class ScanFlow {
     this.set({ phase: "looking_up", card: null, actions: [], suggested: null, message: null });
     let result: ScanResult;
     try {
-      result = await this.deps.api.scan(this.event(read, "lookup"));
+      result = await this.reach(this.deps.api.scan(this.event(read, "lookup")));
     } catch (error) {
       this.lookupFailed(read, error);
       return;
     }
     if (result.feedback === "unreadable" || result.feedback === "error") {
-      this.showResult(feedbackText(result.feedback, "lookup", result.state), "error", null);
+      this.showResult(
+        feedbackText(result.feedback, "lookup", result.state),
+        "error",
+        null,
+        "notice",
+      );
       return;
     }
     this.offer(cardFrom(result), result.actions, result.suggested);
@@ -208,7 +234,7 @@ export class ScanFlow {
       return;
     }
     if (action === "info") {
-      this.set({ phase: "result", message: null, tone: "ok" });
+      this.set({ phase: "result", outcome: "info", countdown: null, message: null, tone: "ok" });
       return;
     }
     const last = this.current.last;
@@ -219,7 +245,7 @@ export class ScanFlow {
       last.action === action &&
       this.now() - last.at < REPEAT_WINDOW_MS
     ) {
-      this.showResult(`${ACTION_NAMES[action]} was already recorded.`, "ok", card);
+      this.showResult(`${ACTION_NAMES[action]} was already recorded.`, "ok", card, "notice");
       return;
     }
     const event = this.event(read, action);
@@ -236,17 +262,23 @@ export class ScanFlow {
       await this.enqueue(event, remember(true), card);
       return;
     }
-    this.set({ phase: "sending" });
+    this.set({ phase: "sending", countdown: null });
     try {
-      const result = await this.deps.api.scan(event);
+      const result = await this.reach(this.deps.api.scan(event));
       const tone: Tone = result.feedback === "flagged" ? "warn" : "ok";
       this.set({ last: remember(false) });
-      this.showResult(feedbackText(result.feedback, action, result.state), tone, cardFrom(result));
+      this.showResult(
+        feedbackText(result.feedback, action, result.state),
+        tone,
+        cardFrom(result),
+        result.feedback === "already_in_state" ? "notice" : "recorded",
+      );
     } catch (error) {
       if (isOffline(error)) {
         await this.enqueue(event, remember(true), card);
       } else {
-        this.showResult(refusalText(error) ?? "The server couldn't record that.", "error", card);
+        const text = refusalText(error) ?? "The server couldn't record that.";
+        this.showResult(text, "error", card, "notice");
       }
     }
   }
@@ -260,7 +292,7 @@ export class ScanFlow {
       message = `Removed the queued ${ACTION_NAMES[last.action]}.`;
     } else {
       try {
-        await this.deps.api.revert(last.eventId);
+        await this.reach(this.deps.api.revert(last.eventId));
         message = `Undid ${ACTION_NAMES[last.action]}.`;
       } catch (error) {
         this.set({ message: refusalText(error) ?? "Couldn't undo it. Try again.", tone: "error" });
@@ -284,7 +316,8 @@ export class ScanFlow {
   private lookupFailed(read: TagRead, error: unknown): void {
     const refusal = refusalText(error);
     if (refusal || !isOffline(error)) {
-      this.showResult(refusal ?? "The server couldn't look up this spool.", "error", null);
+      const text = refusal ?? "The server couldn't look up this spool.";
+      this.showResult(text, "error", null, "notice");
       return;
     }
     const tag = decodeOffline(read.blocks);
@@ -293,6 +326,7 @@ export class ScanFlow {
         "Can't reach the server, and this tag couldn't be read on the phone.",
         "error",
         null,
+        "notice",
       );
       return;
     }
@@ -319,6 +353,8 @@ export class ScanFlow {
   ): void {
     this.set({
       phase: "choosing",
+      outcome: null,
+      countdown: this.countdown(CHOICE_TIMEOUT_MS),
       card,
       actions,
       suggested,
@@ -339,15 +375,43 @@ export class ScanFlow {
         `Queued ${ACTION_NAMES[last.action]}. It will be sent when the server is back.`,
         "warn",
         card,
+        "queued",
       );
     } else {
-      this.showResult("The queue is full. Connect to the server, then scan again.", "error", card);
+      const text = "The queue is full. Connect to the server, then scan again.";
+      this.showResult(text, "error", card, "notice");
     }
   }
 
-  private showResult(message: string, tone: Tone, card: Card | null): void {
-    this.set({ phase: "result", card, actions: [], suggested: null, message, tone });
+  private showResult(message: string, tone: Tone, card: Card | null, outcome: Outcome): void {
+    this.set({
+      phase: "result",
+      outcome,
+      countdown: this.countdown(RESULT_MS),
+      card,
+      actions: [],
+      suggested: null,
+      message,
+      tone,
+    });
     this.timer = setTimeout(() => this.toIdle(), RESULT_MS);
+  }
+
+  private countdown(ms: number): Countdown {
+    this.timers += 1;
+    return { id: this.timers, ms };
+  }
+
+  /** Report whether the server answered, then pass the result or error on. */
+  private async reach<T>(request: Promise<T>): Promise<T> {
+    try {
+      const result = await request;
+      this.deps.onReach?.(true);
+      return result;
+    } catch (error) {
+      this.deps.onReach?.(!isOffline(error));
+      throw error;
+    }
   }
 
   private toIdle(): void {

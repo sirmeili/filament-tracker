@@ -1,0 +1,100 @@
+<script lang="ts">
+  import ThemeControl from "#lib/components/ThemeControl.svelte";
+  import type { Theme } from "#lib/theme.svelte.ts";
+
+  interface Props {
+    /** Whether the server answered the last request; null until known. */
+    online: boolean | null;
+    queueSize: number;
+    theme: Theme;
+  }
+
+  let { online, queueSize, theme }: Props = $props();
+
+  const label = $derived.by(() => {
+    const queued = queueSize > 0 ? ` · ${queueSize} queued` : "";
+    if (online === null) return queueSize > 0 ? `${queueSize} queued` : null;
+    return (online ? "Online" : "Offline") + queued;
+  });
+</script>
+
+<div class="head">
+  <h1 id="scan-h">Scan</h1>
+  {#if label}
+    <span class="pill" class:off={online === false || queueSize > 0} role="status">
+      <span class="dot" aria-hidden="true"></span>{label}
+    </span>
+  {/if}
+  <ThemeControl {theme} />
+  <a class="icon" href="/" aria-label="Open the full app" title="Open the full app">
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      aria-hidden="true"
+    >
+      <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+      <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+      <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+      <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+    </svg>
+  </a>
+</div>
+
+<style>
+  .head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 18px 16px 10px 20px;
+  }
+
+  h1 {
+    margin: 0;
+    flex: 1;
+    font-size: 28px;
+    letter-spacing: -0.01em;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: var(--okbg);
+    color: var(--oktext);
+    white-space: nowrap;
+  }
+
+  .pill.off {
+    background: var(--lowbg);
+    color: var(--lowtext);
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .icon {
+    width: 44px;
+    height: 44px;
+    flex: none;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--text);
+  }
+</style>

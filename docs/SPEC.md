@@ -191,14 +191,21 @@ An Android phone can act as one more scanner, so spools can be scanned before th
 **What the app shows**
 
 - **Scan**: a screen shown only in the app that mirrors the scanner flow: tap a spool, see the spool card (name, color swatch, state with its date), choose from the same actions with the suggested one highlighted (see User workflows), and see the result. No choice within 15 seconds cancels with no event sent, and the same action confirmed twice for a spool within 30 seconds sends one event.
-- **The full web app**: every page, after a normal user sign-in. Scanning uses the device token, not the user's session.
+- **Scan layout** (owner's choice, 2026-11-06; follows `docs/mockups/mobile-scanner/`): everything touched while scanning is in the bottom half of the screen, for one hand.
+  - Header: the connection status (Online or Offline, with the queue size when anything is queued), the theme control (the same Light / Dark / System choice as the web app's header) and a button to the full app.
+  - Waiting: a large target, "Hold a spool to the back of your phone", and the last scan with Undo at the bottom.
+  - Spool found: the spool's color ring, state chip, name and state date, a bar counting down the 15 seconds, and the action keys in a row with the suggested one marked "Suggested".
+  - Result: the action in large type with the spool, and a bar counting down the 3 seconds. Undo, View spool (for a spool the server knows) and Scan next, which goes back to waiting at once.
+  - The countdown bars follow the real timers: each new spool or result starts a new bar.
+  - Online means the server answered the last request (a heartbeat, lookup, action or undo); Offline means it could not be reached.
+- **The full web app**: every page, after a normal user sign-in. Scanning uses the device token, not the user's session. In the app, the header has a Scan button (the same phone icon as Scan's target) that goes back to Scan, and the Account page links to the phone's pairing.
 - Scan and Pairing work without a user sign-in, and Scan works without the server (offline). The app opens on Scan once paired, and on Pairing until then. In a browser these two screens only say they belong to the app.
 - Like the scanner's "Last scan", Scan keeps the last scan with an Undo: it reverts the event, or takes it out of the queue if it has not been sent yet. Info shows the AMS remaining % and links to the spool's page.
 
 **Device behavior**
 
 - Scans and undo of its own events use the device token, exactly as the scanner does. A heartbeat is sent every 5 minutes while the app is open.
-- Offline, as on the scanner: if the lookup fails, the product, type and color are decoded on the phone from the raw tag, New, Opened and Empty are offered, and chosen actions are queued (at least 50) and retried with backoff. The `event_id` makes retries idempotent. The Scan screen shows the queue size.
+- Offline, as on the scanner: if the lookup fails, the product, type and color are decoded on the phone from the raw tag, New, Opened and Empty are offered, and chosen actions are queued (at least 50) and retried with backoff. As soon as the server answers again (a heartbeat, which is also sent when the app comes back to the front, or any lookup or action), the whole queue is sent without waiting for the backoff. The `event_id` makes retries idempotent. The Scan screen shows the queue size.
 
 **Pairing**
 

@@ -44,17 +44,20 @@
 ## In progress
 
 - M6, Home Assistant. Plan approved (2026-11-06): four branches (MQTT discovery entities; HA events and an example automation; an Admin Settings page for the Home Assistant settings, with secrets encrypted in the database; a check against the owner's Home Assistant, which uses the Mosquitto add-on).
-- `feature/mobile-scanner-mockups`: mockups for the phone app's Scan screen in `docs/mockups/mobile-scanner/`: the one-spool flow (direction A) as the default, an "unpacking a delivery" mode with a session list (direction B, actions at the bottom for one-handed use), a Delivery toggle and a Light/Dark/System toggle, plus a README with the layout and three items beyond the spec waiting for the owner's approval. Docs only, no code or tests changed.
+- Phone Scan screen redesign, from the mockups in `docs/mockups/mobile-scanner/` (merged in PR #30). Plan approved (2026-11-06): two branches, before M6 part 3.
+- `feature/scan-redesign` (part 1, the one-spool screen): a new Scan header (Online/Offline with the queue size, the web app's theme control, a button to the full app); the waiting target; the spool found with its color ring, state chip and a 15 s countdown bar over the keys, "Suggested" on the suggested key; the result with the action in large type, a 3 s bar, Undo, View spool and Scan next; Info, messages, offline and NFC problems in the same layout. Countdown bars restart with each timer. In the phone app the full app's header has a Scan button with the target's phone icon (replacing the "Back to Scan" bar), and Account links to Phone pairing. The session tracks whether the server answered. Found in the phone check: the web app's requests now give up after 15 s (an unreachable server left the full app on "Loading…"), the empty last-scan hint was dropped, and the server README says to use `--host 0.0.0.0` for the LAN. Queued scans are now all sent as soon as the server answers again (and a heartbeat is sent when the app comes back to the front), instead of waiting up to 5 minutes for their backoff. Spec updated (Phone scanner, Scan layout).
+  - Next: review by the owner, then the PR. Then part 2, `feature/scan-delivery` (the Delivery mode with a session list kept until the app closes, and a Clear button).
 
 ## Next
 
+- Scan redesign part 2, the Delivery mode.
 - M6 part 3: the Admin Settings page for the Home Assistant settings.
-- Phone Scan screen: once the owner decides on the "Beyond the spec" items in `docs/mockups/mobile-scanner/README.md`, update the spec and rebuild the Scan screen from the mockups.
 - Later (owner's request, 2026-11-06): make printers configurable from the web app too, like the Home Assistant settings in M6 part 3, instead of only `PRINTERS` in `server/.env`.
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
 
 ## Decisions
 
+- 2026-11-06: Scan screen decisions (owner): the Delivery session list lasts until the app is closed, with a Clear button; View spool and Scan next on the result; the Scan theme toggle is the web app's theme choice; the full app gets a Scan button in its header in the phone app.
 - 2026-11-06: Home Assistant events are found by reading new events from the database every 5 seconds, like the entities, so every source is covered; only events after the server starts are fired, so a restart never replays history into automations.
 - 2026-11-06: Home Assistant entities come from a 5-second snapshot of the database, published only when changed, because it covers every way stock changes without hooking each write path.
 - 2026-11-06: Home Assistant settings will also be editable on an Admin Settings page (owner's choice), with secrets encrypted in the database and `.env` values taking precedence.

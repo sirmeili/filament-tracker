@@ -3,6 +3,7 @@
   import { LOGIN_PATH } from "#lib/auth/redirect.ts";
   import { session } from "#lib/auth/session.svelte.ts";
   import ChangePassword from "#lib/components/account/ChangePassword.svelte";
+  import { phone } from "#lib/phone/phone-state.svelte.ts";
   import { ROLE_LABELS } from "#lib/roles.ts";
 
   let busy = $state(false);
@@ -30,6 +31,16 @@
       </div>
     </div>
     <ChangePassword />
+  {/if}
+
+  {#if phone.app}
+    <section class="card signout" aria-labelledby="phone-h">
+      <div>
+        <h2 id="phone-h" class="label">This phone</h2>
+        <p class="muted">Its pairing with the server, used for scanning.</p>
+      </div>
+      <a class="button" href="/pair">Phone pairing</a>
+    </section>
   {/if}
 
   <section class="card signout" aria-labelledby="so-h">

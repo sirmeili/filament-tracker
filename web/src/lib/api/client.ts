@@ -6,6 +6,8 @@
  */
 
 export const API_PREFIX = "/api/v1";
+/** How long a page waits for the server before saying it cannot be reached. */
+export const API_TIMEOUT_MS = 15_000;
 export const CSRF_HEADER = { "X-Requested-With": "filament-tracker" } as const;
 
 export class ApiError extends Error {
@@ -89,13 +91,32 @@ export async function api<T>(
     init.body = JSON.stringify(options.body);
   }
 
+  // A server that never answers (an address the phone cannot reach, a dropped
+  // connection) would otherwise leave the page loading until the OS gives up. The timer
+  // races the request because the phone's native HTTP may not honour the abort.
+  const abort = new AbortController();
+  init.signal = options.signal ? AbortSignal.any([options.signal, abort.signal]) : abort.signal;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      abort.abort();
+      reject(new Error("timed out"));
+    }, API_TIMEOUT_MS);
+  });
+  const answer = (async () => {
+    const response = await fetchFn(apiUrl(path), init);
+    return { response, body: await readJson(response) };
+  })();
   let response: Response;
+  let body: unknown;
   try {
-    response = await fetchFn(apiUrl(path), init);
+    ({ response, body } = await Promise.race([answer, timeout]));
   } catch {
     throw new ApiError(0, "Cannot reach the server");
+  } finally {
+    clearTimeout(timer);
+    answer.catch(() => {});
   }
-  const body = await readJson(response);
   if (!response.ok) {
     if (response.status === 401) unauthorizedListeners.forEach((listener) => listener());
     throw new ApiError(response.status, errorMessage(body, `Request failed (${response.status})`));

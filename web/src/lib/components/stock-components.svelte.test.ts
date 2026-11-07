@@ -104,6 +104,21 @@ describe("header", () => {
     );
   });
 
+  it("has a Scan button only in the phone app", () => {
+    const theme = new Theme(document.createElement("html"), freshStorage(), undefined);
+    const props = {
+      user: { id: 1, username: "frank", role: "viewer" as const },
+      pathname: "/",
+      theme,
+      reviewCount: 0,
+    };
+    const header = render(Header, props);
+    expect(screen.queryByRole("link", { name: "Scan" })).toBeNull();
+
+    header.rerender({ ...props, scan: true });
+    expect(screen.getByRole("link", { name: "Scan" })).toHaveAttribute("href", "/scan");
+  });
+
   it("offers light, dark and system", async () => {
     const theme = new Theme(document.createElement("html"), freshStorage(), undefined);
     render(ThemeControl, { theme });

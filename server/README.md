@@ -11,6 +11,12 @@ $env:ADMIN_TOKEN = "choose-a-long-random-value"
 uv run uvicorn filament_tracker.main:create_app --factory
 ```
 
+This listens on `127.0.0.1` only, so other machines cannot reach it. For scanners and the phone app, which connect over the LAN, add `--host 0.0.0.0`:
+
+```powershell
+uv run uvicorn filament_tracker.main:create_app --factory --host 0.0.0.0
+```
+
 Settings can also go in `server/.env`; copy [`.env.example`](.env.example), which lists every one. `.env` is never committed.
 
 If the web app has been built (`npm ci` and `npm run build` in `web/`), it is served at `http://localhost:8000/`; set `WEB_DIR` to serve a build from elsewhere. The API is under `http://localhost:8000/api/v1`, with interactive docs at `http://localhost:8000/docs`. The docs, the scanner routes and bearer tokens (device and admin) work only from the LAN (`TRUSTED_NETWORKS`, by default the private address ranges); from anywhere else they get 404 or 403.

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   api,
+  API_TIMEOUT_MS,
   ApiError,
   apiUrl,
   errorMessage,
@@ -68,6 +69,37 @@ describe("api", () => {
       status: 0,
       message: "Cannot reach the server",
     });
+  });
+
+  it("gives up on a server that never answers, even if the abort is ignored", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchFn = vi.fn(() => new Promise<Response>(() => {})); // never settles
+      const request = api("/auth/me", {}, fetchFn);
+      const failed = expect(request).rejects.toMatchObject({ status: 0 });
+
+      await vi.advanceTimersByTimeAsync(API_TIMEOUT_MS);
+
+      await failed;
+      expect((fetchFn.mock.calls[0] as unknown[])[1]).toMatchObject({
+        signal: expect.objectContaining({ aborted: true }),
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("passes the caller's abort on to the request", async () => {
+    const stop = new AbortController();
+    const fetchFn = vi.fn(
+      (_url: string, init: RequestInit) =>
+        new Promise<Response>((_, reject) =>
+          init.signal!.addEventListener("abort", () => reject(new Error("aborted"))),
+        ),
+    );
+    const request = api("/x", { signal: stop.signal }, fetchFn as unknown as typeof fetch);
+    stop.abort();
+    await expect(request).rejects.toMatchObject({ status: 0 });
   });
 
   it("tells listeners when a request is unauthorized", async () => {
