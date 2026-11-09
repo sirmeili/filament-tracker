@@ -1,0 +1,38 @@
+# Rollcall on the home server (docs/deploy.md). Put this file and a .env made from
+# .env.example in one folder, log in to ghcr.io, then: docker compose up -d
+name: rollcall
+services:
+  rollcall:
+    image: ghcr.io/sirmeili/rollcall:${ROLLCALL_TAG:-latest}
+    container_name: rollcall
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      # Scanners, the phone app and the reverse proxy reach it here.
+      - "${ROLLCALL_PORT:-8000}:8000"
+    volumes:
+      # The database (and settings.key, unless SETTINGS_KEY is set).
+      - rollcall-data:/data
+      # The nightly backups. To keep them on another disk, use a path instead, such as
+      # /mnt/backup/rollcall:/backups (owned by user 10001).
+      - rollcall-backups:/backups
+    # Nothing but the two volumes and /tmp can be written, and the server cannot gain
+    # privileges.
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  rollcall-data:
+    name: rollcall-data
+  rollcall-backups:
+    name: rollcall-backups
