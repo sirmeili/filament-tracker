@@ -1,0 +1,24 @@
+# Only what the image needs is sent to the build. Secrets, databases, tag dumps and
+# captures never are.
+*
+!server/pyproject.toml
+!server/uv.lock
+!server/src/
+!web/
+web/node_modules/
+web/build/
+web/.svelte-kit/
+web/coverage/
+web/test-results/
+web/playwright-report/
+web/e2e/
+**/__pycache__/
+**/.env
+**/.env.*
+**/*.db
+**/*.db-wal
+**/*.db-shm
+**/settings.key
+**/*.bin
+**/*.dump
+**/*.zip

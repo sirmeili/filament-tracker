@@ -133,6 +133,16 @@ Upon user acceptance of a completed feature or step, you must commit your code, 
 
   * End-to-end tests: `npx playwright install chromium` once, then `npm run build` and `npm run test:e2e`. They start the real server on a scratch database.
 
+* **Docker Commands:** Run these from the repository root (Docker with Compose v2). CI runs the same checks on every PR, and publishes the image on merges to `main`.
+
+  * Build the image: `docker build -t rollcall:test .`
+
+  * Run the end-to-end test stack against it: from `server/`, `FT_COMPOSE_STACK=1 uv run pytest tests/deploy --no-cov` (it starts `deploy/test/compose.yaml` and removes it with its volumes).
+
+  * Scan the image before changing a base image digest: `docker scout cves --only-severity critical,high rollcall:test`. New base images follow the same rules as other dependencies: checked for advisories first.
+
+  * Make a backup now: `uv run ft-admin backup` (needs `BACKUP_DIR`), or `docker compose exec rollcall ft-admin backup` on the server.
+
 * **Android Commands:** The phone app in `android/` needs JDK 21 (newer JDKs fail with Gradle 8.14) with `JAVA_HOME` pointing at it, and the Android SDK in `ANDROID_HOME`. CI runs the same checks on every PR.
 
   * Copy the web app in: from `web/`, `npm run build`, then `npx cap sync android`. Run it again after any web change before building the app.

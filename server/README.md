@@ -50,6 +50,10 @@ Invoke-RestMethod -Uri http://localhost:8000/api/v1/auth/me -WebSession $web
 
 The session cookie is marked Secure. Browsers accept it over plain HTTP on `localhost`, but from another machine on the LAN over plain HTTP set `$env:COOKIE_SECURE = "false"` before starting the server (development only). Requests that change something with the cookie must send the `X-Requested-With: filament-tracker` header. Five failed sign-ins for one username, or twenty from one address, within 15 minutes give HTTP 429.
 
+## Backups
+
+With `BACKUP_DIR` set, the server copies its database there every night at 03:00 in its time zone (the one saved on the Settings page, else `TZ`), using SQLite's online backup, and keeps the newest 14. Files are named by their UTC time, like `filament-20261110T090000Z.db`. The settings key is never copied into them. `uv run ft-admin backup` makes one at once. The Docker image sets `BACKUP_DIR=/backups`; see [docs/deploy.md](../docs/deploy.md) for restoring one.
+
 ## Behind a reverse proxy
 
 To reach the web app from outside, put it behind an HTTPS reverse proxy and tell the server the proxy's address, so it trusts the proxy's `X-Forwarded-For` header and no one else's:

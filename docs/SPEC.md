@@ -423,7 +423,7 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 - One Docker image for x86-64 (`linux/amd64`), `ghcr.io/sirmeili/rollcall`, run with Docker Compose on the owner's home server; SQLite database on a mounted volume. GitHub Actions builds the image on every pull request and pushes it to the GitHub Container Registry on each merge to `main`, tagged `latest` and with the commit. The package is private, so the server logs in to `ghcr.io` with a read-only token to pull it.
 - The web app may be exposed to the internet, but only through an HTTPS reverse proxy the owner runs (for example Caddy, Nginx Proxy Manager, Traefik or a Cloudflare Tunnel). The app itself speaks plain HTTP to the proxy and trusts forwarded client addresses only from `FORWARDED_ALLOW_IPS`.
 - Scanner routes, bearer tokens (device and admin) and the API docs are accepted only from `TRUSTED_NETWORKS`, so they stay on the LAN even if the proxy forwards everything. The proxy should forward only the web app and `/api/v1` anyway.
-- Nightly SQLite backup (online backup API) at 03:00 in the server's time zone, to a second volume, 14 kept.
+- Nightly SQLite backup (online backup API) at 03:00 in the server's time zone, to a second volume (`BACKUP_DIR`), 14 kept. Backup files are named by their UTC time. The settings key is never copied into the backups, so the secrets in a backup stay encrypted. `ft-admin backup` makes one at once, for example before an upgrade.
 
 **Configuration** (environment variables or a `.env` file, never committed). Settings marked *app* can also be set in the app, where a saved value wins; see Settings and first start.
 
@@ -442,6 +442,8 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 | `SESSION_DAYS` | `30` | *app*. How long a web sign-in lasts |
 | `COOKIE_SECURE` | `true` | Set `false` only to sign in over plain HTTP on the LAN during development; production is HTTPS |
 | `WEB_DIR` | `/app/web` | The built web app; defaults to `web/build` in a source checkout |
+| `DATABASE_URL` | `sqlite:////data/filament.db` | The SQLite database; defaults to `data/filament.db` beside the server |
+| `BACKUP_DIR` | `/backups` | Where the nightly backups go. Unset: no backups (the Docker image sets it) |
 
 **Security requirements**
 

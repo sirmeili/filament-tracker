@@ -5,6 +5,7 @@ always prompted for, never passed as arguments, so they stay out of shell histor
 
     ft-admin create-user USERNAME [--role viewer|editor|admin]
     ft-admin reset-password USERNAME
+    ft-admin backup
 """
 
 import argparse
@@ -14,10 +15,12 @@ from collections.abc import Callable, Sequence
 
 from sqlalchemy import select
 
+from filament_tracker.app_settings.offline import database_file
 from filament_tracker.config import Settings
 from filament_tracker.db.engine import create_db_engine, create_session_factory
 from filament_tracker.db.migrate import upgrade
 from filament_tracker.db.models import User
+from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import Role
 from filament_tracker.services.accounts import (
     AccountError,
@@ -25,6 +28,7 @@ from filament_tracker.services.accounts import (
     create_user,
     set_password,
 )
+from filament_tracker.services.backup import backup_database, prune
 
 Prompt = Callable[[str], str]
 
@@ -39,6 +43,9 @@ def _parser() -> argparse.ArgumentParser:
         "reset-password", help="set a new password and sign the user out everywhere"
     )
     reset.add_argument("username")
+    commands.add_parser(
+        "backup", help="back the database up to BACKUP_DIR now, like the nightly backup"
+    )
     return parser
 
 
@@ -50,6 +57,17 @@ def _new_password(prompt: Prompt) -> str:
     return password
 
 
+def _backup(settings: Settings) -> int:
+    source = database_file(settings.database_url)
+    if settings.backup_dir is None or source is None or not source.exists():
+        print("ft-admin: set BACKUP_DIR, and use a database file that exists", file=sys.stderr)
+        return 1
+    path = backup_database(source, settings.backup_dir, utcnow())
+    removed = prune(settings.backup_dir)
+    print(f"backup written: {path} ({len(removed)} old removed)")
+    return 0
+
+
 def main(
     argv: Sequence[str] | None = None,
     *,
@@ -58,6 +76,8 @@ def main(
 ) -> int:
     args = _parser().parse_args(argv)
     settings = settings or Settings()
+    if args.command == "backup":
+        return _backup(settings)
     upgrade(settings.database_url)
     engine = create_db_engine(settings.database_url)
     try:

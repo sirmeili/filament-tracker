@@ -49,6 +49,8 @@ class Settings(BaseSettings):
     tz: str = "UTC"
     # Only for local development over plain HTTP; production sits behind HTTPS.
     cookie_secure: bool = True
+    # Where the nightly backups go (03:00 in TZ, 14 kept). Unset: no backups.
+    backup_dir: Path | None = None
     # The built web app. Unset: web/build in a source checkout, if it has been built.
     web_dir: Path | None = None
     # Printers to watch over MQTT, as a JSON list (see PrinterConfig).
