@@ -1,13 +1,24 @@
 import { api, ApiError, onUnauthorized } from "#lib/api/client.ts";
 import type { Me } from "#lib/api/types.ts";
+import { setTimeZone } from "#lib/format.ts";
 import { allows, type Role } from "#lib/roles.ts";
 
 /** Who is signed in. `loaded` turns true once the first check has finished. */
 export class Session {
-  user = $state<Me | null>(null);
+  #user = $state<Me | null>(null);
   loaded = $state(false);
   /** True when a signed-in session ended on its own (expired, or signed out elsewhere). */
   expired = $state(false);
+
+  get user(): Me | null {
+    return this.#user;
+  }
+
+  /** The signed-in user; their time zone becomes the one every time is shown in. */
+  set user(user: Me | null) {
+    this.#user = user;
+    if (user) setTimeZone(user.time_zone);
+  }
 
   constructor() {
     onUnauthorized(() => {

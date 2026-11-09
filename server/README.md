@@ -71,7 +71,7 @@ On the Devices page, registering a scanner or rotating its token also offers a Q
 
 ## Tag key constant
 
-Scanners and the phone app read tags with keys derived from each tag's UID and a published constant. The server keeps the constant in `BAMBU_KDF_SALT` (hex) and hands it to a device at `GET /api/v1/devices/provisioning` (device token, LAN only). It is not generated: it is the constant documented by the Bambu Research Group's RFID-Tag-Guide, and it is never committed. Put it in `.env`, then check it against your own dumps, which still hold the real keys:
+Scanners and the phone app read tags with keys derived from each tag's UID and a published constant. The server keeps the constant (hex) in the **Scanners** group of the Settings page, stored encrypted, with `BAMBU_KDF_SALT` in `.env` as the starting value, and hands it to a device at `GET /api/v1/devices/provisioning` (device token, LAN only). It is not generated: it is the constant documented by the Bambu Research Group's RFID-Tag-Guide, and it is never committed. Save it on the Settings page (or put it in `.env`), then check the one in use against your own dumps, which still hold the real keys:
 
 ```powershell
 uv run ft-sim check-salt C:\tag-dumps\*.zip
@@ -159,7 +159,7 @@ To see them, open Developer tools → Events in Home Assistant, listen to `filam
 
 ### The Settings page
 
-Admins can set everything above on the **Settings** page, without restarting the server:
+Admins can set everything above on the **Settings** page, without restarting the server. The page also has a **General** group (the time zone every time in the web app is shown in, `TZ`, `UTC` by default; and how long a sign-in lasts, `SESSION_DAYS`, which applies from the next sign-in) and a **Scanners** group (the tag key constant), which work the same way:
 
 - **Where values come from**: each one is labelled **From .env**, **Saved here** or **Default**. A value saved on the page is used instead of the `.env` one; **Use the .env value** goes back to it. An empty value saved on the page turns that setting off, even if `.env` sets it.
 - **Passwords and tokens** are stored encrypted and never shown again. Leave the box empty to keep the saved one; **Clear** removes it.

@@ -84,7 +84,7 @@ describe("header", () => {
   it("has the account button and the theme control", async () => {
     const theme = new Theme(document.createElement("html"), freshStorage(), undefined);
     render(Header, {
-      user: { id: 1, username: "frank", role: "admin" },
+      user: { id: 1, username: "frank", role: "admin", time_zone: "UTC" },
       pathname: "/account",
       theme,
       reviewCount: 2,
@@ -107,7 +107,7 @@ describe("header", () => {
   it("has a Scan button only in the phone app", () => {
     const theme = new Theme(document.createElement("html"), freshStorage(), undefined);
     const props = {
-      user: { id: 1, username: "frank", role: "viewer" as const },
+      user: { id: 1, username: "frank", role: "viewer" as const, time_zone: "UTC" },
       pathname: "/",
       theme,
       reviewCount: 0,

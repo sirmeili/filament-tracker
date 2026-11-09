@@ -7,7 +7,43 @@ export interface FieldInfo {
   label: string;
   help: string;
   placeholder?: string;
+  inputmode?: "numeric" | "text";
+  /** Values offered as the admin types. */
+  suggestions?: readonly string[];
 }
+
+/** IANA time zone names this browser knows, UTC first. */
+export function timeZoneNames(
+  supported: ((key: "timeZone") => string[]) | null = Intl.supportedValuesOf ?? null,
+): string[] {
+  const names = typeof supported === "function" ? supported("timeZone") : [];
+  return ["UTC", ...names.filter((name) => name !== "UTC")];
+}
+
+export const GENERAL_FIELDS: readonly FieldInfo[] = [
+  {
+    key: "tz",
+    label: "Time zone",
+    help: "Every time in the web app is shown in it, whatever time zone a device uses.",
+    placeholder: "America/New_York",
+    suggestions: timeZoneNames(),
+  },
+  {
+    key: "session_days",
+    label: "Sign-in length (days)",
+    help: "How long a sign-in lasts, from 1 to 365 days.",
+    placeholder: "30",
+    inputmode: "numeric",
+  },
+];
+
+export const SCANNER_FIELDS: readonly FieldInfo[] = [
+  {
+    key: "bambu_kdf_salt",
+    label: "Key-derivation salt",
+    help: "The constant that turns a tag's UID into its keys, in hex. Empty: scanners and phones can't read tags.",
+  },
+];
 
 export const HOME_ASSISTANT_FIELDS: readonly FieldInfo[] = [
   {

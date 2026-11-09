@@ -1,10 +1,15 @@
 import type { Role } from "#lib/roles.ts";
 
 /** The signed-in user (`GET /auth/me`). */
-export interface Me {
+export interface UserBase {
   id: number;
   username: string;
   role: Role;
+}
+
+export interface Me extends UserBase {
+  /** The server's time zone: the web app shows every time in it. */
+  time_zone: string;
 }
 
 /** Response bodies from server/src/filament_tracker/api/read_schemas.py. */
@@ -141,7 +146,7 @@ export interface DeviceCreated extends DeviceOut {
   token: string;
 }
 
-export interface UserOut extends Me {
+export interface UserOut extends UserBase {
   disabled: boolean;
   created_at: string;
   last_login_at: string | null;
