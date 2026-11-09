@@ -25,13 +25,18 @@ class PasswordChange(Strict):
     new_password: Password
 
 
-class Me(BaseModel):
+class UserBase(BaseModel):
     id: int
     username: str
     role: Role
 
 
-class UserOut(Me):
+class Me(UserBase):
+    # The server's time zone, in which the web app shows every time.
+    time_zone: str
+
+
+class UserOut(UserBase):
     disabled: bool
     created_at: datetime
     last_login_at: datetime | None

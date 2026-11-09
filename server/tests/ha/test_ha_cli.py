@@ -8,6 +8,7 @@ import pytest
 from pydantic import SecretStr
 from sqlalchemy.orm import sessionmaker
 
+from filament_tracker.app_settings import offline
 from filament_tracker.app_settings.crypto import SecretBox
 from filament_tracker.app_settings.store import SettingsStore
 from filament_tracker.config import Settings
@@ -49,7 +50,7 @@ STATES = [
 
 def env_store(**env: Any) -> SettingsStore:
     settings = Settings(database_url="sqlite://", _env_file=None, **env)
-    return SettingsStore(settings, cli._empty_sessions(), SecretBox(KEY))
+    return SettingsStore(settings, offline.empty_sessions(), SecretBox(KEY))
 
 
 class FakeHa:
@@ -191,22 +192,25 @@ def test_states_skip_odd_entries(ha: FakeHa) -> None:
 
 
 def test_database_file() -> None:
-    assert cli._database_file("sqlite://") is None
-    assert cli._database_file("sqlite:///:memory:") is None
-    assert cli._database_file("postgresql://h/db") is None
-    assert cli._database_file("sqlite:///./data/x.db") == Path("./data/x.db")
+    assert offline.database_file("sqlite://") is None
+    assert offline.database_file("sqlite:///:memory:") is None
+    assert offline.database_file("postgresql://h/db") is None
+    assert offline.database_file("sqlite:///./data/x.db") == Path("./data/x.db")
 
 
 def test_key_from_env_or_file_never_created(tmp_path: Path) -> None:
     text = base64.b64encode(KEY).decode()
     url = f"sqlite:///{tmp_path / 'db.sqlite'}"
-    assert cli._key(Settings(database_url=url, settings_key=SecretStr(text), _env_file=None)) == KEY
+    assert (
+        offline.read_key(Settings(database_url=url, settings_key=SecretStr(text), _env_file=None))
+        == KEY
+    )
     plain = Settings(database_url=url, _env_file=None)
-    assert cli._key(plain) is None
+    assert offline.read_key(plain) is None
     assert not (tmp_path / "settings.key").exists()
     (tmp_path / "settings.key").write_text(text + "\n")
-    assert cli._key(plain) == KEY
-    assert cli._key(Settings(database_url="sqlite://", _env_file=None)) is None
+    assert offline.read_key(plain) == KEY
+    assert offline.read_key(Settings(database_url="sqlite://", _env_file=None)) is None
 
 
 def test_open_store_reads_the_servers_database(db_url: str, tmp_path: Path) -> None:
@@ -219,14 +223,14 @@ def test_open_store_reads_the_servers_database(db_url: str, tmp_path: Path) -> N
         {"mqtt_url": "mqtt://b:1883", "ha_token": TOKEN}, [], user_id=None
     )
 
-    store, found = cli.open_store(settings)
+    store, found = offline.open_store(settings)
     assert found
     assert store.text("mqtt_url") == "mqtt://b:1883"
     assert store.text("ha_token") == TOKEN
 
     # Without the key, the saved secret is reported as unreadable.
     (key_dir / "settings.key").unlink()
-    store, _ = cli.open_store(settings)
+    store, _ = offline.open_store(settings)
     report = cli.settings_report(store, True)
     assert "  Saved secrets that can't be read (enter them again): ha_token  <-- problem" in (
         report.lines
@@ -236,13 +240,13 @@ def test_open_store_reads_the_servers_database(db_url: str, tmp_path: Path) -> N
 
 def test_open_store_without_a_database(tmp_path: Path) -> None:
     missing = Settings(database_url=f"sqlite:///{tmp_path / 'none.db'}", _env_file=None)
-    store, found = cli.open_store(missing)
+    store, found = offline.open_store(missing)
     assert not found
     assert not (tmp_path / "none.db").exists()
     # A database from before the settings table is treated the same way.
     old = tmp_path / "old.db"
     create_db_engine(f"sqlite:///{old}").connect().close()
-    assert cli.open_store(Settings(database_url=f"sqlite:///{old}", _env_file=None))[1] is False
+    assert offline.open_store(Settings(database_url=f"sqlite:///{old}", _env_file=None))[1] is False
 
 
 def test_main(ha: FakeHa, capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:

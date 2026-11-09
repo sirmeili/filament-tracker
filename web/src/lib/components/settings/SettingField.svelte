@@ -26,6 +26,7 @@
   }: Props = $props();
 
   const id = $derived(`setting-${setting.key}`);
+  const listId = $derived(info.suggestions?.length ? `${id}-list` : undefined);
   const placeholder = $derived(
     setting.secret
       ? setting.set
@@ -52,12 +53,19 @@
     autocapitalize="none"
     spellcheck="false"
     maxlength="1024"
+    inputmode={info.inputmode}
+    list={listId}
     {placeholder}
     aria-describedby="{id}-help"
     aria-invalid={problem ? "true" : undefined}
     disabled={busy}
     bind:value
   />
+  {#if listId}
+    <datalist id={listId}>
+      {#each info.suggestions ?? [] as option (option)}<option value={option}></option>{/each}
+    </datalist>
+  {/if}
   <p id="{id}-help" class="help muted">{info.help}</p>
   {#if problem}<p class="error" role="alert">{info.label}: {problem}</p>{/if}
   {#if (setting.secret && setting.set) || setting.source === "app"}

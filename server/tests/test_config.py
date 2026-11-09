@@ -157,3 +157,16 @@ def test_a_bad_printer_entry_does_not_echo_the_access_code(monkeypatch: pytest.M
         Settings(_env_file=None)  # type: ignore[call-arg]
 
     assert code not in str(error.value)
+
+
+def test_the_time_zone_defaults_to_utc_and_is_checked(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("TZ", raising=False)
+    assert Settings(_env_file=None).tz == "UTC"  # type: ignore[call-arg]
+    monkeypatch.setenv("TZ", " America/New_York ")
+    assert Settings(_env_file=None).tz == "America/New_York"  # type: ignore[call-arg]
+    monkeypatch.setenv("TZ", "")
+    assert Settings(_env_file=None).tz == "UTC"  # type: ignore[call-arg]
+    monkeypatch.setenv("TZ", "Mars/Olympus")
+    with pytest.raises(ValidationError) as error:
+        Settings(_env_file=None)  # type: ignore[call-arg]
+    assert "Mars/Olympus" not in str(error.value)

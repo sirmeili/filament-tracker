@@ -32,7 +32,7 @@ def test_login_sets_a_strict_session_cookie_and_returns_the_user(
     response = login(client, "ALICE")
 
     assert response.status_code == 200
-    assert response.json() == {"id": 1, "username": "alice", "role": "editor"}
+    assert response.json() == {"id": 1, "username": "alice", "role": "editor", "time_zone": "UTC"}
     cookie = response.headers["set-cookie"].lower()
     for attribute in ("ft_session=", "httponly", "secure", "samesite=strict", "path=/"):
         assert attribute in cookie

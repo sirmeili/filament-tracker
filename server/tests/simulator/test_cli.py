@@ -222,7 +222,8 @@ SALT = bytes(range(16))  # made up; the real constant is never in the repo
 
 
 def _salted(salt: str | None) -> Settings:
-    return Settings(bambu_kdf_salt=salt, _env_file=None)  # type: ignore[arg-type]
+    # An in-memory database, so the test never reads a real server/data database.
+    return Settings(database_url="sqlite://", bambu_kdf_salt=salt, _env_file=None)  # type: ignore[arg-type]
 
 
 def test_check_salt_confirms_a_matching_salt(tmp_path: Path, capsys) -> None:
@@ -256,4 +257,29 @@ def test_check_salt_reports_a_wrong_salt_and_unreadable_dumps(tmp_path: Path, ca
 
 def test_check_salt_needs_the_salt(tmp_path: Path, capsys) -> None:
     assert main(["check-salt", str(tmp_path / "a.bin")], settings=_salted(None)) == 2
-    assert "Set BAMBU_KDF_SALT" in capsys.readouterr().err
+    assert "Set the salt first" in capsys.readouterr().err
+
+
+def test_check_salt_uses_the_salt_saved_in_the_app(tmp_path: Path, db_url: str, capsys) -> None:
+    import base64
+
+    from filament_tracker.app_settings.crypto import SecretBox
+    from filament_tracker.app_settings.store import SettingsStore
+    from filament_tracker.db.engine import create_db_engine, create_session_factory
+
+    path = tmp_path / "a.bin"
+    path.write_bytes(SyntheticTag().image(salt=SALT))
+    key = bytes(range(32))
+    key_file = Path(db_url.removeprefix("sqlite:///")).parent / "settings.key"
+    key_file.write_text(base64.b64encode(key).decode())
+    # .env has a wrong salt; the one saved in the app wins.
+    settings = Settings(database_url=db_url, bambu_kdf_salt="00" * 16, _env_file=None)  # type: ignore[arg-type]
+    sessions = create_session_factory(create_db_engine(db_url))
+    SettingsStore(settings, sessions, SecretBox(key)).save({"bambu_kdf_salt": SALT.hex()})
+
+    assert main(["check-salt", str(path)], settings=settings) == 0
+    assert "BAMBU_KDF_SALT is correct." in capsys.readouterr().out
+
+    key_file.unlink()
+    assert main(["check-salt", str(path)], settings=settings) == 2
+    assert "can't be read" in capsys.readouterr().err

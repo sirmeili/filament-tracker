@@ -44,6 +44,7 @@ describe("LoginForm", () => {
       id: 1,
       username: "alice",
       role: "viewer",
+      time_zone: "UTC",
     });
     render(LoginForm, { session });
 
@@ -81,7 +82,7 @@ describe("LoginForm", () => {
     let finish: () => void = () => {};
     vi.spyOn(session, "login").mockReturnValue(
       new Promise((resolve) => {
-        finish = () => resolve({ id: 1, username: "alice", role: "viewer" });
+        finish = () => resolve({ id: 1, username: "alice", role: "viewer", time_zone: "UTC" });
       }),
     );
     render(LoginForm, { session });

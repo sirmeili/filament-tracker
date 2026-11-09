@@ -53,7 +53,7 @@ const UsersPage = (await import("./users/+page.svelte")).default;
 const AccountPage = (await import("./account/+page.svelte")).default;
 
 function signedInAs(role: Role): void {
-  session.user = { id: 1, username: "frank", role };
+  session.user = { id: 1, username: "frank", role, time_zone: "UTC" };
   session.loaded = true;
 }
 

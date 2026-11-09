@@ -3,7 +3,7 @@
 
 import { api, ApiError } from "#lib/api/client.ts";
 
-export type SettingsGroup = "home-assistant";
+export type SettingsGroup = "general" | "scanners" | "home-assistant";
 export type SettingSource = "app" | "env" | "default";
 export type CheckResult = "ok" | "off" | "unreachable" | "refused" | "error";
 

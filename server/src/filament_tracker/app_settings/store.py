@@ -23,6 +23,9 @@ from filament_tracker.db.types import utcnow
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_SESSION_DAYS = 30
+DEFAULT_TIME_ZONE = "UTC"
+
 
 class Source(StrEnum):
     APP = "app"
@@ -106,6 +109,14 @@ class SettingsStore:
     def secret(self, key: str) -> SecretStr | None:
         value = self.current(key).value
         return None if value is None else SecretStr(value)
+
+    def session_days(self) -> int:
+        """How long a new sign-in lasts."""
+        return int(self.text("session_days") or DEFAULT_SESSION_DAYS)
+
+    def time_zone(self) -> str:
+        """The time zone for every time the web app shows."""
+        return self.text("tz") or DEFAULT_TIME_ZONE
 
     def check(self, values: dict[str, str], keys: Iterable[str] | None = None) -> dict[str, str]:
         """Cleaned values, or SettingsInvalid naming each refused key. `keys` limits which

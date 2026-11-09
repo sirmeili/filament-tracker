@@ -61,10 +61,10 @@ def heartbeat(body: Heartbeat, device: ScannerDevice, session: SessionDep) -> Re
 @router.get("/devices/provisioning", response_model=Provisioning)
 def provisioning(_: ScannerDevice, request: Request, response: Response) -> Provisioning:
     """The tag key-derivation constant, for a scanner or the phone app after pairing."""
-    salt = request.app.state.settings.bambu_kdf_salt
+    salt = request.app.state.settings_store.secret("bambu_kdf_salt")
     if salt is None:
         raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE, "BAMBU_KDF_SALT is not set on the server"
+            status.HTTP_503_SERVICE_UNAVAILABLE, "The key-derivation salt is not set on the server"
         )
     response.headers["Cache-Control"] = "no-store"
     return Provisioning(kdf_salt=salt.get_secret_value())

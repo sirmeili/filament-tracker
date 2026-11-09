@@ -20,29 +20,67 @@ export const STATE_LABELS: Record<SpoolState, string> = {
   unknown: "Unknown",
 };
 
-const DAY = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
-const DAY_YEAR = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-});
-const TIME = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" });
+function formatsFor(timeZone: string | undefined) {
+  return {
+    day: new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone }),
+    dayYear: new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      timeZone,
+    }),
+    time: new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone }),
+    // "2026-11-09": the calendar day, for comparing days.
+    ymd: new Intl.DateTimeFormat("en-CA", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      timeZone,
+    }),
+  };
+}
+
+let zone: string | undefined;
+let formats = formatsFor(undefined);
+
+/** Show every time in the server's time zone (from the signed-in user), whatever the
+ * device uses. Unset, or a name this browser does not know: the device's own. */
+export function setTimeZone(timeZone: string | null | undefined): void {
+  try {
+    formats = formatsFor(timeZone || undefined);
+    zone = timeZone || undefined;
+  } catch {
+    formats = formatsFor(undefined);
+    zone = undefined;
+  }
+}
+
+/** The time zone in use, or undefined for the device's own. */
+export function currentTimeZone(): string | undefined {
+  return zone;
+}
+
+/** The calendar day in the time zone in use, as "2026-11-09". */
+export function calendarDay(at: number | Date): string {
+  return formats.ymd.format(at);
+}
 
 /** "Oct 12", or "Oct 12, 2025" outside the current year; "—" for none. */
 export function shortDate(iso: string | null, now: Date = new Date()): string {
   if (!iso) return "—";
   const date = new Date(iso);
-  return (date.getFullYear() === now.getFullYear() ? DAY : DAY_YEAR).format(date);
+  const sameYear = calendarDay(date).slice(0, 4) === calendarDay(now).slice(0, 4);
+  return (sameYear ? formats.day : formats.dayYear).format(date);
 }
 
 /** "4:05 PM" */
 export function clockTime(at: number | Date): string {
-  return TIME.format(at);
+  return formats.time.format(at);
 }
 
 /** "Oct 12, 4:05 PM" */
 export function dateTime(iso: string, now: Date = new Date()): string {
-  return `${shortDate(iso, now)}, ${TIME.format(new Date(iso))}`;
+  return `${shortDate(iso, now)}, ${clockTime(new Date(iso))}`;
 }
 
 const EVENT_TITLES: Record<string, string> = {

@@ -131,7 +131,8 @@ test("admins save a Home Assistant setting, test it and go back to the default",
   await expect(prefix).toHaveValue("homeassistant");
 
   await prefix.fill("e2e-ha");
-  await page.getByRole("button", { name: "Save" }).click();
+  const ha = page.getByRole("form", { name: "Home Assistant" });
+  await ha.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("status")).toHaveText(/Saved\./);
   await expect(page.getByText("Saved here", { exact: true })).toBeVisible();
 
@@ -143,6 +144,22 @@ test("admins save a Home Assistant setting, test it and go back to the default",
   await page.getByRole("button", { name: "Use the .env value for Discovery prefix" }).click();
   await expect(prefix).toHaveValue("homeassistant");
   await expect(page.getByText("Saved here", { exact: true })).toHaveCount(0);
+});
+
+test("admins set the time zone, and the web app uses it", async ({ page }) => {
+  await signInAt(page, "/settings", "e2e-admin");
+  const zone = page.getByLabel("Time zone", { exact: true });
+  await expect(zone).toHaveValue("UTC");
+
+  const general = page.getByRole("form", { name: "General" });
+  await zone.fill("America/Chicago");
+  await general.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("status")).toHaveText("Saved.");
+  const me = await page.evaluate(() => fetch("/api/v1/auth/me").then((r) => r.json()));
+  expect(me.time_zone).toBe("America/Chicago");
+
+  await page.getByRole("button", { name: "Use the .env value for Time zone" }).click();
+  await expect(zone).toHaveValue("UTC");
 });
 
 test("the Settings page is for admins only", async ({ page }) => {

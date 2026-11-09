@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
+from filament_tracker.app_settings.offline import open_store
 from filament_tracker.config import Settings
 from filament_tracker.decoder.keys import SECTORS, matching_keys
 from filament_tracker.decoder.synthetic import SyntheticTag
@@ -78,11 +79,20 @@ def main(
 
 
 def _check_salt(args: argparse.Namespace, settings: Settings) -> int:
-    """Say whether the salt reproduces each dump's keys. Prints no keys, UIDs or names."""
-    if settings.bambu_kdf_salt is None:
-        print("Set BAMBU_KDF_SALT (in server/.env) first.", file=sys.stderr)
+    """Say whether the salt the server uses (saved in the app, else BAMBU_KDF_SALT in
+    server/.env) reproduces each dump's keys. Prints no keys, UIDs or names."""
+    store, _ = open_store(settings)
+    current = store.current("bambu_kdf_salt")
+    if current.value is None:
+        if current.unreadable:
+            print("The salt saved in the app can't be read without its key.", file=sys.stderr)
+        else:
+            print(
+                "Set the salt first: Settings > Scanners, or BAMBU_KDF_SALT in server/.env.",
+                file=sys.stderr,
+            )
         return 2
-    salt = bytes.fromhex(settings.bambu_kdf_salt.get_secret_value())
+    salt = bytes.fromhex(current.value)
     all_match = True
     for number, path in enumerate(_expand(args.dumps), start=1):
         try:
