@@ -36,7 +36,8 @@ test("admins see the printer and what is in its AMS", async ({ page }) => {
   await signInAt(page, "/devices", "e2e-admin");
   const printer = page.getByRole("article", { name: "E2E P1S" });
 
-  await expect(printer).toContainText("Not configured");
+  await expect(printer).toContainText("Not connecting");
+  await expect(printer).toContainText("No access code saved");
   await expect(printer).toContainText("192.0.2.10:8883");
   await expect(printer.getByRole("listitem", { name: "AMS 1, slot 1" })).toContainText(
     "Black PLA Basic #2",
@@ -48,6 +49,37 @@ test("admins see the printer and what is in its AMS", async ({ page }) => {
 
   await printer.getByRole("link", { name: /White PLA Basic #4/ }).click();
   await expect(page.getByText("Loaded in AMS 1, slot 2 on E2E P1S")).toBeVisible();
+});
+
+test("admins add a printer, test it, rename it and remove it", async ({ page }) => {
+  await signInAt(page, "/devices", "e2e-admin");
+  await page.getByRole("button", { name: "Add printer" }).click();
+  const form = page.getByRole("form", { name: "Add a printer" });
+  await form.getByLabel("Name").fill("E2E Garage");
+  // Port 1 on this machine refuses at once, so the server's link fails fast.
+  await form.getByLabel("Address").fill("127.0.0.1");
+  await form.getByLabel("Port").fill("1");
+  await form.getByLabel("Serial").fill("E2E0002");
+  await form.getByLabel("Access code").fill("e2e-code");
+  await form.getByRole("button", { name: "Add printer" }).click();
+  await expect(page.getByRole("status")).toHaveText(/Added E2E Garage\./);
+
+  const card = page.getByRole("article", { name: "E2E Garage" });
+  await expect(card).toContainText("127.0.0.1:1");
+  await expect(card).not.toContainText("e2e-code");
+  await card.getByRole("button", { name: "Edit" }).click();
+  const edit = card.getByRole("form", { name: "Edit E2E Garage" });
+  await edit.getByRole("button", { name: "Test" }).click();
+  await expect(edit.getByRole("status")).toHaveText(/Can't reach the printer/);
+  await edit.getByLabel("Name").fill("E2E Shed");
+  await edit.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("status")).toHaveText(/Saved E2E Shed\./);
+
+  const renamed = page.getByRole("article", { name: "E2E Shed" });
+  await renamed.getByRole("button", { name: "Remove" }).click();
+  await renamed.getByRole("button", { name: "Remove" }).click();
+  await expect(page.getByRole("status")).toHaveText("Removed E2E Shed.");
+  await expect(page.getByRole("article", { name: "E2E Shed" })).toHaveCount(0);
 });
 
 test("editors add a spool by hand with a new product", async ({ page }) => {

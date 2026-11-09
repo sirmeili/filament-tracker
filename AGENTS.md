@@ -107,7 +107,7 @@ Upon user acceptance of a completed feature or step, you must commit your code, 
 
   * Scan simulator: `uv run ft-sim scan <dump.bin|export.zip> --action lookup|received|opened|empty` and `uv run ft-sim generate <out.bin>`. `uv run ft-sim check-salt <dumps>` checks the salt in use (saved on the Settings page, else `BAMBU_KDF_SALT`) against saved dumps without printing keys. It needs `FT_TOKEN` (a registered device token); see `server/README.md`. Tag dumps never go in the repo.
 
-  * Real printer check: `uv run ft-printer check [--dump <dump.zip>] [--save captures/<name>.jsonl]`, using `PRINTERS` from `server/.env`; see `server/README.md`. Captures stay out of the repo.
+  * Real printer check: `uv run ft-printer check [--dump <dump.zip>] [--save captures/<name>.jsonl]`, using the printers saved in the app (or `PRINTERS` from `server/.env`); see `server/README.md`. Captures stay out of the repo.
 
   * Home Assistant check: `uv run ft-ha check [--event]`, using the Home Assistant settings the server uses; see `server/README.md`. It prints counts and states only.
 
