@@ -17,6 +17,7 @@ from pydantic import SecretStr
 
 TIMEOUT_SECONDS = 10.0
 MAX_ERROR_BODY = 2000
+MAX_STATES_BODY = 16 * 1024 * 1024  # every entity's state; a large install is a few MB
 
 
 class Problem(StrEnum):
@@ -82,7 +83,21 @@ class HaRest:
         """Raise HaRestError unless the address answers and accepts the token."""
         self._request("GET", "/api/")
 
-    def _request(self, method: str, path: str, body: dict[str, Any] | None = None) -> Any:
+    def states(self) -> list[dict[str, Any]]:
+        """Every entity's state, for `ft-ha check`."""
+        result = self._request("GET", "/api/states", max_bytes=MAX_STATES_BODY)
+        if not isinstance(result, list):
+            raise HaRestError(Problem.ERROR)
+        return [state for state in result if isinstance(state, dict)]
+
+    def _request(
+        self,
+        method: str,
+        path: str,
+        body: dict[str, Any] | None = None,
+        *,
+        max_bytes: int = MAX_ERROR_BODY,
+    ) -> Any:
         request = urllib.request.Request(  # noqa: S310 - the scheme is checked in __post_init__
             self.url + path,
             method=method,
@@ -94,7 +109,7 @@ class HaRest:
         )
         try:
             with self.opener(request, timeout=TIMEOUT_SECONDS) as response:
-                return json.loads(response.read(MAX_ERROR_BODY) or b"null")
+                return json.loads(response.read(max_bytes) or b"null")
         except urllib.error.HTTPError as error:
             problem = Problem.REFUSED if error.code in (401, 403) else Problem.ERROR
             raise HaRestError(problem, error.code) from None
