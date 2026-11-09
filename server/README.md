@@ -189,7 +189,7 @@ Checklist before a release that changes the Home Assistant link:
 3. Record an action (a scan, the phone or the web app): the totals change in Home Assistant within about 5 seconds.
 4. Stop the server: the entities show as unavailable. Start it: they come back.
 5. Restart Home Assistant: the entities come back with their values without restarting the server.
-6. Developer tools → Events, listening to `filament_tracker_spool_opened` (and the others): each action fires one event with the spool, product, color and source. `ft-ha check --event` fires `filament_tracker_check`.
+6. Developer tools → Events, listening to `filament_tracker_spool_opened` (and the others; the listener takes an exact event name, or `*` for every event, not a pattern such as `filament_tracker_*`): each action fires one event with the spool, product, color and source. `ft-ha check --event` fires `filament_tracker_check`.
 7. Set a product's low-stock threshold to its sealed count: `filament_tracker_low_stock` fires once, Low filament turns on and lists it, and the example automation adds it to the shopping list and notifies the phone. Put the threshold back.
 8. On the Settings page, **Test** reports both links working; with a wrong password typed in, it reports the broker refused it. **Save** a change and the link reconnects without a restart.
 

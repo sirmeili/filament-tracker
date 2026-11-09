@@ -38,6 +38,7 @@
 - M8 part 4, the phone checklist on a Pixel 9 Pro XL and the fixes it found (no plugin data in the phone's log, loopback addresses refused, a 5 s request limit, one read at a time, a beep and buzz after a full read), merged (PR #27). **M8 complete.**
 - M8 part 3, the Android app with its Kotlin NFC plugin, Keystore storage, QR scanning and the Android CI job, merged (PR #26).
 - M6 part 3, the Settings page with the Home Assistant settings, secrets encrypted with `SETTINGS_KEY` or `settings.key`, applied without a restart, merged (PR #34).
+- M6 part 4, `ft-ha check` and the Home Assistant checklist, run against the owner's Home Assistant (2026-11-09): all 5 entities match the broker, the test event and a spool received event arrive. PR opened from `feature/ha-check`. **M6 complete.**
 - M8 part 2, the phone app's logic in the web app (bridge interface, pairing, device API, offline decode and queue, Scan flow, Scan and Pairing pages), merged (PR #25).
 - M2 part 7, the Review, Activity, Devices, Users and Account pages, manual entry, Review Bring back, the scanner heartbeat and the Activity source filter, merged (PR #18). **M2 complete.**
 - M2 plan approved: seven branches (spec, users and auth, read API, write API, web foundation, stock pages, admin pages).
@@ -45,22 +46,15 @@
 
 ## In progress
 
-- M6, Home Assistant. Plan approved (2026-11-06): four branches (MQTT discovery entities; HA events and an example automation; an Admin Settings page for the Home Assistant settings, with secrets encrypted in the database; a check against the owner's Home Assistant, which uses the Mosquitto add-on).
 - Phone Scan screen redesign, from the mockups in `docs/mockups/mobile-scanner/` (merged in PR #30). Plan approved (2026-11-06): two branches, before M6 part 3.
 - Phone Scan screen redesign complete: part 1 merged in PR #31, part 2 (the Delivery mode) in PR #32.
 - Settings spec merged (PR #33).
 - M6 part 3 merged (PR #34).
 - Print requests direction added to the spec (PR #35).
-- `feature/ha-check` (M6 part 4): the check against the owner's Home Assistant. Plan approved (2026-11-09): `ft-ha check`, a checklist in `server/README.md`, a run against the owner's Home Assistant, then docs.
-  - Done: `ft-ha check` (`ha/diagnose.py`, `ha/cli.py`): uses the settings the server uses (read from its database and key, never created), reads the server's retained messages from the broker (5 discovery messages, old ones left behind, availability, totals, low filament), compares them with the 5 entities Home Assistant shows through its REST API, and `--event` fires one `filament_tracker_check` event. It prints counts and states only, never an address, user, password or token. Tests with fakes and against the local Mosquitto broker.
-  - First run against the owner's Home Assistant (2026-11-09): broker connected, 5 of 5 discovery messages, online, totals and low filament published. The Home Assistant address and token are not set, so events are off and the entities can't be compared yet.
-  - Done: the checklist (`server/README.md`, Check against Home Assistant), a Home Assistant on hardware row in the spec's Testing table, and the command in AGENTS.md.
-  - Next: the owner sets the Home Assistant address and token on the Settings page; run the check and the checklist.
 - Done, PR #32 (part 2, the Delivery mode): a Delivery toggle on the waiting screen; while it is on, the top of Scan lists the spools recorded in the session (color, name, time, number, queued until sent, Undone), with totals and Clear, and the bottom is one panel (Ready, the spool with its keys and 15 s bar, then what was recorded with Undo and a 3 s bar). Only the newest row has Undo. The list is kept in memory until the app closes (leaving Scan keeps it) and cleared when the pairing is forgotten. The last scan now carries the spool as the server has it, so a new tag's row shows its number. The Delivery button widens to fit its label at large phone text sizes, and the Ready icon pulses like the waiting screen's target. Spec updated (Phone scanner, Unpacking a delivery).
 
 ## Next
 
-- M6 part 4: the check against the owner's Home Assistant.
 - M9 Deployment: printers and the remaining settings in the app, machine tokens, first-start setup, the Docker image and Compose file, nightly backups.
 - M10 and M11, print requests Phase 2 and Phase 3 (see SPEC Future enhancements: print requests), before the firmware milestones.
 - Later (owner's request, 2026-11-06, in SPEC Future enhancements): the theme choice moves to the Account page; a phone app setting for the start screen (Scan or the web app); a bottom bar on phones with a menu button, Scan and the user.
