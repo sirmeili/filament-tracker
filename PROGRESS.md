@@ -49,7 +49,8 @@
 - M9, Deployment. Plan approved (2026-11-09): five branches merged in order (General and Scanners settings in the app, with the repo rename and the M9 spec decisions; printers on the Devices page; machine tokens; first-start setup; the Docker image, Compose file, nightly backups and the image published to GHCR, then a walkthrough on the owner's home server).
 - `feature/settings-general` (M9 part 1):
   - Done: the GitHub repo renamed to `sirmeili/rollcall` (the old address redirects) and the local remote updated; the spec and README use the working name Rollcall; the spec records the M9 decisions (a private `ghcr.io/sirmeili/rollcall` image for x86-64 built by GitHub Actions, Docker Compose on the owner's home server, the time zone setting covering every time in the web app and the 03:00 backup, `UTC` by default). `tzdata` added to the server (no advisories; the time zone database Python lacks on Windows).
-  - Next: the General (time zone, sign-in length) and Scanners (`BAMBU_KDF_SALT`) settings groups, used by sign-in, provisioning, `ft-sim check-salt` and the web app's times.
+  - Done (server): the General (`tz`, `session_days`) and Scanners (`bambu_kdf_salt`, stored encrypted) settings groups. New sign-ins use the saved sign-in length, `/devices/provisioning` serves the saved salt, `/auth/me` returns the time zone, and `ft-sim check-salt` checks the salt in use (read with `ft-ha check`'s read-only settings code, now `app_settings/offline.py`). `TZ` in `.env` is checked against the time zone names and defaults to `UTC`.
+  - Next: the Settings page shows the General and Scanners groups, and the web app shows every time in the server's time zone.
 - Phone Scan screen redesign, from the mockups in `docs/mockups/mobile-scanner/` (merged in PR #30). Plan approved (2026-11-06): two branches, before M6 part 3.
 - Phone Scan screen redesign complete: part 1 merged in PR #31, part 2 (the Delivery mode) in PR #32.
 - Settings spec merged (PR #33).

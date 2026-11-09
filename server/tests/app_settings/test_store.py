@@ -126,7 +126,15 @@ def test_refused_values_are_not_saved_or_repeated(sessions: sessionmaker[Session
         ({"ha_discovery_prefix": "bad prefix!"}, "ha_discovery_prefix"),
         ({"ha_url": "ftp://ha"}, "ha_url"),
         ({"mqtt_user": "x" * 2000}, "mqtt_user"),
-        ({"session_days": "5"}, "session_days"),
+        ({"database_url": "sqlite://"}, "database_url"),  # .env only
+        ({"session_days": "0"}, "session_days"),
+        ({"session_days": "366"}, "session_days"),
+        ({"session_days": "two"}, "session_days"),
+        ({"session_days": ""}, "session_days"),
+        ({"tz": "Mars/Olympus"}, "tz"),
+        ({"tz": ""}, "tz"),
+        ({"bambu_kdf_salt": "abc"}, "bambu_kdf_salt"),
+        ({"bambu_kdf_salt": "zz"}, "bambu_kdf_salt"),
     ],
 )
 def test_each_setting_is_checked(
@@ -135,6 +143,32 @@ def test_each_setting_is_checked(
     with pytest.raises(SettingsInvalid) as error:
         store(sessions).save(values)
     assert key in error.value.problems
+
+
+def test_general_and_scanner_settings(sessions: sessionmaker[Session]) -> None:
+    salt = "0a1b2c3d"  # test value, not the real constant
+    s = store(sessions, session_days=7, tz="America/Chicago")
+    assert (s.session_days(), s.time_zone()) == (7, "America/Chicago")
+    assert s.secret("bambu_kdf_salt") is None
+
+    s.save({"session_days": " 14 ", "tz": "Europe/Berlin", "bambu_kdf_salt": salt})
+    assert (s.session_days(), s.time_zone()) == (14, "Europe/Berlin")
+    assert s.secret("bambu_kdf_salt") == SecretStr(salt.upper())
+    with sessions() as session:
+        row = session.get(Setting, "bambu_kdf_salt")
+        assert row is not None and row.secret and salt.upper() not in row.value
+
+
+def test_defaults_without_env(sessions: sessionmaker[Session]) -> None:
+    s = store(sessions)
+    assert (s.session_days(), s.time_zone()) == (30, "UTC")
+    assert s.current("tz").source is Source.DEFAULT
+
+
+def test_a_bad_salt_is_refused_without_repeating_it(sessions: sessionmaker[Session]) -> None:
+    with pytest.raises(SettingsInvalid) as error:
+        store(sessions).save({"bambu_kdf_salt": "secretvalue"})
+    assert "secretvalue" not in str(error.value)
 
 
 def test_only_settings_of_the_group_are_accepted(sessions: sessionmaker[Session]) -> None:

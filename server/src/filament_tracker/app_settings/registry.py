@@ -2,18 +2,22 @@
 
 Each one names its `.env` setting (the starting value), whether it is a secret, and how a
 value is checked. Check errors never repeat the value, which may be a secret or hold one.
-Groups other than Home Assistant arrive in M9 (see Milestones in docs/SPEC.md).
+Printers are not here: they have their own table and page.
 """
 
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import cache
+from zoneinfo import available_timezones
 
 from filament_tracker.ha.broker import parse_mqtt_url
 from filament_tracker.ha.rest import parse_ha_url
 
 MAX_VALUE = 1024
 PREFIX_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}(/[A-Za-z0-9_-]{1,64}){0,3}$")
+SALT_PATTERN = re.compile(r"(?:[0-9A-Fa-f]{2}){1,64}")
+MIN_SESSION_DAYS, MAX_SESSION_DAYS = 1, 365
 
 
 def _mqtt_url(value: str) -> str:
@@ -29,6 +33,36 @@ def _prefix(value: str) -> str:
     if not PREFIX_PATTERN.fullmatch(value):
         raise ValueError("use letters, digits, - and _, with up to three / between parts")
     return value
+
+
+@cache
+def time_zones() -> frozenset[str]:
+    """IANA time zone names (from tzdata, so the same on every platform)."""
+    return frozenset(available_timezones())
+
+
+def time_zone(value: str) -> str:
+    """An IANA time zone name such as America/New_York. The error never repeats it."""
+    if value not in time_zones():
+        raise ValueError("use a time zone name such as America/New_York or UTC")
+    return value
+
+
+def session_days(value: str) -> str:
+    try:
+        days = int(value)
+    except ValueError:
+        raise ValueError("use a whole number of days") from None
+    if not MIN_SESSION_DAYS <= days <= MAX_SESSION_DAYS:
+        raise ValueError(f"use {MIN_SESSION_DAYS} to {MAX_SESSION_DAYS} days")
+    return str(days)
+
+
+def kdf_salt(value: str) -> str:
+    """The key-derivation constant as upper-case hex. The error never repeats it."""
+    if not SALT_PATTERN.fullmatch(value):
+        raise ValueError("use hex: an even number of digits, at most 128")
+    return value.upper()
 
 
 def _plain(value: str) -> str:
@@ -58,9 +92,13 @@ class SettingDef:
         return self.check(value)
 
 
+GENERAL = "general"
 HOME_ASSISTANT = "home-assistant"
+SCANNERS = "scanners"
 
 DEFINITIONS: tuple[SettingDef, ...] = (
+    SettingDef("tz", GENERAL, "tz", optional=False, check=time_zone),
+    SettingDef("session_days", GENERAL, "session_days", optional=False, check=session_days),
     SettingDef("mqtt_url", HOME_ASSISTANT, "mqtt_url", check=_mqtt_url),
     SettingDef("mqtt_user", HOME_ASSISTANT, "mqtt_user"),
     SettingDef("mqtt_password", HOME_ASSISTANT, "mqtt_password", secret=True),
@@ -69,6 +107,7 @@ DEFINITIONS: tuple[SettingDef, ...] = (
     ),
     SettingDef("ha_url", HOME_ASSISTANT, "ha_url", check=_ha_url),
     SettingDef("ha_token", HOME_ASSISTANT, "ha_token", secret=True),
+    SettingDef("bambu_kdf_salt", SCANNERS, "bambu_kdf_salt", secret=True, check=kdf_salt),
 )
 
 BY_KEY = {d.key: d for d in DEFINITIONS}

@@ -3,6 +3,7 @@
 from fastapi import APIRouter, HTTPException, Request, Response, status
 
 from filament_tracker.api.account_schemas import LoginRequest, Me, PasswordChange
+from filament_tracker.app_settings.store import SettingsStore
 from filament_tracker.auth import (
     SESSION_COOKIE,
     DbSession,
@@ -37,16 +38,25 @@ def _address(request: Request) -> str:
     return str(client_ip(request, settings_of(request)) or "unknown")
 
 
-def me_out(user: User) -> Me:
-    return Me(id=user.id, username=user.username, role=user.role)
+def _store(request: Request) -> SettingsStore:
+    return request.app.state.settings_store
 
 
-def _set_cookie(request: Request, response: Response, token: str) -> None:
+def me_out(request: Request, user: User) -> Me:
+    return Me(
+        id=user.id,
+        username=user.username,
+        role=user.role,
+        time_zone=_store(request).time_zone(),
+    )
+
+
+def _set_cookie(request: Request, response: Response, token: str, days: int) -> None:
     settings = settings_of(request)
     response.set_cookie(
         SESSION_COOKIE,
         token,
-        max_age=settings.session_days * 24 * 3600,
+        max_age=days * 24 * 3600,
         path="/",
         httponly=True,
         secure=settings.cookie_secure,
@@ -65,10 +75,11 @@ def login(body: LoginRequest, request: Request, response: Response, session: DbS
         throttle.failed(body.username, address)
         raise unauthorized(LOGIN_FAILED)
     throttle.succeeded(body.username)
-    token = start_session(session, user, settings_of(request).session_days, utcnow())
+    days = _store(request).session_days()
+    token = start_session(session, user, days, utcnow())
     session.commit()
-    _set_cookie(request, response, token)
-    return me_out(user)
+    _set_cookie(request, response, token, days)
+    return me_out(request, user)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
@@ -91,9 +102,9 @@ def logout(request: Request, session: DbSession) -> Response:
 
 
 @router.get("/me", response_model=Me)
-def me(caller: SignedInUser) -> Me:
+def me(caller: SignedInUser, request: Request) -> Me:
     assert caller.user is not None  # noqa: S101 - guaranteed by SignedInUser
-    return me_out(caller.user)
+    return me_out(request, caller.user)
 
 
 @router.post("/password", status_code=status.HTTP_204_NO_CONTENT)

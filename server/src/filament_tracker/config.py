@@ -45,6 +45,8 @@ class Settings(BaseSettings):
     # Reverse proxies whose X-Forwarded-For header is believed. Empty: none.
     forwarded_allow_ips: Networks = Field(default="", validate_default=True)
     session_days: int = Field(default=30, ge=1, le=365)
+    # The time zone for every time the web app shows and for the nightly backup.
+    tz: str = "UTC"
     # Only for local development over plain HTTP; production sits behind HTTPS.
     cookie_secure: bool = True
     # The built web app. Unset: web/build in a source checkout, if it has been built.
@@ -113,6 +115,16 @@ class Settings(BaseSettings):
         if not re.fullmatch(r"(?:[0-9A-Fa-f]{2}){1,64}", text):
             raise ValueError("BAMBU_KDF_SALT must be hex (an even number of digits, at most 128)")
         return SecretStr(text.upper())
+
+    @field_validator("tz")
+    @classmethod
+    def _time_zone(cls, value: str) -> str:
+        from filament_tracker.app_settings.registry import time_zones
+
+        value = value.strip() or "UTC"
+        if value not in time_zones():
+            raise ValueError("TZ must be a time zone name such as America/New_York or UTC")
+        return value
 
     @field_validator("printers")
     @classmethod

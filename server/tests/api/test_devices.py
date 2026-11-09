@@ -240,4 +240,4 @@ def test_without_a_salt_provisioning_is_unavailable(db_url: str) -> None:
         response = client.get("/api/v1/devices/provisioning", headers=bearer(register(client)))
 
     assert response.status_code == 503
-    assert "BAMBU_KDF_SALT" in response.json()["detail"]
+    assert "salt is not set" in response.json()["detail"]
