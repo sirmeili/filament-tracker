@@ -31,6 +31,10 @@ const admin = vi.hoisted(() => ({
   restoreLikelyEmpty: vi.fn(),
   listPrinters: vi.fn(),
   unpinPrinter: vi.fn(),
+  addPrinter: vi.fn(),
+  editPrinter: vi.fn(),
+  removePrinter: vi.fn(),
+  testPrinter: vi.fn(),
 }));
 vi.mock("#lib/api/admin.ts", () => admin);
 
@@ -725,7 +729,10 @@ function printer(overrides: Partial<PrinterOut> = {}): PrinterOut {
     name: "P1S",
     host: "192.168.1.40",
     port: 8883,
+    serial: "01P00A1",
     configured: true,
+    access_code_set: true,
+    access_code_unreadable: false,
     connection: "connected",
     online: true,
     last_report_at: new Date().toISOString(),
@@ -833,15 +840,31 @@ describe("Devices page, printers", () => {
     expect(within(after).queryByRole("button", { name: "Forget pin" })).toBeNull();
   });
 
-  it("shows printers no longer configured, offline ones, and a load failure", async () => {
+  it("shows printers without an access code, offline ones, and a load failure", async () => {
     admin.listPrinters.mockResolvedValueOnce([
-      printer({ id: 1, name: "Old", configured: false, connection: "not_configured" }),
+      printer({
+        id: 1,
+        name: "Old",
+        configured: false,
+        connection: "not_configured",
+        access_code_set: false,
+      }),
       printer({ id: 2, name: "Garage", online: false, presented_sha256: null }),
+      printer({
+        id: 3,
+        name: "Moved",
+        configured: false,
+        connection: "not_configured",
+        access_code_unreadable: true,
+      }),
     ]);
     const { unmount } = render(DevicesPage);
+    const old = await screen.findByRole("article", { name: "Old" });
+    expect(within(old).getByText("Not connecting")).toBeInTheDocument();
+    expect(within(old).getByRole("alert")).toHaveTextContent("No access code saved");
     expect(
-      within(await screen.findByRole("article", { name: "Old" })).getByText("Not configured"),
-    ).toBeInTheDocument();
+      within(screen.getByRole("article", { name: "Moved" })).getByRole("alert"),
+    ).toHaveTextContent("can't be read with this server's key");
     expect(
       within(screen.getByRole("article", { name: "Garage" })).getByText("Offline"),
     ).toBeInTheDocument();
@@ -850,5 +873,183 @@ describe("Devices page, printers", () => {
     admin.listPrinters.mockRejectedValue(new ApiError(0, "down"));
     render(DevicesPage);
     expect(await screen.findByRole("alert")).toHaveTextContent("Cannot reach the server.");
+  });
+});
+
+describe("Devices page, adding and changing printers", () => {
+  beforeEach(() => {
+    admin.listDevices.mockResolvedValue([]);
+    admin.listPrinters.mockResolvedValue([]);
+  });
+
+  async function fill(form: HTMLElement, values: Record<string, string>): Promise<void> {
+    for (const [label, value] of Object.entries(values)) {
+      const box = within(form).getByLabelText(label);
+      await userEvent.clear(box);
+      if (value) await userEvent.type(box, value);
+    }
+  }
+
+  it("adds a printer after checking the form", async () => {
+    admin.addPrinter.mockResolvedValue(printer({ name: "Garage" }));
+    render(DevicesPage);
+
+    expect(await screen.findByText(/No printers yet. Add one/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Add printer" }));
+    const form = screen.getByRole("form", { name: "Add a printer" });
+    expect(within(form).getByLabelText("Port")).toHaveValue("8883");
+    expect(within(form).queryByRole("button", { name: "Test" })).toBeNull();
+
+    await userEvent.click(within(form).getByRole("button", { name: "Add printer" }));
+    expect(within(form).getByRole("alert")).toHaveTextContent("Enter a name.");
+    await fill(form, { Name: "Garage", Address: "http://printer" });
+    await userEvent.click(within(form).getByRole("button", { name: "Add printer" }));
+    expect(within(form).getByRole("alert")).toHaveTextContent("without http://");
+    await fill(form, { Address: "192.168.1.41", Port: "99999" });
+    await userEvent.click(within(form).getByRole("button", { name: "Add printer" }));
+    expect(within(form).getByRole("alert")).toHaveTextContent("port from 1 to 65535");
+    await fill(form, { Port: "8883", Serial: "bad serial" });
+    await userEvent.click(within(form).getByRole("button", { name: "Add printer" }));
+    expect(within(form).getByRole("alert")).toHaveTextContent("The serial uses");
+    await fill(form, { Serial: "01P00A2" });
+    await userEvent.click(within(form).getByRole("button", { name: "Add printer" }));
+    expect(within(form).getByRole("alert")).toHaveTextContent("Enter the access code");
+    expect(admin.addPrinter).not.toHaveBeenCalled();
+
+    await fill(form, { "Access code": "code1234" });
+    await userEvent.click(within(form).getByRole("button", { name: "Add printer" }));
+
+    expect(admin.addPrinter).toHaveBeenCalledWith({
+      name: "Garage",
+      host: "192.168.1.41",
+      port: 8883,
+      serial: "01P00A2",
+      access_code: "code1234",
+    });
+    expect(await screen.findByRole("status")).toHaveTextContent("Added Garage.");
+    expect(screen.queryByRole("form", { name: "Add a printer" })).toBeNull();
+  });
+
+  it("shows the server's refusal and can be cancelled", async () => {
+    admin.addPrinter.mockRejectedValue(new ApiError(409, "another printer has this serial"));
+    render(DevicesPage);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Add printer" }));
+    const form = screen.getByRole("form", { name: "Add a printer" });
+    await fill(form, {
+      Name: "Dup",
+      Address: "printer.lan",
+      Serial: "01P00A1",
+      "Access code": "code1234",
+    });
+    await userEvent.click(within(form).getByRole("button", { name: "Add printer" }));
+    expect(await within(form).findByRole("alert")).toHaveTextContent(
+      "another printer has this serial.",
+    );
+
+    await userEvent.click(within(form).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("form", { name: "Add a printer" })).toBeNull();
+  });
+
+  it("edits only what changed, keeping the saved access code", async () => {
+    admin.listPrinters.mockResolvedValue([printer()]);
+    admin.editPrinter.mockResolvedValue(printer({ host: "proxy.lan" }));
+    render(DevicesPage);
+
+    const card = await screen.findByRole("article", { name: "P1S" });
+    expect(within(card).getByText("01P00A1")).toBeInTheDocument();
+    await userEvent.click(within(card).getByRole("button", { name: "Edit" }));
+    const form = within(card).getByRole("form", { name: "Edit P1S" });
+    expect(within(form).getByLabelText("Access code")).toHaveAttribute(
+      "placeholder",
+      "Saved. Leave empty to keep it.",
+    );
+    await fill(form, { Address: "proxy.lan" });
+    await userEvent.click(within(form).getByRole("button", { name: "Save" }));
+
+    expect(admin.editPrinter).toHaveBeenCalledWith(1, { host: "proxy.lan" });
+    expect(await screen.findByRole("status")).toHaveTextContent("Saved P1S.");
+    expect(within(card).queryByRole("form")).toBeNull();
+  });
+
+  it("an edit that fails stays open with the problem", async () => {
+    admin.listPrinters.mockResolvedValue([printer()]);
+    admin.editPrinter.mockRejectedValue(new ApiError(409, "another printer has this serial"));
+    render(DevicesPage);
+
+    const card = await screen.findByRole("article", { name: "P1S" });
+    await userEvent.click(within(card).getByRole("button", { name: "Edit" }));
+    const form = within(card).getByRole("form", { name: "Edit P1S" });
+    await fill(form, { Serial: "OTHER", "Access code": "newcode9" });
+    await userEvent.click(within(form).getByRole("button", { name: "Save" }));
+
+    expect(admin.editPrinter).toHaveBeenCalledWith(1, { serial: "OTHER", access_code: "newcode9" });
+    expect(await within(form).findByRole("alert")).toHaveTextContent("another printer");
+    await userEvent.click(within(form).getByRole("button", { name: "Cancel" }));
+    expect(within(card).queryByRole("form")).toBeNull();
+  });
+
+  it("tests the entered values and explains the result", async () => {
+    admin.listPrinters.mockResolvedValue([printer({ access_code_set: false })]);
+    admin.testPrinter
+      .mockResolvedValueOnce({ result: "refused" })
+      .mockResolvedValueOnce({ result: "ok" })
+      .mockRejectedValueOnce(new ApiError(422, "enter the access code"));
+    render(DevicesPage);
+
+    const card = await screen.findByRole("article", { name: "P1S" });
+    await userEvent.click(within(card).getByRole("button", { name: "Edit" }));
+    const form = within(card).getByRole("form", { name: "Edit P1S" });
+    expect(within(form).getByLabelText("Access code")).toHaveAttribute(
+      "placeholder",
+      "From the printer's screen",
+    );
+    await fill(form, { "Access code": "wrong" });
+    await userEvent.click(within(form).getByRole("button", { name: "Test" }));
+    expect(admin.testPrinter).toHaveBeenLastCalledWith(1, {
+      host: undefined,
+      port: undefined,
+      access_code: "wrong",
+    });
+    expect(await within(form).findByRole("status")).toHaveTextContent("refused the access code");
+
+    await fill(form, { Port: "1883", "Access code": "right" });
+    await userEvent.click(within(form).getByRole("button", { name: "Test" }));
+    expect(await within(form).findByText(/^Connected\./)).toBeInTheDocument();
+    expect(admin.testPrinter).toHaveBeenLastCalledWith(1, {
+      host: undefined,
+      port: 1883,
+      access_code: "right",
+    });
+
+    await fill(form, { "Access code": "" });
+    await userEvent.click(within(form).getByRole("button", { name: "Test" }));
+    expect(await within(form).findByRole("alert")).toHaveTextContent("enter the access code.");
+
+    await fill(form, { Port: "x" });
+    await userEvent.click(within(form).getByRole("button", { name: "Test" }));
+    expect(within(form).getByRole("alert")).toHaveTextContent("port from 1 to 65535");
+    expect(admin.editPrinter).not.toHaveBeenCalled();
+  });
+
+  it("removes a printer after confirming", async () => {
+    admin.listPrinters.mockResolvedValueOnce([printer()]).mockResolvedValue([]);
+    admin.removePrinter.mockResolvedValue(undefined);
+    render(DevicesPage);
+
+    const card = await screen.findByRole("article", { name: "P1S" });
+    await userEvent.click(within(card).getByRole("button", { name: "Remove" }));
+    expect(within(card).getByRole("group", { name: "Confirm removal" })).toHaveTextContent(
+      "Its events stay.",
+    );
+    await userEvent.click(within(card).getByRole("button", { name: "Cancel" }));
+    expect(admin.removePrinter).not.toHaveBeenCalled();
+
+    await userEvent.click(within(card).getByRole("button", { name: "Remove" }));
+    await userEvent.click(within(card).getByRole("button", { name: "Remove" }));
+
+    expect(admin.removePrinter).toHaveBeenCalledWith(1);
+    expect(await screen.findByRole("status")).toHaveTextContent("Removed P1S.");
+    expect(screen.queryByRole("article", { name: "P1S" })).toBeNull();
   });
 });

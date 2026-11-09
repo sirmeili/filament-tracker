@@ -105,6 +105,37 @@ export function unpinPrinter(id: number): Promise<PrinterOut> {
   return api<PrinterOut>(`/printers/${id}/unpin`, { method: "POST" });
 }
 
+export interface PrinterFields {
+  name: string;
+  host: string;
+  port: number;
+  serial: string;
+  access_code: string;
+}
+
+export type PrinterCheck = "ok" | "unreachable" | "refused" | "pin_mismatch" | "error";
+
+export function addPrinter(fields: PrinterFields): Promise<PrinterOut> {
+  return api<PrinterOut>("/printers", { method: "POST", body: fields });
+}
+
+/** Change only the fields given; without an access code the saved one is kept. */
+export function editPrinter(id: number, changes: Partial<PrinterFields>): Promise<PrinterOut> {
+  return api<PrinterOut>(`/printers/${id}`, { method: "PATCH", body: changes });
+}
+
+export function removePrinter(id: number): Promise<void> {
+  return api<void>(`/printers/${id}`, { method: "DELETE" });
+}
+
+/** Connect once with the saved values and any entered ones, without saving. */
+export function testPrinter(
+  id: number,
+  values: Partial<Pick<PrinterFields, "host" | "port" | "access_code">>,
+): Promise<{ result: PrinterCheck }> {
+  return api<{ result: PrinterCheck }>(`/printers/${id}/test`, { method: "POST", body: values });
+}
+
 // --- Users and account ------------------------------------------------------------------
 
 export function listUsers(): Promise<UserOut[]> {

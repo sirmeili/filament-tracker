@@ -104,15 +104,17 @@ Each scan prints the feedback code, product, spool number (or "new spool"), stat
 
 ## Printers
 
-The server watches each printer in `PRINTERS` over MQTT and keeps the AMS slots and spools up to date. It is a JSON list; `port` is optional (default 8883):
+The server watches each printer over MQTT and keeps the AMS slots and spools up to date. Admins add, edit, test and remove printers on the **Devices** page: a name, the address and port (default 8883), the serial and the access code, all on the printer's screen under the network settings. The access code is stored encrypted with the settings key and never shown again; leave its box empty when editing to keep it. **Test** connects once with the values in the boxes and says whether it worked. Saving reconnects only that printer, and removing one forgets it and its AMS slots (its events stay).
+
+`PRINTERS` in `.env` can add printers too, as a JSON list (`port` is optional):
 
 ```powershell
 $env:PRINTERS = '[{"name": "P1S", "host": "192.168.1.40", "serial": "01P00A123456789", "access_code": "12345678"}]'
 ```
 
-The access code is on the printer's screen under the network settings. Put `PRINTERS` in `.env` rather than typing it into a shared shell: it holds the access code, and `.env` is never committed.
+Each serial is added once, the first time the server sees it; after that the printer is edited (or removed) in the app, and a restart does not bring it back. Put `PRINTERS` in `.env` rather than typing it into a shared shell: it holds the access code, and `.env` is never committed.
 
-- **Certificate pin**: on the first connection the server stores the SHA-256 fingerprint of the printer's TLS certificate, and from then on talks only to that certificate. If the printer's certificate changes (for example after a firmware update), the printer shows a pin mismatch and an admin forgets the pin from the Devices page.
+- **Certificate pin**: on the first connection the server stores the SHA-256 fingerprint of the printer's TLS certificate, and from then on talks only to that certificate. Changing the address keeps the pin. If the printer's certificate changes (for example after a firmware update), the printer shows a pin mismatch and an admin forgets the pin from the Devices page. **Test** checks the certificate against the pin before it sends the access code.
 - **MQTT proxy**: to stay under the printer's connection limit, point `host` and `port` at a proxy such as `bambu-mqtt-proxy`, and use the proxy's alias as `serial` if it renames the printer. The pin is then the proxy's certificate.
 
 ## Home Assistant
@@ -217,7 +219,7 @@ The integration tests use the same broker: set `FT_FAKE_BROKER=127.0.0.1:8883` b
 
 ## Check a real printer
 
-`ft-printer check` connects to a printer in `PRINTERS` once and prints what each AMS and AMS HT slot reports. It pins the certificate it finds for that connection only and does not touch the database. Stop the server first if the printer is near its MQTT connection limit.
+`ft-printer check` connects to a printer once and prints what each AMS and AMS HT slot reports. It uses the printers saved in the app (read from the server's database and key, which it does not change), then any in `PRINTERS` not saved yet. It pins the certificate it finds for that connection only. Stop the server first if the printer is near its MQTT connection limit.
 
 ```powershell
 uv run ft-printer check --dump C:\tag-dumps\spool.zip --save captures\p1s.jsonl

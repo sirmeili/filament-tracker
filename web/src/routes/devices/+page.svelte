@@ -1,16 +1,23 @@
 <script lang="ts">
   import {
+    addPrinter,
+    editPrinter,
     listDevices,
     listPrinters,
     registerDevice,
+    removePrinter,
     revokeDevice,
     rotateToken,
+    testPrinter,
     unpinPrinter,
+    type PrinterCheck,
+    type PrinterFields,
   } from "#lib/api/admin.ts";
   import { describeError } from "#lib/api/errors.ts";
   import type { DeviceOut, PrinterOut } from "#lib/api/types.ts";
   import DeviceCard from "#lib/components/devices/DeviceCard.svelte";
   import PrinterCard from "#lib/components/devices/PrinterCard.svelte";
+  import PrinterForm from "#lib/components/devices/PrinterForm.svelte";
   import TokenPanel from "#lib/components/devices/TokenPanel.svelte";
   import { DEVICE_ID_PATTERN, deviceId } from "#lib/devices.ts";
 
@@ -22,6 +29,7 @@
   let busy = $state(false);
 
   let registering = $state(false);
+  let addingPrinter = $state(false);
   let name = $state("");
   let id = $state("");
   let idEdited = $state(false);
@@ -109,6 +117,31 @@
     return change(async () => {
       await unpinPrinter(printer.id);
       message = `Forgot the certificate pin for ${printer.name}. The next connection pins a new one.`;
+      await loadPrinters();
+    });
+  }
+
+  async function addOne(fields: PrinterFields | Partial<PrinterFields>): Promise<void> {
+    const added = await addPrinter(fields as PrinterFields);
+    addingPrinter = false;
+    message = `Added ${added.name}. The first connection pins its certificate.`;
+    await loadPrinters();
+  }
+
+  async function edit(printer: PrinterOut, changes: Partial<PrinterFields>): Promise<void> {
+    const saved = await editPrinter(printer.id, changes);
+    message = `Saved ${saved.name}. The server reconnects with the new settings.`;
+    await loadPrinters();
+  }
+
+  async function test(printer: PrinterOut, values: Partial<PrinterFields>): Promise<PrinterCheck> {
+    return (await testPrinter(printer.id, values)).result;
+  }
+
+  function remove(printer: PrinterOut): Promise<void> {
+    return change(async () => {
+      await removePrinter(printer.id);
+      message = `Removed ${printer.name}.`;
       await loadPrinters();
     });
   }
@@ -201,19 +234,37 @@
   </section>
 
   <section aria-labelledby="pr-h">
-    <h2 id="pr-h">Printers</h2>
+    <div class="sectionhead">
+      <h2 id="pr-h">Printers</h2>
+      {#if !addingPrinter}
+        <button type="button" onclick={() => (addingPrinter = true)}>Add printer</button>
+      {/if}
+    </div>
+    {#if addingPrinter}
+      <div class="card addform">
+        <h3 class="label">Add a printer</h3>
+        <PrinterForm onsave={addOne} oncancel={() => (addingPrinter = false)} />
+      </div>
+    {/if}
     {#if printerFailure}
       <p role="alert" class="error">{printerFailure}</p>
     {:else if !printers}
       <p class="muted">Loading…</p>
     {:else if printers.length === 0}
       <p class="muted">
-        No printers yet. Add them with the <span class="mono">PRINTERS</span> setting on the server.
+        No printers yet. Add one to see its AMS slots and open spools as they load.
       </p>
     {:else}
       <div class="grid">
         {#each printers as printer (printer.id)}
-          <PrinterCard {printer} {busy} onunpin={unpin} />
+          <PrinterCard
+            {printer}
+            {busy}
+            onunpin={unpin}
+            onedit={edit}
+            ontest={test}
+            onremove={remove}
+          />
         {/each}
       </div>
     {/if}
@@ -234,6 +285,24 @@
   }
 
   section p {
+    margin: 0;
+  }
+
+  .sectionhead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .addform {
+    max-width: 720px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .addform h3 {
     margin: 0;
   }
 

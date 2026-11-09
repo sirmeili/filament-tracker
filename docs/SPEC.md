@@ -450,7 +450,7 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 - State-changing requests made with a session cookie must carry the `X-Requested-With: filament-tracker` header, which other sites cannot send, in addition to SameSite cookies.
 - Responses carry a Content Security Policy, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` and a strict referrer policy.
 - Device tokens are stored hashed, revocable, and scoped to `/scans`, `/devices/heartbeat`, `/devices/provisioning` and `/events/{id}/revert` for events from that same device.
-- Input validation on all payloads (Pydantic); block arrays capped in size.
+- Input validation on all payloads (Pydantic); block arrays capped in size. A refused request's answer says where and what is wrong, never the value sent, which may be a password, token or access code.
 - No tag UIDs or derived keys in logs above debug level, in line with the RFID guide's request not to publish UID/key pairs.
 - Secrets saved in the app are encrypted at rest and never returned by the API (see Settings and first start). Machine tokens are stored hashed, like device tokens. The setup code is written to the log once per start while setup is open, and nowhere else.
 - The printer access code, HA token, MQTT password and `BAMBU_KDF_SALT` never appear in logs, and a rejected setting's error message does not repeat its value. The salt is returned only by `/devices/provisioning`, to a device token from the LAN.

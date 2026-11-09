@@ -196,7 +196,8 @@ class UserSession(Base):
 
 
 class Printer(Base):
-    """A printer (or MQTT proxy) watched over MQTT, synced from the PRINTERS setting."""
+    """A printer (or MQTT proxy) watched over MQTT, added on the Devices page or seeded once
+    from the PRINTERS setting."""
 
     __tablename__ = "printer"
 
@@ -205,6 +206,9 @@ class Printer(Base):
     serial: Mapped[str] = mapped_column(String(32), unique=True)
     host: Mapped[str] = mapped_column(String(255))
     port: Mapped[int] = mapped_column(Integer, default=8883, server_default="8883")
+    # The LAN access code, sealed with the settings key (AES-GCM); never the plain value.
+    # None: not set, so the server does not connect.
+    access_code: Mapped[str | None] = mapped_column(String(512))
     # SHA-256 of the TLS certificate pinned on first connect, as lower-case hex.
     cert_sha256: Mapped[str | None] = mapped_column(String(64))
     last_report_at: Mapped[datetime | None]
@@ -249,3 +253,13 @@ class Setting(Base):
     secret: Mapped[bool] = mapped_column(Boolean, default=False)
     updated_at: Mapped[datetime] = mapped_column(default=utcnow)
     updated_by: Mapped[int | None] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"))
+
+
+class SeededPrinter(Base):
+    """A serial from PRINTERS that has been added once. PRINTERS only seeds printers: after
+    that they are edited (or removed) in the app, and a restart does not bring them back."""
+
+    __tablename__ = "seeded_printer"
+
+    serial: Mapped[str] = mapped_column(String(32), primary_key=True)
+    seeded_at: Mapped[datetime] = mapped_column(default=utcnow)

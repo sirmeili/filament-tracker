@@ -2,8 +2,8 @@
 
     ft-printer check --dump C:\\tag-dumps\\roll1.bin --save captures\\p1s.jsonl
 
-It reads the printer from PRINTERS (in `.env`), pins the certificate it finds for this
-connection only (the database is not touched), asks for a full report, and prints each
+It reads the printer saved in the app (or PRINTERS in `.env`), pins the certificate it finds
+for this connection only (the database is not touched), asks for a full report, and prints each
 slot. With `--dump`, it says whether each tag's tray UID or tag UID is what a slot reports,
 without printing either. `--save` writes the messages with every identifier replaced.
 
@@ -25,12 +25,16 @@ from pathlib import Path
 from typing import Any
 
 import aiomqtt
+from sqlalchemy import select
 
+from filament_tracker.app_settings.offline import open_box, open_database
 from filament_tracker.config import PrinterConfig, Settings
+from filament_tracker.db.models import Printer
 from filament_tracker.decoder.decode import DecodeError, decode
 from filament_tracker.printer.link import MAX_PAYLOAD, PUSHALL, USERNAME
 from filament_tracker.printer.report import AmsView, TrayReport, slot_name
 from filament_tracker.printer.tls import fetch_fingerprint, pinned_context
+from filament_tracker.services.printers import printer_config
 from filament_tracker.simulator.dumps import DumpError, load_dump
 
 # A saved capture keeps only these parts of a report; the rest (print jobs, network,
@@ -234,15 +238,31 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ft-printer", description=__doc__.split("\n")[0])
     commands = parser.add_subparsers(dest="command", required=True)
     check = commands.add_parser("check", help="show what the AMS reports")
-    check.add_argument("--name", help="the printer's name in PRINTERS (default: the first)")
+    check.add_argument("--name", help="the printer's name (default: the first)")
     check.add_argument("--dump", type=Path, nargs="*", default=[], help="tag dumps to match")
     check.add_argument("--save", type=Path, help="write the redacted messages (JSON lines)")
     check.add_argument("--seconds", type=float, default=15.0, help="how long to listen")
     return parser
 
 
+def _printers(settings: Settings) -> list[PrinterConfig]:
+    """The printers saved in the app (read from the server's database, which is not
+    changed), then any in PRINTERS not saved yet."""
+    found: list[PrinterConfig] = []
+    sessions = open_database(settings, "seeded_printer")
+    if sessions is not None:
+        box = open_box(settings)
+        with sessions() as session:
+            for printer in session.scalars(select(Printer).order_by(Printer.id)):
+                config = printer_config(box, printer)
+                if config is not None:
+                    found.append(config)
+    saved = {c.serial for c in found}
+    return found + [c for c in settings.printers if c.serial not in saved]
+
+
 def _printer(settings: Settings, name: str | None) -> PrinterConfig | None:
-    for printer in settings.printers:
+    for printer in _printers(settings):
         if name is None or printer.name == name:
             return printer
     return None
@@ -252,7 +272,10 @@ def main(argv: Sequence[str] | None = None, *, settings: Settings | None = None)
     args = _parser().parse_args(argv)
     config = _printer(settings or Settings(), args.name)
     if config is None:
-        print("No such printer in PRINTERS (set it in server/.env).", file=sys.stderr)
+        print(
+            "No such printer: add it on the Devices page, or in PRINTERS in server/.env.",
+            file=sys.stderr,
+        )
         return 2
     try:
         tags = load_tags(args.dump)

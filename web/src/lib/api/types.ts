@@ -178,7 +178,14 @@ export interface PrinterOut {
   name: string;
   host: string;
   port: number;
+  /** The printer's serial, or the alias an MQTT proxy uses. */
+  serial: string;
+  /** False without a usable access code: the server is not connecting. */
   configured: boolean;
+  /** Whether an access code is saved. The code itself is never sent back. */
+  access_code_set: boolean;
+  /** A saved access code the server's key cannot open: it needs entering again. */
+  access_code_unreadable: boolean;
   connection: PrinterConnection;
   online: boolean;
   last_report_at: string | null;

@@ -135,7 +135,10 @@ describe("PrinterCard", () => {
     name: "P1S",
     host: "h",
     port: 8883,
+    serial: "01P00A1",
     configured: true,
+    access_code_set: true,
+    access_code_unreadable: false,
     connection: "pin_mismatch",
     online: false,
     last_report_at: null,
@@ -147,7 +150,14 @@ describe("PrinterCard", () => {
   it("follows the printer as it changes", async () => {
     const onunpin = vi.fn();
     const { rerender } = render(PrinterCard, {
-      props: { printer: PRINTER, busy: false, onunpin },
+      props: {
+        printer: PRINTER,
+        busy: false,
+        onunpin,
+        onedit: vi.fn(),
+        ontest: vi.fn(),
+        onremove: vi.fn(),
+      },
     });
     expect(screen.getByRole("alert")).toHaveTextContent(/different certificate, so/);
     expect(screen.getByRole("listitem")).toHaveTextContent("Empty");
