@@ -7,10 +7,11 @@ Three kinds of caller:
   filament-tracker`, which a page on another site cannot add.
 - A scanner, with a device token: random, shown once at registration, stored only as a
   SHA-256 hash and refused once revoked.
-- Home Assistant or a script, with `ADMIN_TOKEN`; it acts as an Admin. If no admin token
-  is configured, it is refused.
+- Home Assistant or a script, with a machine token made on the Settings page: it acts with
+  the token's role, is stored only as a SHA-256 hash and is refused once revoked. Or with
+  `ADMIN_TOKEN`, which acts as an Admin; if none is configured, it is refused.
 
-Bearer tokens (device and admin) are accepted only from `TRUSTED_NETWORKS`.
+Bearer tokens (device, machine and admin) are accepted only from `TRUSTED_NETWORKS`.
 """
 
 import hashlib
@@ -18,6 +19,7 @@ import hmac
 import secrets
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
@@ -27,13 +29,16 @@ from sqlalchemy.orm import Session
 
 from filament_tracker.api.deps import get_session
 from filament_tracker.config import Settings
-from filament_tracker.db.models import Device, User, UserSession
+from filament_tracker.db.models import Device, MachineToken, User, UserSession
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import Role
 from filament_tracker.net import is_trusted
 from filament_tracker.services.accounts import find_session
 
 TOKEN_PREFIX = "ftd_"  # noqa: S105 - a public marker on device tokens, not a secret
+MACHINE_TOKEN_PREFIX = "ftm_"  # noqa: S105 - a public marker on machine tokens
+# A machine token's last use is saved at most this often, not on every request.
+LAST_USED_STEP = timedelta(minutes=1)
 SESSION_COOKIE = "ft_session"
 CSRF_HEADER = "x-requested-with"
 CSRF_VALUE = "filament-tracker"
@@ -46,22 +51,30 @@ DbSession = Annotated[Session, Depends(get_session)]
 
 @dataclass(frozen=True)
 class Principal:
-    """The caller: a signed-in user, a scanner, or the admin token (neither)."""
+    """The caller: a signed-in user, a scanner, a machine token, or the admin token (none
+    of these)."""
 
     user: User | None = None
     session: UserSession | None = None
     device: Device | None = None
+    token: MachineToken | None = None
 
     @property
     def role(self) -> Role | None:
         """The caller's role; scanners have none."""
         if self.user is not None:
             return self.user.role
+        if self.token is not None:
+            return self.token.role
         return None if self.device is not None else Role.ADMIN
 
 
 def new_device_token() -> str:
     return TOKEN_PREFIX + secrets.token_urlsafe(32)
+
+
+def new_machine_token() -> str:
+    return MACHINE_TOKEN_PREFIX + secrets.token_urlsafe(32)
 
 
 def hash_token(token: str) -> str:
@@ -104,12 +117,28 @@ def _device_for(session: Session, token: str) -> Device | None:
     return device
 
 
+def _machine_token_for(session: Session, token: str) -> MachineToken | None:
+    if not token.startswith(MACHINE_TOKEN_PREFIX):
+        return None
+    found = session.scalar(select(MachineToken).where(MachineToken.token_hash == hash_token(token)))
+    if found is None or found.revoked_at is not None:
+        return None
+    now = utcnow()
+    if found.last_used_at is None or now - found.last_used_at >= LAST_USED_STEP:
+        found.last_used_at = now
+        session.commit()
+    return found
+
+
 def _from_bearer(request: Request, session: Session, token: str) -> Principal:
     settings = settings_of(request)
     if not is_trusted(request, settings):
         raise forbidden("tokens are accepted only from the local network")
     if _is_admin_token(settings, token):
         return Principal()
+    machine_token = _machine_token_for(session, token)
+    if machine_token is not None:
+        return Principal(token=machine_token)
     device = _device_for(session, token)
     if device is None:
         raise unauthorized()

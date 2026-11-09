@@ -1,6 +1,7 @@
 <script lang="ts">
   import GeneralSettings from "#lib/components/settings/GeneralSettings.svelte";
   import HomeAssistantSettings from "#lib/components/settings/HomeAssistantSettings.svelte";
+  import MachineTokens from "#lib/components/settings/MachineTokens.svelte";
   import ScannerSettings from "#lib/components/settings/ScannerSettings.svelte";
 </script>
 
@@ -17,4 +18,5 @@
   <GeneralSettings />
   <ScannerSettings />
   <HomeAssistantSettings />
+  <MachineTokens />
 </div>

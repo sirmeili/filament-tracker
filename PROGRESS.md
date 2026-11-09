@@ -43,25 +43,22 @@
 - M2 part 7, the Review, Activity, Devices, Users and Account pages, manual entry, Review Bring back, the scanner heartbeat and the Activity source filter, merged (PR #18). **M2 complete.**
 - M2 plan approved: seven branches (spec, users and auth, read API, write API, web foundation, stock pages, admin pages).
 - M1 plan approved: five branches merged in order (decoder, data model, event log, `/scans` API, scan simulator).
-
-## In progress
-
-- M9, Deployment. Plan approved (2026-11-09): five branches merged in order (General and Scanners settings in the app, with the repo rename and the M9 spec decisions; printers on the Devices page; machine tokens; first-start setup; the Docker image, Compose file, nightly backups and the image published to GHCR, then a walkthrough on the owner's home server).
-- `feature/printers-in-app` (M9 part 2):
-  - Done (server): printers are kept in the app. Each access code is sealed with the settings key, bound to the printer's id, and never returned or logged. `PRINTERS` seeds each serial once (a `seeded_printer` table remembers it), and a printer from before gets its access code from `.env`. `POST /printers`, `PATCH /printers/{id}` (the pin is kept; a missing access code keeps the saved one), `DELETE /printers/{id}` (the printer and its AMS slots; events stay) and `POST /printers/{id}/test` (saved or entered values; the certificate is checked against the pin before the code is sent). The printer manager restarts or stops one printer's link on a save. `ft-printer check` also finds printers saved in the app. No 422 answer repeats the value sent (a validation handler for every route).
-  - Done (web): Add printer on the Devices page, and Edit (with Test), Remove (confirmed) and access code warnings on each printer card; the form checks the values first and sends only what changed. Tests for the page and an end-to-end add, test, rename and remove. Docs: `server/README.md`, `.env.example`, AGENTS.md and README.
-  - Next: the owner reviews the branch.
-- Done, PR #37 (`feature/settings-general`, M9 part 1):
-  - Done: the GitHub repo renamed to `sirmeili/rollcall` (the old address redirects) and the local remote updated; the spec and README use the working name Rollcall; the spec records the M9 decisions (a private `ghcr.io/sirmeili/rollcall` image for x86-64 built by GitHub Actions, Docker Compose on the owner's home server, the time zone setting covering every time in the web app and the 03:00 backup, `UTC` by default). `tzdata` added to the server (no advisories; the time zone database Python lacks on Windows).
-  - Done (server): the General (`tz`, `session_days`) and Scanners (`bambu_kdf_salt`, stored encrypted) settings groups. New sign-ins use the saved sign-in length, `/devices/provisioning` serves the saved salt, `/auth/me` returns the time zone, and `ft-sim check-salt` checks the salt in use (read with `ft-ha check`'s read-only settings code, now `app_settings/offline.py`). `TZ` in `.env` is checked against the time zone names and defaults to `UTC`.
-  - Done (web): the Settings page has General (time zone, with suggested names, and sign-in length) and Scanners (the salt, write-only) cards beside Home Assistant, all built on one settings card. Every time and day in the web app (Activity days, dates, clock times) uses the server's time zone from `/auth/me`; saving a new zone applies to the admin's browser at once. Tests for the zone formatting, the page and an end-to-end time zone save. Docs: `server/README.md`, AGENTS.md and README.
-  - All checks pass (server 949 tests, 99.6% coverage; web 405 tests, 99.6% lines; 20 end-to-end tests). Next: the owner reviews the branch.
 - Phone Scan screen redesign, from the mockups in `docs/mockups/mobile-scanner/` (merged in PR #30). Plan approved (2026-11-06): two branches, before M6 part 3.
 - Phone Scan screen redesign complete: part 1 merged in PR #31, part 2 (the Delivery mode) in PR #32.
 - Settings spec merged (PR #33).
 - M6 part 3 merged (PR #34).
 - Print requests direction added to the spec (PR #35).
+- M9 part 1, General and Scanners settings in the app, the time zone everywhere and the rename to Rollcall, merged (PR #37).
+- M9 part 2, printers kept in the app with sealed access codes, edited and tested on the Devices page, merged (PR #38).
 - Done, PR #32 (part 2, the Delivery mode): a Delivery toggle on the waiting screen; while it is on, the top of Scan lists the spools recorded in the session (color, name, time, number, queued until sent, Undone), with totals and Clear, and the bottom is one panel (Ready, the spool with its keys and 15 s bar, then what was recorded with Undo and a 3 s bar). Only the newest row has Undo. The list is kept in memory until the app closes (leaving Scan keeps it) and cleared when the pairing is forgotten. The last scan now carries the spool as the server has it, so a new tag's row shows its number. The Delivery button widens to fit its label at large phone text sizes, and the Ready icon pulses like the waiting screen's target. Spec updated (Phone scanner, Unpacking a delivery).
+
+## In progress
+
+- M9, Deployment. Plan approved (2026-11-09): five branches merged in order (General and Scanners settings in the app, with the repo rename and the M9 spec decisions; printers on the Devices page; machine tokens; first-start setup; the Docker image, Compose file, nightly backups and the image published to GHCR, then a walkthrough on the owner's home server).
+- `feature/machine-tokens` (M9 part 3):
+  - Done (server): a `machine_token` table (name, role, token hash, who made it, last use, revoked). Tokens look like `ftm_<random>`, are returned once by `POST /tokens` and stored only as a SHA-256 hash; `GET /tokens` lists them (in use first) and `DELETE /tokens/{id}` revokes one at once. A token acts with its role, from the LAN only, and cannot act as a scanner or a signed-in user. Its last use is saved at most once a minute. `ADMIN_TOKEN` keeps working. Tests: each role on every route, revoked and unknown tokens, LAN only, only the hash stored, never logged.
+  - Done (web): a Machine tokens card on the Settings page: New token (name and role), the token shown once with Copy, each token's role, maker and last use, and Revoke after a confirmation. The Users page's Admin description lists everything Admins manage. Tests for the card and an end-to-end make, use, and revoke. Docs: `server/README.md`, `.env.example` and README.
+  - All checks pass (server 1162 tests, 99.56% coverage; web 418 tests, 99.51% lines; 22 end-to-end tests). Next: the owner reviews the branch.
 
 ## Next
 

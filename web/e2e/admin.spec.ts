@@ -194,6 +194,36 @@ test("admins set the time zone, and the web app uses it", async ({ page }) => {
   await expect(zone).toHaveValue("UTC");
 });
 
+test("admins make a machine token, use it once and revoke it", async ({ page, request }) => {
+  await signInAt(page, "/settings", "e2e-admin");
+  const card = page.getByRole("region", { name: "Machine tokens" });
+  await card.getByRole("button", { name: "New token" }).click();
+  await card.getByLabel("Name").fill("Home Assistant");
+  await card.getByLabel("Role").selectOption("viewer");
+  await card.getByRole("button", { name: "Make token" }).click();
+
+  const panel = card.getByRole("alert", { name: "New token for Home Assistant" });
+  const token = (await panel.locator("code").textContent()) ?? "";
+  expect(token).toMatch(/^ftm_\S{40,}$/);
+  const headers = { Authorization: `Bearer ${token}` };
+
+  // The token reads as a Viewer, and nothing more.
+  expect((await request.get("/api/v1/inventory", { headers })).status()).toBe(200);
+  expect((await request.get("/api/v1/tokens", { headers })).status()).toBe(403);
+
+  await panel.getByRole("button", { name: "Done" }).click();
+  await page.reload();
+  const row = card.getByRole("listitem").filter({ hasText: "Home Assistant" });
+  await expect(row).toContainText("Last used");
+  await expect(card.locator("code.token")).toHaveCount(0);
+
+  await row.getByRole("button", { name: "Revoke" }).click();
+  await row.getByRole("button", { name: "Revoke Home Assistant" }).click();
+  await expect(card.getByRole("status")).toContainText("Revoked Home Assistant");
+  await expect(row).toContainText("Revoked");
+  expect((await request.get("/api/v1/inventory", { headers })).status()).toBe(401);
+});
+
 test("the Settings page is for admins only", async ({ page }) => {
   await signInAt(page, "/settings", "e2e-editor");
   await expect(page.getByRole("heading", { name: "Settings" })).toHaveCount(0);

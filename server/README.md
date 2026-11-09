@@ -53,9 +53,20 @@ $env:TRUSTED_NETWORKS = "192.168.1.0/24"   # optional: narrow the LAN
 
 uvicorn reads the same `FORWARDED_ALLOW_IPS` variable and applies the same rule, so it needs no extra options. Clients coming through the proxy from the internet can sign in and use the web app, but bearer tokens, scanner routes and the API docs are refused for them. Forward only the web app and `/api/v1` from the proxy anyway.
 
+## Machine tokens
+
+Home Assistant and scripts use a machine token. An Admin makes one in the **Machine tokens** card on the Settings page: give it a name and a role (Viewer, Editor or Admin), and copy the token, which is shown only once. The server keeps only a hash of it. Each token acts with its role, works only from the LAN (`TRUSTED_NETWORKS`), cannot act as a scanner, and is refused as soon as it is revoked. The card shows when each token was last used (saved at most once a minute). Send it as a bearer token:
+
+```powershell
+$headers = @{ Authorization = "Bearer $env:FT_MACHINE_TOKEN" }
+Invoke-RestMethod -Uri http://localhost:8000/api/v1/inventory -Headers $headers
+```
+
+Give each script its own token with the lowest role that does the job, so one can be revoked without breaking the others. `ADMIN_TOKEN` from `.env` keeps working as an Admin token, for setups made before machine tokens.
+
 ## Register a scanner
 
-Every scanner, including the simulator, needs its own token. Register one with the admin token; the token in the reply is shown only once.
+Every scanner, including the simulator, needs its own token. Register one on the Devices page, or with an Admin machine token or the admin token as below; the token in the reply is shown only once.
 
 ```powershell
 $headers = @{ Authorization = "Bearer $env:ADMIN_TOKEN" }

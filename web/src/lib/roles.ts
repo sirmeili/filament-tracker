@@ -21,5 +21,5 @@ export const ROLE_DESCRIPTIONS: Record<Role, string> = {
   viewer: "sees every page.",
   editor:
     "also records actions, undoes, edits spools and products, adds spools by hand, and resolves review items.",
-  admin: "also manages users and scanners.",
+  admin: "also manages users, scanners, printers, machine tokens and settings.",
 };
