@@ -15,6 +15,7 @@ from filament_tracker.api import (
     review,
     scans,
     stock,
+    tokens,
     users,
 )
 from filament_tracker.api import settings as app_settings
@@ -81,6 +82,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         printers,
         events,
         users,
+        tokens,
         app_settings,
     ):
         app.include_router(module.router, prefix=API_PREFIX)

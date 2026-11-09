@@ -195,6 +195,25 @@ class UserSession(Base):
     user: Mapped[User] = relationship(back_populates="sessions")
 
 
+class MachineToken(Base):
+    """A bearer token for Home Assistant or a script, made on the Settings page. It acts with
+    its role, from the LAN only. Only a hash of the token is stored; a revoked token stays
+    listed."""
+
+    __tablename__ = "machine_token"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100))
+    role: Mapped[Role] = mapped_column(str_enum(Role, "machine_token_role"))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("user.id"))
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    last_used_at: Mapped[datetime | None]
+    revoked_at: Mapped[datetime | None]
+
+    creator: Mapped["User | None"] = relationship()
+
+
 class Printer(Base):
     """A printer (or MQTT proxy) watched over MQTT, added on the Devices page or seeded once
     from the PRINTERS setting."""
