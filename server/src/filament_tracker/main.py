@@ -14,6 +14,7 @@ from filament_tracker.api import (
     printers,
     review,
     scans,
+    setup,
     stock,
     tokens,
     users,
@@ -30,6 +31,7 @@ from filament_tracker.db.migrate import upgrade
 from filament_tracker.ha.link import HomeAssistantLink
 from filament_tracker.printer.manager import PrinterManager
 from filament_tracker.services.printers import seed_printers
+from filament_tracker.services.setup import SetupGate
 from filament_tracker.services.throttle import LoginThrottle
 from filament_tracker.webapp import default_web_dir, mount_web_app
 
@@ -56,6 +58,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         home_assistant = HomeAssistantLink(store, app.state.session_factory)
         app.state.home_assistant = home_assistant
         home_assistant.start()
+        app.state.setup_gate.start(app.state.session_factory)
         try:
             yield
         finally:
@@ -66,6 +69,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="Filament Tracker", lifespan=lifespan)
     app.state.settings = settings
     app.state.login_throttle = LoginThrottle()
+    # Wrong setup codes are throttled like sign-ins, but apart from them.
+    app.state.setup_throttle = LoginThrottle()
+    app.state.setup_gate = SetupGate()
     app.add_exception_handler(RequestValidationError, validation_error)
     app.add_middleware(BodySizeLimitMiddleware)
     # Added last, so it runs first: headers go on every response, including a 413.
@@ -83,6 +89,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         events,
         users,
         tokens,
+        setup,
         app_settings,
     ):
         app.include_router(module.router, prefix=API_PREFIX)

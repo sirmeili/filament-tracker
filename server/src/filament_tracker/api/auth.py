@@ -51,7 +51,7 @@ def me_out(request: Request, user: User) -> Me:
     )
 
 
-def _set_cookie(request: Request, response: Response, token: str, days: int) -> None:
+def set_session_cookie(request: Request, response: Response, token: str, days: int) -> None:
     settings = settings_of(request)
     response.set_cookie(
         SESSION_COOKIE,
@@ -78,7 +78,7 @@ def login(body: LoginRequest, request: Request, response: Response, session: DbS
     days = _store(request).session_days()
     token = start_session(session, user, days, utcnow())
     session.commit()
-    _set_cookie(request, response, token, days)
+    set_session_cookie(request, response, token, days)
     return me_out(request, user)
 
 

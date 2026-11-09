@@ -83,6 +83,28 @@ describe("layout", () => {
     expect(nav.goto).not.toHaveBeenCalled();
   });
 
+  it("sends signed-out visitors to Setup while it is open, shown without navigation", async () => {
+    session.setup = { open: true, time_zone_needed: false, kdf_salt_needed: false };
+    at("/login");
+
+    render(Layout, { children });
+
+    await waitFor(() => expect(nav.goto).toHaveBeenCalledWith("/setup", { replaceState: true }));
+    session.setup = null;
+  });
+
+  it("shows the Setup page without navigation", () => {
+    session.setup = { open: true, time_zone_needed: false, kdf_salt_needed: false };
+    at("/setup");
+
+    render(Layout, { children });
+
+    expect(screen.getByText("page content")).toBeInTheDocument();
+    expect(screen.queryByRole("navigation")).toBeNull();
+    expect(nav.goto).not.toHaveBeenCalled();
+    session.setup = null;
+  });
+
   it("shows the page and the role's navigation when signed in", () => {
     signedIn({ id: 1, username: "alice", role: "editor", time_zone: "UTC" });
     at("/spools");

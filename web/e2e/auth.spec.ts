@@ -26,6 +26,16 @@ test("signed-out visitors are sent to sign in, then back", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Spools" })).toBeVisible();
 });
 
+test("Setup is closed once an admin exists", async ({ page, request }) => {
+  const status = await (await request.get("/api/v1/setup")).json();
+  expect(status.open).toBe(false);
+
+  await page.goto("/setup");
+
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+});
+
 test("a wrong password is refused with a clear message", async ({ page }) => {
   await page.goto("/login");
 
