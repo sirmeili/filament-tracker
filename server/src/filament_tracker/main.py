@@ -24,18 +24,30 @@ from filament_tracker.api.errors import validation_error
 from filament_tracker.api.limits import BodySizeLimitMiddleware
 from filament_tracker.api.security import SecurityHeadersMiddleware
 from filament_tracker.app_settings.crypto import SecretBox, load_key
+from filament_tracker.app_settings.offline import database_file
 from filament_tracker.app_settings.store import SettingsStore
 from filament_tracker.config import Settings
 from filament_tracker.db.engine import create_db_engine, create_session_factory
 from filament_tracker.db.migrate import upgrade
 from filament_tracker.ha.link import HomeAssistantLink
 from filament_tracker.printer.manager import PrinterManager
+from filament_tracker.services.backup import BackupScheduler
 from filament_tracker.services.printers import seed_printers
 from filament_tracker.services.setup import SetupGate
 from filament_tracker.services.throttle import LoginThrottle
 from filament_tracker.webapp import default_web_dir, mount_web_app
 
 API_PREFIX = "/api/v1"
+
+
+def _backups(settings: Settings, store: SettingsStore) -> BackupScheduler | None:
+    """Start the nightly backups, if BACKUP_DIR is set and the database is a file."""
+    source = database_file(settings.database_url)
+    if settings.backup_dir is None or source is None:
+        return None
+    scheduler = BackupScheduler(source, settings.backup_dir, store.time_zone)
+    scheduler.start()
+    return scheduler
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -59,9 +71,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.home_assistant = home_assistant
         home_assistant.start()
         app.state.setup_gate.start(app.state.session_factory)
+        backups = _backups(settings, store)
         try:
             yield
         finally:
+            if backups is not None:
+                backups.stop()
             home_assistant.stop()
             printer_links.stop()
             engine.dispose()
