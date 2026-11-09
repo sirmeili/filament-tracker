@@ -473,6 +473,7 @@ The server is fully testable without hardware. Firmware logic is unit tested on 
 | Phone on hardware | Reading on a real phone, MIFARE Classic detection, QR pairing, offline queue, sign-in | Manual checklist per release |
 | AMS ingest | Report messages produce the right events | Fake printer replaying recorded or documentation-based messages, including a report captured from a P1S with its identifiers replaced |
 | Printer on hardware | Connection and pin, every AMS and AMS HT slot, tray UID matching a scanned tag, automatic Opened, remaining % | `ft-printer check` and a manual checklist, before a release that changes the printer link |
+| Home Assistant on hardware | The five entities and their values, unavailable on stop, back after a Home Assistant restart, events, the low-stock automation, the Settings page Test and Save | `ft-ha check` and a manual checklist, before a release that changes the Home Assistant link |
 | End to end | Scan simulator drives Received, Opened, Empty for a spool; HA entities update | Docker Compose test stack with a Mosquitto container |
 | Firmware logic | Screen flow, tag parsing, offline queue, dedupe, button thresholds | PC unit tests with fakes; 90% coverage, excluding a named list of hardware drivers |
 | Firmware screens | Every screen and soft-key mapping | Screen simulator |

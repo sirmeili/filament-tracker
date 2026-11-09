@@ -170,6 +170,29 @@ Secrets are encrypted with a key from `SETTINGS_KEY`, or else from `data/setting
 
 **Example automation**: [docs/home-assistant/low-stock-automation.yaml](../docs/home-assistant/low-stock-automation.yaml) adds a low product to the shopping list and notifies your phone. Paste it into a new automation's YAML editor, set your phone's notify action, save, and give it the `Claude` label.
 
+## Check against Home Assistant
+
+`ft-ha check` compares what the server published with what Home Assistant shows. It uses the settings the server uses (a value saved on the Settings page wins over `server/.env`), reading them from the server's database and key without changing either, so the server can keep running.
+
+```powershell
+uv run ft-ha check            # add --event to fire one filament_tracker_check event
+```
+
+- **Broker**: connects with the MQTT user, then lists the five discovery messages, any old ones still retained, availability, and the published totals and low filament.
+- **Home Assistant**: checks the token, then shows each of the five entities and whether it matches what the broker holds. A value changed in the last few seconds may still be on its way; run it again.
+- It prints counts and states only, never the broker or Home Assistant address, the user name, the password or the token. It exits with 1 when anything is marked as a problem.
+
+Checklist before a release that changes the Home Assistant link:
+
+1. `ft-ha check` passes with no problems.
+2. In Home Assistant, Settings → Devices & services → Devices shows **Filament Tracker** with its five entities.
+3. Record an action (a scan, the phone or the web app): the totals change in Home Assistant within about 5 seconds.
+4. Stop the server: the entities show as unavailable. Start it: they come back.
+5. Restart Home Assistant: the entities come back with their values without restarting the server.
+6. Developer tools → Events, listening to `filament_tracker_spool_opened` (and the others): each action fires one event with the spool, product, color and source. `ft-ha check --event` fires `filament_tracker_check`.
+7. Set a product's low-stock threshold to its sealed count: `filament_tracker_low_stock` fires once, Low filament turns on and lists it, and the example automation adds it to the shopping list and notifies the phone. Put the threshold back.
+8. On the Settings page, **Test** reports both links working; with a wrong password typed in, it reports the broker refused it. **Save** a change and the link reconnects without a restart.
+
 ## Fake printer
 
 Test the printer link without a printer: a Mosquitto broker in Docker stands in for the printer's MQTT server, and `ft-fakeprinter` plays the printer on it. Needs Docker and `openssl`; run from `server/` in Git Bash or WSL for the first command.

@@ -109,6 +109,8 @@ Upon user acceptance of a completed feature or step, you must commit your code, 
 
   * Real printer check: `uv run ft-printer check [--dump <dump.zip>] [--save captures/<name>.jsonl]`, using `PRINTERS` from `server/.env`; see `server/README.md`. Captures stay out of the repo.
 
+  * Home Assistant check: `uv run ft-ha check [--event]`, using the Home Assistant settings the server uses; see `server/README.md`. It prints counts and states only.
+
   * Fake printer: `./fakeprinter/make-cert.sh`, then `docker compose -f fakeprinter/compose.yaml up -d --wait`, then `uv run ft-fakeprinter --serial FAKE01 --report tests/printer/reports/pushall.json` with `FT_ACCESS_CODE=fake-access-code`. Set `FT_FAKE_BROKER=127.0.0.1:8883` and `FT_HA_BROKER=127.0.0.1:11883` to include the printer and Home Assistant broker tests in `uv run pytest`; see `server/README.md`.
 
   * Audit dependencies: `uv export --quiet --no-hashes --no-emit-project -o requirements-audit.txt`, then `uv run pip-audit --disable-pip --no-deps -r requirements-audit.txt`. The exported file is ignored by git.
