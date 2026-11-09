@@ -38,7 +38,7 @@
 - M8 part 4, the phone checklist on a Pixel 9 Pro XL and the fixes it found (no plugin data in the phone's log, loopback addresses refused, a 5 s request limit, one read at a time, a beep and buzz after a full read), merged (PR #27). **M8 complete.**
 - M8 part 3, the Android app with its Kotlin NFC plugin, Keystore storage, QR scanning and the Android CI job, merged (PR #26).
 - M6 part 3, the Settings page with the Home Assistant settings, secrets encrypted with `SETTINGS_KEY` or `settings.key`, applied without a restart, merged (PR #34).
-- M6 part 4, `ft-ha check` and the Home Assistant checklist, run against the owner's Home Assistant (2026-11-09): all 5 entities match the broker, the test event and a spool received event arrive. PR opened from `feature/ha-check`. **M6 complete.**
+- M6 part 4, `ft-ha check` and the Home Assistant checklist, run against the owner's Home Assistant (2026-11-09): all 5 entities match the broker, and all 8 checklist steps passed. PR #36 from `feature/ha-check`. **M6 complete.**
 - M8 part 2, the phone app's logic in the web app (bridge interface, pairing, device API, offline decode and queue, Scan flow, Scan and Pairing pages), merged (PR #25).
 - M2 part 7, the Review, Activity, Devices, Users and Account pages, manual entry, Review Bring back, the scanner heartbeat and the Activity source filter, merged (PR #18). **M2 complete.**
 - M2 plan approved: seven branches (spec, users and auth, read API, write API, web foundation, stock pages, admin pages).
