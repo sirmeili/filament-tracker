@@ -1,6 +1,6 @@
-# Spoolhouse — Spec
+# Rollcall — Spec
 
-*Spoolhouse is a working name (2026-11-07) and may change. The project was called Filament Tracker, and the code, the phone app and the Home Assistant names still use that name until the rename; see Future enhancements: print requests, Name and rename.*
+*Rollcall is a working name (2026-11-09, replacing Spoolhouse) and may change. The GitHub repo is `sirmeili/rollcall`, and the Docker image, container and volumes use `rollcall`. The project was called Filament Tracker, and the code, the phone app and the Home Assistant names still use that name until the rename; see Future enhancements: print requests, Name and rename.*
 
 Oct 31, 2026 · @Frank
 
@@ -420,10 +420,10 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 
 **Deployment**
 
-- One Docker image, run with Docker Compose; SQLite database on a mounted volume.
+- One Docker image for x86-64 (`linux/amd64`), `ghcr.io/sirmeili/rollcall`, run with Docker Compose on the owner's home server; SQLite database on a mounted volume. GitHub Actions builds the image on every pull request and pushes it to the GitHub Container Registry on each merge to `main`, tagged `latest` and with the commit. The package is private, so the server logs in to `ghcr.io` with a read-only token to pull it.
 - The web app may be exposed to the internet, but only through an HTTPS reverse proxy the owner runs (for example Caddy, Nginx Proxy Manager, Traefik or a Cloudflare Tunnel). The app itself speaks plain HTTP to the proxy and trusts forwarded client addresses only from `FORWARDED_ALLOW_IPS`.
 - Scanner routes, bearer tokens (device and admin) and the API docs are accepted only from `TRUSTED_NETWORKS`, so they stay on the LAN even if the proxy forwards everything. The proxy should forward only the web app and `/api/v1` anyway.
-- Nightly SQLite backup (online backup API) to a second volume, 14 kept.
+- Nightly SQLite backup (online backup API) at 03:00 in the server's time zone, to a second volume, 14 kept.
 
 **Configuration** (environment variables or a `.env` file, never committed). Settings marked *app* can also be set in the app, where a saved value wins; see Settings and first start.
 
@@ -436,7 +436,7 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 | `MQTT_URL`, `MQTT_USER`, `MQTT_PASSWORD` | `mqtt://homeassistant.local:1883` | *app*. Home Assistant's MQTT broker, for discovery and state publishing; `mqtts://` for TLS. Unset: nothing is published. The URL must not hold the password |
 | `HA_DISCOVERY_PREFIX` | `homeassistant` | *app*. Home Assistant's MQTT discovery prefix |
 | `HA_URL`, `HA_TOKEN` | `http://homeassistant.local:8123`, long-lived token | *app*. Home Assistant's address and a long-lived access token, for firing events. Unset: no events are fired. The URL must not hold a user name or password |
-| `TZ` | `America/New_York` | *app*. Timestamps in the UI |
+| `TZ` | `America/New_York` | *app*. The time zone for every time the web app shows, whatever the viewer's device uses, and for the nightly backup. An IANA name; defaults to `UTC` |
 | `TRUSTED_NETWORKS` | `192.168.0.0/16,10.0.0.0/8` | LAN ranges allowed to use bearer tokens, scanner routes and API docs; defaults to the private ranges |
 | `FORWARDED_ALLOW_IPS` | `192.168.1.5` | Address of the reverse proxy whose `X-Forwarded-For` is trusted |
 | `SESSION_DAYS` | `30` | *app*. How long a web sign-in lasts |
@@ -519,16 +519,16 @@ None of this is built or scheduled inside the current milestones, and none of it
 
 ### Name and rename
 
-- **Working name: Spoolhouse.** It is not final and may change. The spec uses it from now on; the code keeps "Filament Tracker" until the rename is done as its own piece of work, after the name is settled. No other filament or 3D printing product called Spoolhouse turned up in a search on 2026-11-07, but similar names are common (Spoolman, Spoolstock, SpoolTool, SpoolTap).
+- **Working name: Rollcall** (owner, 2026-11-09; it replaced the earlier working name Spoolhouse). It is not final and may change. The spec uses it from now on; the code keeps "Filament Tracker" until the rename is done as its own piece of work, after the name is settled. The repo was renamed to `sirmeili/rollcall` and the Docker image uses `rollcall` from the start (M9), since both were cheap to name now.
 - **What a rename touches**, and what breaks (the owner accepted reinstalling the phone app and renaming the Home Assistant names, since everything so far is testing):
 
 | Area | Today | Effect of renaming |
 | --- | --- | --- |
-| GitHub repo | `sirmeili/filament-tracker` | Safe: GitHub redirects the old URL. Update the git remote, README links and the 3D viewer links |
+| GitHub repo | **Done (2026-11-09)**: `sirmeili/rollcall`, was `sirmeili/filament-tracker` | Safe: GitHub redirects the old URL while no new repo takes the old name. The git remote, README links and the 3D viewer links were updated |
 | Python package, project and commands | `filament_tracker`, `ft-admin`, `ft-sim`, `ft-printer`, `ft-fakeprinter` | Safe in code; every documented command changes (AGENTS.md, READMEs). The `ft-` prefix can stay |
 | Server start command | `filament_tracker.main:create_app` | Any script, service or Compose file that starts the server must change |
 | Database and key files | `data/filament.db`, `data/settings.key` | **Breaks an install** if the default file names change: the server would start on an empty database and a new key. Keep the names, or move the files as part of the upgrade |
-| Docker image and container | Not built yet (M9) | Free if the name is settled before M9; afterwards, a new image name, with the same volumes so no data is lost |
+| Docker image and container | `ghcr.io/sirmeili/rollcall`, container and volumes `rollcall` (M9) | A later rename means a new image name, with the same volumes so no data is lost |
 | Android app ID and Kotlin packages | `io.github.sirmeili.filamenttracker` | **Breaks updates**: Android treats it as a new app. Send the offline queue first, uninstall, install, pair again (the device token in the Keystore is lost) |
 | Android Keystore alias | `filament-tracker-storage` | Lost with the uninstall anyway; rename with the app ID |
 | Phone app name | Capacitor `appName` "Filament Tracker" | Safe |
@@ -763,7 +763,7 @@ None of this is built or scheduled inside the current milestones, and none of it
 
 ### Later
 
-#### L.1 Ask Spoolhouse (on-demand agent)
+#### L.1 Ask Rollcall (on-demand agent)
 
 - **Summary**: an optional button that asks an LLM agent to reason over the app's data, through the same tools as 3.5.
 - **Examples**:
@@ -822,4 +822,4 @@ None of this is built or scheduled inside the current milestones, and none of it
 - [x] Buttons on the CYD prototype: resistor ladder on GPIO35. The PCF8574 expander stays as the fallback.
 - [x] Printer data source: direct MQTT from the server, which also works through an MQTT proxy if the printer's connection limit is hit.
 - [x] Refill packs carry Bambu tags that read through the box. A refill has its own tray UID, so it is tracked as a new spool.
-- [ ] Project and repo name. Working name Spoolhouse (2026-11-07), not final; the rename waits until it is settled.
+- [ ] Project name. Working name Rollcall (2026-11-09, replacing Spoolhouse), not final; the repo is already `sirmeili/rollcall`, and the rename of the code waits until the name is settled.

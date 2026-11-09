@@ -46,6 +46,10 @@
 
 ## In progress
 
+- M9, Deployment. Plan approved (2026-11-09): five branches merged in order (General and Scanners settings in the app, with the repo rename and the M9 spec decisions; printers on the Devices page; machine tokens; first-start setup; the Docker image, Compose file, nightly backups and the image published to GHCR, then a walkthrough on the owner's home server).
+- `feature/settings-general` (M9 part 1):
+  - Done: the GitHub repo renamed to `sirmeili/rollcall` (the old address redirects) and the local remote updated; the spec and README use the working name Rollcall; the spec records the M9 decisions (a private `ghcr.io/sirmeili/rollcall` image for x86-64 built by GitHub Actions, Docker Compose on the owner's home server, the time zone setting covering every time in the web app and the 03:00 backup, `UTC` by default). `tzdata` added to the server (no advisories; the time zone database Python lacks on Windows).
+  - Next: the General (time zone, sign-in length) and Scanners (`BAMBU_KDF_SALT`) settings groups, used by sign-in, provisioning, `ft-sim check-salt` and the web app's times.
 - Phone Scan screen redesign, from the mockups in `docs/mockups/mobile-scanner/` (merged in PR #30). Plan approved (2026-11-06): two branches, before M6 part 3.
 - Phone Scan screen redesign complete: part 1 merged in PR #31, part 2 (the Delivery mode) in PR #32.
 - Settings spec merged (PR #33).
@@ -55,13 +59,13 @@
 
 ## Next
 
-- M9 Deployment: printers and the remaining settings in the app, machine tokens, first-start setup, the Docker image and Compose file, nightly backups.
 - M10 and M11, print requests Phase 2 and Phase 3 (see SPEC Future enhancements: print requests), before the firmware milestones.
 - Later (owner's request, 2026-11-06, in SPEC Future enhancements): the theme choice moves to the Account page; a phone app setting for the start screen (Scan or the web app); a bottom bar on phones with a menu button, Scan and the user.
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
 
 ## Decisions
 
+- 2026-11-09: M9 decisions (owner). Working name Rollcall, replacing Spoolhouse, still not final; the repo is renamed now. The server runs in Docker Compose on the owner's home server (an Intel x86-64 machine), from a private image on GitHub's container registry built by GitHub Actions. The time zone setting sets every time the web app shows and when the nightly backup runs.
 - 2026-11-07: Print requests direction (owner). Working name Spoolhouse, not final; the rename waits until the name is settled, and reinstalling the phone app and renaming the Home Assistant names are accepted. One app with an Inventory module and a Print Requests module that depends on it, never the reverse. The whole web app stays reachable from the internet; only scanning stays on the LAN. A Requester role is added alongside Viewer, Editor and Admin. Phases 2 and 3 come after M9 and before the firmware milestones. The MCP server is the first in the owner's apps and must cover the examples given.
 - 2026-11-07: Most settings move into the app, with `.env` as the starting value and a value saved in the app winning (this reverses the M6 part 3 plan, where `.env` won). Settings that could lock the admin out or open LAN-only routes stay in `.env` only. First start uses a Setup page instead of `ft-admin`, guarded by `TRUSTED_NETWORKS` and a one-time code in the server log. Deployment becomes milestone M9.
 - 2026-11-06: Scan screen decisions (owner): the Delivery session list lasts until the app is closed, with a Clear button; View spool and Scan next on the result; the Scan theme toggle is the web app's theme choice; the full app gets a Scan button in its header in the phone app.
