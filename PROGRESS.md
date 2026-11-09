@@ -57,7 +57,8 @@
 - M9, Deployment. Plan approved (2026-11-09): five branches merged in order (General and Scanners settings in the app, with the repo rename and the M9 spec decisions; printers on the Devices page; machine tokens; first-start setup; the Docker image, Compose file, nightly backups and the image published to GHCR, then a walkthrough on the owner's home server).
 - `feature/machine-tokens` (M9 part 3):
   - Done (server): a `machine_token` table (name, role, token hash, who made it, last use, revoked). Tokens look like `ftm_<random>`, are returned once by `POST /tokens` and stored only as a SHA-256 hash; `GET /tokens` lists them (in use first) and `DELETE /tokens/{id}` revokes one at once. A token acts with its role, from the LAN only, and cannot act as a scanner or a signed-in user. Its last use is saved at most once a minute. `ADMIN_TOKEN` keeps working. Tests: each role on every route, revoked and unknown tokens, LAN only, only the hash stored, never logged.
-  - Next: the Machine tokens card on the Settings page, then docs.
+  - Done (web): a Machine tokens card on the Settings page: New token (name and role), the token shown once with Copy, each token's role, maker and last use, and Revoke after a confirmation. The Users page's Admin description lists everything Admins manage. Tests for the card and an end-to-end make, use, and revoke. Docs: `server/README.md`, `.env.example` and README.
+  - All checks pass (server 1162 tests, 99.56% coverage; web 418 tests, 99.51% lines; 22 end-to-end tests). Next: the owner reviews the branch.
 
 ## Next
 

@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SettingOut } from "#lib/api/settings.ts";
+import type { MachineTokenOut } from "#lib/api/tokens.ts";
 import { fakeFetch } from "../test/fixtures.ts";
 
 const SettingsPage = (await import("./settings/+page.svelte")).default;
@@ -55,6 +56,7 @@ function serve(routes: Parameters<typeof fakeFetch>[0]) {
     "GET /settings/general": GENERAL,
     "GET /settings/scanners": SCANNERS,
     "GET /settings/home-assistant": group(),
+    "GET /tokens": [],
     ...routes,
   });
   vi.stubGlobal("fetch", fetch);
@@ -197,11 +199,13 @@ describe("Settings page", () => {
         "GET /settings/general": refused,
         "GET /settings/scanners": refused,
         "GET /settings/home-assistant": refused,
+        "GET /tokens": refused,
       }),
     );
     render(SettingsPage);
     const alerts = await screen.findAllByRole("alert");
-    expect(alerts).toHaveLength(3);
+    // One for each settings group, and one for the machine tokens.
+    expect(alerts).toHaveLength(4);
     expect(alerts[0]).toHaveTextContent("Your role cannot do that.");
   });
 
@@ -283,5 +287,164 @@ describe("Settings page", () => {
       "placeholder",
       "Saved. Leave empty to keep it.",
     );
+  });
+});
+
+const TOKEN: MachineTokenOut = {
+  id: 1,
+  name: "Home Assistant",
+  role: "viewer",
+  created_at: "2026-11-09T15:00:00Z",
+  created_by: "frank",
+  last_used_at: null,
+  revoked: false,
+};
+
+/** The Machine tokens card. */
+function tokensCard() {
+  return within(screen.getByRole("region", { name: "Machine tokens" }));
+}
+
+describe("Machine tokens", () => {
+  it("lists tokens with their role, maker and last use", async () => {
+    serve({
+      "GET /tokens": [
+        { ...TOKEN, last_used_at: "2026-11-09T16:05:00Z" },
+        { ...TOKEN, id: 2, name: "Old script", role: "admin", created_by: null, revoked: true },
+      ],
+    });
+    render(SettingsPage);
+
+    const list = await screen.findByRole("list", { name: "Machine tokens" });
+    const rows = within(list).getAllByRole("listitem");
+    expect(rows[0]).toHaveTextContent("Home Assistant");
+    expect(rows[0]).toHaveTextContent("Viewer");
+    expect(rows[0]).toHaveTextContent("by frank");
+    expect(rows[0]).toHaveTextContent("Last used");
+    expect(rows[1]).toHaveTextContent("Admin");
+    expect(rows[1]).toHaveTextContent("Revoked");
+    expect(rows[1]).toHaveTextContent("Never used");
+    expect(rows[1]).not.toHaveTextContent("by ");
+    expect(within(rows[1]).queryByRole("button")).toBeNull();
+  });
+
+  it("says when there are no tokens, and shows a load failure", async () => {
+    serve({});
+    const { unmount } = render(SettingsPage);
+    expect(await tokensCard().findByText("No machine tokens yet.")).toBeInTheDocument();
+    unmount();
+
+    serve({ "GET /tokens": new Response(JSON.stringify({ detail: "nope" }), { status: 500 }) });
+    render(SettingsPage);
+    expect(await tokensCard().findByRole("alert")).toBeInTheDocument();
+  });
+
+  it("makes a token and shows it once", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    let made = false;
+    const fetch = serve({
+      "GET /tokens": () => (made ? [{ ...TOKEN, role: "editor" }] : []),
+      "POST /tokens": () => {
+        made = true;
+        return { ...TOKEN, role: "editor", token: "ftm_secret-value" };
+      },
+    });
+    render(SettingsPage);
+
+    await userEvent.click(await tokensCard().findByRole("button", { name: "New token" }));
+    const form = within(screen.getByRole("form", { name: "New machine token" }));
+    await userEvent.click(form.getByRole("button", { name: "Make token" }));
+    expect(form.getByRole("alert")).toHaveTextContent("Enter a name");
+
+    await userEvent.type(form.getByLabelText("Name"), "  Home Assistant ");
+    await userEvent.selectOptions(form.getByLabelText("Role"), "editor");
+    await userEvent.click(form.getByRole("button", { name: "Make token" }));
+
+    expect(fetch.calls.find((c) => c.method === "POST")?.body).toEqual({
+      name: "Home Assistant",
+      role: "editor",
+    });
+    const shown = await screen.findByRole("alert", { name: "New token for Home Assistant" });
+    expect(shown).toHaveTextContent("ftm_secret-value");
+    expect(shown).toHaveTextContent("It won't be shown again");
+    await userEvent.click(within(shown).getByRole("button", { name: "Copy" }));
+    expect(writeText).toHaveBeenCalledWith("ftm_secret-value");
+    expect(shown).toHaveTextContent("Copied.");
+    expect(await tokensCard().findByText("Editor")).toBeInTheDocument();
+
+    await userEvent.click(within(shown).getByRole("button", { name: "Done" }));
+    expect(screen.queryByText("ftm_secret-value")).toBeNull();
+  });
+
+  it("says when the token cannot be copied", async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error("denied"));
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    serve({ "POST /tokens": { ...TOKEN, token: "ftm_secret-value" } });
+    render(SettingsPage);
+
+    await userEvent.click(await tokensCard().findByRole("button", { name: "New token" }));
+    await userEvent.type(screen.getByPlaceholderText("Home Assistant"), "HA");
+    await userEvent.click(screen.getByRole("button", { name: "Make token" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Copy" }));
+
+    expect(await screen.findByText(/Could not copy/)).toBeInTheDocument();
+  });
+
+  it("shows why a token was not made, and can be cancelled", async () => {
+    serve({
+      "POST /tokens": new Response(JSON.stringify({ detail: "requires the admin role" }), {
+        status: 403,
+      }),
+    });
+    render(SettingsPage);
+
+    await userEvent.click(await tokensCard().findByRole("button", { name: "New token" }));
+    await userEvent.type(screen.getByPlaceholderText("Home Assistant"), "HA");
+    await userEvent.click(screen.getByRole("button", { name: "Make token" }));
+    const form = within(screen.getByRole("form", { name: "New machine token" }));
+    expect(await form.findByRole("alert")).toHaveTextContent("Your role cannot do that.");
+
+    await userEvent.click(form.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("form", { name: "New machine token" })).toBeNull();
+  });
+
+  it("revokes a token after confirming", async () => {
+    let revoked = false;
+    const fetch = serve({
+      "GET /tokens": () => [{ ...TOKEN, revoked }],
+      "DELETE /tokens/1": () => {
+        revoked = true;
+        return new Response(null, { status: 204 });
+      },
+    });
+    render(SettingsPage);
+
+    await userEvent.click(await tokensCard().findByRole("button", { name: "Revoke" }));
+    const confirm = within(tokensCard().getByRole("group", { name: "Confirm" }));
+    await userEvent.click(confirm.getByRole("button", { name: "Cancel" }));
+    expect(fetch.calls.some((c) => c.method === "DELETE")).toBe(false);
+
+    await userEvent.click(tokensCard().getByRole("button", { name: "Revoke" }));
+    await userEvent.click(tokensCard().getByRole("button", { name: "Revoke Home Assistant" }));
+
+    expect(await tokensCard().findByRole("status")).toHaveTextContent("Revoked Home Assistant");
+    expect(tokensCard().getByText("Revoked")).toBeInTheDocument();
+    expect(tokensCard().queryByRole("button", { name: "Revoke" })).toBeNull();
+  });
+
+  it("shows why a revoke failed", async () => {
+    serve({
+      "GET /tokens": [TOKEN],
+      "DELETE /tokens/1": new Response(JSON.stringify({ detail: "no such token" }), {
+        status: 404,
+      }),
+    });
+    render(SettingsPage);
+
+    await userEvent.click(await tokensCard().findByRole("button", { name: "Revoke" }));
+    await userEvent.click(tokensCard().getByRole("button", { name: "Revoke Home Assistant" }));
+
+    expect(await tokensCard().findByRole("status")).toHaveTextContent("Not found");
   });
 });
