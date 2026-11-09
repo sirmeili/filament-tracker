@@ -50,9 +50,11 @@
 - Phone Scan screen redesign complete: part 1 merged in PR #31, part 2 (the Delivery mode) in PR #32.
 - Settings spec merged (PR #33).
 - M6 part 3 merged (PR #34).
-- `feature/spoolhouse-spec`: the print requests direction added to the spec as future work (owner's request, 2026-11-07), with no change to the milestones up to M9.
-  - Done: working name Spoolhouse in the spec title, overview and README, with a list of what a rename touches and what it breaks; the Requester role (planned); a Future enhancements: print requests section in three phases (catalog and Bambu color codes, requests and their status pipeline, holding filament, the shopping list; reading 3MF files, print jobs from the printer, push, picking colors on the model, MCP; Ask Spoolhouse and stats); verification findings; milestones M10 and M11 before the firmware milestones.
-  - Next: review by the owner, then the PR. Then M6 part 4.
+- Print requests direction added to the spec (PR #35).
+- `feature/ha-check` (M6 part 4): the check against the owner's Home Assistant. Plan approved (2026-11-09): `ft-ha check`, a checklist in `server/README.md`, a run against the owner's Home Assistant, then docs.
+  - Done: `ft-ha check` (`ha/diagnose.py`, `ha/cli.py`): uses the settings the server uses (read from its database and key, never created), reads the server's retained messages from the broker (5 discovery messages, old ones left behind, availability, totals, low filament), compares them with the 5 entities Home Assistant shows through its REST API, and `--event` fires one `filament_tracker_check` event. It prints counts and states only, never an address, user, password or token. Tests with fakes and against the local Mosquitto broker.
+  - First run against the owner's Home Assistant (2026-11-09): broker connected, 5 of 5 discovery messages, online, totals and low filament published. The Home Assistant address and token are not set, so events are off and the entities can't be compared yet.
+  - Next: the checklist in `server/README.md`; the owner sets the Home Assistant address and token on the Settings page; run the check and the checklist.
 - Done, PR #32 (part 2, the Delivery mode): a Delivery toggle on the waiting screen; while it is on, the top of Scan lists the spools recorded in the session (color, name, time, number, queued until sent, Undone), with totals and Clear, and the bottom is one panel (Ready, the spool with its keys and 15 s bar, then what was recorded with Undo and a 3 s bar). Only the newest row has Undo. The list is kept in memory until the app closes (leaving Scan keeps it) and cleared when the pairing is forgotten. The last scan now carries the spool as the server has it, so a new tag's row shows its number. The Delivery button widens to fit its label at large phone text sizes, and the Ready icon pulses like the waiting screen's target. Spec updated (Phone scanner, Unpacking a delivery).
 
 ## Next

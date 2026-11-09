@@ -116,3 +116,37 @@ def test_the_settings_test_connects_and_spots_a_wrong_password() -> None:
     assert check_broker(broker()) is CheckResult.OK
     wrong = BrokerConfig(broker().host, broker().port, False, USER, SecretStr("wrong-password"))
     assert check_broker(wrong) is CheckResult.REFUSED
+
+
+def test_ft_ha_check_reads_what_the_server_published(engine: Engine) -> None:
+    from filament_tracker.ha.diagnose import _read, broker_report, read_retained
+
+    sessions: sessionmaker[Session] = create_session_factory(engine)
+    with sessions() as session:
+        black = add_product(session, low_stock_threshold=2)
+        add_spools(session, black, SpoolState.SEALED, 2)
+        session.commit()
+    ha = HaPublisher(broker(), PREFIX, sessions, poll_seconds=0.1)
+
+    async def main() -> dict[str, str]:
+        stopping = asyncio.Event()
+        task = asyncio.create_task(ha.run(stopping))
+        try:
+            await retained([f"{PREFIX}/#", "filament_tracker/#"], done=published)
+            return await _read(broker(), PREFIX, 1.0, aiomqtt.Client)
+        finally:
+            stopping.set()
+            await asyncio.wait_for(task, 10)
+
+    loop = asyncio.SelectorEventLoop()
+    try:
+        seen = loop.run_until_complete(main())
+    finally:
+        loop.close()
+
+    report = broker_report(seen, PREFIX)
+    assert report.ok, report.lines
+    assert "  Totals: 2 spools, 0 open, 2 sealed, 0 in review" in report.lines
+    # Once the server has stopped, its will says it is offline.
+    after = read_retained(broker(), PREFIX, 1.0)
+    assert after[AVAILABILITY_TOPIC] == "offline"
