@@ -1,5 +1,6 @@
 """The settings in use, for command-line tools that run beside the server (`ft-ha check`,
-`ft-sim check-salt`): a value saved in the app wins over `.env`, as in the server.
+`ft-sim check-salt`, `ft-printer check`): a value saved in the app wins over `.env`, as in
+the server.
 
 The server's database and key are only read. Nothing is created or upgraded, and without
 the key, saved secrets count as unreadable.
@@ -43,15 +44,26 @@ def empty_sessions() -> sessionmaker[Session]:
     return create_session_factory(engine)
 
 
+def open_database(settings: Settings, table: str = "setting") -> sessionmaker[Session] | None:
+    """The server's database, if it exists and has `table` (so it is new enough)."""
+    path = database_file(settings.database_url)
+    if path is None or not path.exists():
+        return None
+    engine = create_db_engine(settings.database_url)
+    if not sql_inspect(engine).has_table(table):
+        return None
+    return create_session_factory(engine)
+
+
+def open_box(settings: Settings) -> SecretBox:
+    """The settings key's box; without the key, one that opens nothing saved."""
+    key = read_key(settings)
+    return SecretBox(key if key is not None else secrets.token_bytes(KEY_BYTES))
+
+
 def open_store(settings: Settings) -> tuple[SettingsStore, bool]:
     """The settings in use, and whether the server's database was found. Without it, only
     server/.env counts."""
-    path = database_file(settings.database_url)
-    sessions = None
-    if path is not None and path.exists():
-        engine = create_db_engine(settings.database_url)
-        if sql_inspect(engine).has_table("setting"):
-            sessions = create_session_factory(engine)
-    key = read_key(settings)
-    box = SecretBox(key if key is not None else secrets.token_bytes(KEY_BYTES))
-    return SettingsStore(settings, sessions or empty_sessions(), box), sessions is not None
+    sessions = open_database(settings)
+    store = SettingsStore(settings, sessions or empty_sessions(), open_box(settings))
+    return store, sessions is not None

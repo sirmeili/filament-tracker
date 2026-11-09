@@ -86,7 +86,11 @@ def test_printers_show_status_pin_and_slots(app: FastAPI, admin: TestClient, db:
     assert slots[0]["remaining_pct"] == 85
     assert slots[1]["spool"] is None and slots[1]["filament_type"] is None
     assert slots[2]["spool"] is None and slots[2]["filament_type"] == "PETG"
-    assert "access_code" not in str(body)
+    assert (body["serial"], body["access_code_set"], body["access_code_unreadable"]) == (
+        "01P00A1",
+        False,
+        False,
+    )
 
 
 @pytest.mark.parametrize(("minutes", "online"), [(4.9, True), (5.1, False), (None, False)])

@@ -244,7 +244,7 @@ def test_collect_stops_at_the_timeout() -> None:
 
 
 def settings(*printers: PrinterConfig) -> Settings:
-    return Settings(printers=list(printers), _env_file=None)  # type: ignore[call-arg]
+    return Settings(database_url="sqlite://", printers=list(printers), _env_file=None)  # type: ignore[call-arg]
 
 
 def test_main_needs_the_printer(capsys: pytest.CaptureFixture[str]) -> None:
@@ -306,3 +306,36 @@ def test_main_prints_the_slots_and_saves(
     assert "tray_uuid equals the tag's tray UID" in printed
     assert tray not in printed
     assert tray not in out.read_text(encoding="utf-8")
+
+
+def test_main_finds_printers_saved_in_the_app(
+    monkeypatch: pytest.MonkeyPatch, db_url: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import base64
+
+    from filament_tracker.app_settings.crypto import SecretBox
+    from filament_tracker.db.engine import create_db_engine, create_session_factory
+    from filament_tracker.services.printers import seed_printers
+
+    key = bytes(range(32))
+    key_file = Path(db_url.removeprefix("sqlite:///")).parent / "settings.key"
+    key_file.write_text(base64.b64encode(key).decode())
+    sessions = create_session_factory(create_db_engine(db_url))
+    saved = PrinterConfig(name="Saved", host="h", serial="S1", access_code=SecretStr("c"))
+    with sessions() as session:
+        seed_printers(session, SecretBox(key), [saved])
+    used: list[PrinterConfig] = []
+
+    async def collected(printer: PrinterConfig, seconds: float) -> tuple[str, Capture]:
+        used.append(printer)
+        return "cd" * 32, Capture()
+
+    monkeypatch.setattr(check, "collect", collected)
+    env_only = PrinterConfig(name="EnvOnly", host="h2", serial="S2", access_code=SecretStr("d"))
+    settings_ = Settings(database_url=db_url, printers=[env_only], _env_file=None)  # type: ignore[call-arg]
+
+    assert check.main(["check"], settings=settings_) == 0
+    assert check.main(["check", "--name", "EnvOnly"], settings=settings_) == 0
+    assert [p.name for p in used] == ["Saved", "EnvOnly"]
+    assert used[0].access_code.get_secret_value() == "c"
+    capsys.readouterr()
