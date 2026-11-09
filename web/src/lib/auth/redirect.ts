@@ -1,6 +1,7 @@
 import type { Me } from "#lib/api/types.ts";
 
 export const LOGIN_PATH = "/login";
+export const SETUP_PATH = "/setup";
 
 /** Where to go after signing in. Only paths on this site are allowed, so a crafted link
  * cannot send someone to another site after they sign in. */
@@ -29,14 +30,19 @@ export interface PageUrl {
   searchParams: { get(name: string): string | null };
 }
 
-/** Where the layout should send the browser, or null to stay. */
+/** Where the layout should send the browser, or null to stay. While first-start setup is
+ * open, signed-out visitors go to Setup instead of sign-in. */
 export function guardRedirect(
   url: PageUrl,
   user: Me | null,
   loaded: boolean,
   expired = false,
+  setupOpen = false,
 ): string | null {
   if (!loaded) return null;
+  const onSetup = url.pathname === SETUP_PATH;
+  if (!user && setupOpen) return onSetup ? null : SETUP_PATH;
+  if (onSetup) return user ? "/" : LOGIN_PATH;
   const onLogin = url.pathname === LOGIN_PATH;
   if (!user && !onLogin) return loginUrl(url.pathname, url.search, expired);
   if (user && onLogin) return safeNext(url.searchParams.get("next"));

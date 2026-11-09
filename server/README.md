@@ -23,7 +23,15 @@ If the web app has been built (`npm ci` and `npm run build` in `web/`), it is se
 
 ## Accounts
 
-The web app has no default account. Create the first Admin from `server/`; the password is prompted, at least 12 characters:
+The web app has no default account. Until an Admin exists, the server is open for **first-start setup**: each time it starts, it writes a new setup code to its log, like this:
+
+```text
+First-start setup is open. Open the web app from your LAN and enter the setup code: K7QM-X3RD-9PTA
+```
+
+Open the web app from the LAN; it shows a Setup page instead of the sign-in page. Enter the code, a username and a password (at least 12 characters), and, if `.env` does not set them, the time zone and the tag key constant (both optional, and both can be set later on the Settings page). Setup creates the Admin, signs them in and closes for good. Setup answers only from `TRUSTED_NETWORKS`, so it cannot be reached through the reverse proxy, and five wrong codes in 15 minutes lock it for a while. A restart makes a new code, and the old one stops working.
+
+Or create the first Admin from `server/` instead, which also closes setup; the password is prompted, at least 12 characters:
 
 ```powershell
 uv run ft-admin create-user frank --role admin

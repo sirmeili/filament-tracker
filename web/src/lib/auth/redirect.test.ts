@@ -60,3 +60,22 @@ describe("guardRedirect", () => {
     expect(guardRedirect(url("/spools"), ALICE, true)).toBeNull();
   });
 });
+
+describe("guardRedirect while setup is open", () => {
+  const url = (path: string) => new URL(path, "https://tracker.example");
+
+  it("sends signed-out visitors to Setup instead of sign-in", () => {
+    expect(guardRedirect(url("/review"), null, true, false, true)).toBe("/setup");
+    expect(guardRedirect(url("/login"), null, true, false, true)).toBe("/setup");
+  });
+
+  it("lets them stay on Setup", () => {
+    expect(guardRedirect(url("/setup"), null, true, false, true)).toBeNull();
+  });
+
+  it("sends visitors away from Setup once it is closed", () => {
+    expect(guardRedirect(url("/setup"), null, true)).toBe("/login");
+    expect(guardRedirect(url("/setup"), ALICE, true)).toBe("/");
+    expect(guardRedirect(url("/setup"), ALICE, true, false, true)).toBe("/");
+  });
+});

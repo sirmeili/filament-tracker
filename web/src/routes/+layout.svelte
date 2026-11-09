@@ -5,7 +5,7 @@
   import type { Snippet } from "svelte";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import { guardRedirect, LOGIN_PATH } from "#lib/auth/redirect.ts";
+  import { guardRedirect, LOGIN_PATH, SETUP_PATH } from "#lib/auth/redirect.ts";
   import { session } from "#lib/auth/session.svelte.ts";
   import Forbidden from "#lib/components/Forbidden.svelte";
   import Header from "#lib/components/Header.svelte";
@@ -56,7 +56,13 @@
   // Send signed-out visitors to the sign-in page, and signed-in ones away from it.
   $effect(() => {
     if (phonePage) return;
-    const target = guardRedirect(page.url, session.user, session.loaded, session.expired);
+    const target = guardRedirect(
+      page.url,
+      session.user,
+      session.loaded,
+      session.expired,
+      session.setup !== null,
+    );
     if (target) void goto(target, { replaceState: true });
   });
 
@@ -71,7 +77,7 @@
   <main class="centered"><p class="muted">Loading…</p></main>
 {:else if phonePage}
   <main class:bare={page.url.pathname === "/scan"}>{@render children()}</main>
-{:else if page.url.pathname === LOGIN_PATH}
+{:else if page.url.pathname === LOGIN_PATH || page.url.pathname === SETUP_PATH}
   <main class="centered">{@render children()}</main>
 {:else if session.user}
   <Header

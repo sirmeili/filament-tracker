@@ -103,7 +103,7 @@ Upon user acceptance of a completed feature or step, you must commit your code, 
 
   * Check that the models and migrations match: `uv run alembic check`
 
-  * Create a web app account: `uv run ft-admin create-user <username> --role viewer|editor|admin` (the password is prompted). Reset one with `uv run ft-admin reset-password <username>`.
+  * Create a web app account: `uv run ft-admin create-user <username> --role viewer|editor|admin` (the password is prompted). Reset one with `uv run ft-admin reset-password <username>`. On a new database, first-start setup also creates the first Admin from the web app, with the setup code the server logs at start.
 
   * Scan simulator: `uv run ft-sim scan <dump.bin|export.zip> --action lookup|received|opened|empty` and `uv run ft-sim generate <out.bin>`. `uv run ft-sim check-salt <dumps>` checks the salt in use (saved on the Settings page, else `BAMBU_KDF_SALT`) against saved dumps without printing keys. It needs `FT_TOKEN` (a registered device token); see `server/README.md`. Tag dumps never go in the repo.
 

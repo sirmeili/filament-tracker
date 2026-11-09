@@ -1,4 +1,5 @@
 import { api, ApiError, onUnauthorized } from "#lib/api/client.ts";
+import { finishSetup, openSetup, type SetupFields, type SetupStatus } from "#lib/api/setup.ts";
 import type { Me } from "#lib/api/types.ts";
 import { setTimeZone } from "#lib/format.ts";
 import { allows, type Role } from "#lib/roles.ts";
@@ -9,6 +10,8 @@ export class Session {
   loaded = $state(false);
   /** True when a signed-in session ended on its own (expired, or signed out elsewhere). */
   expired = $state(false);
+  /** First-start setup, while it is open (no Admin yet); then null. */
+  setup = $state<SetupStatus | null>(null);
 
   get user(): Me | null {
     return this.#user;
@@ -35,9 +38,19 @@ export class Session {
         throw error;
       }
       this.user = null;
+      this.setup = await openSetup();
     } finally {
       this.loaded = true;
     }
+  }
+
+  /** Create the first Admin, who is then signed in. */
+  async finishSetup(fields: SetupFields): Promise<Me> {
+    const user = await finishSetup(fields);
+    this.user = user;
+    this.setup = null;
+    this.expired = false;
+    return user;
   }
 
   async login(username: string, password: string): Promise<Me> {

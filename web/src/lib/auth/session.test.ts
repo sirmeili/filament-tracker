@@ -92,12 +92,48 @@ describe("Session", () => {
   });
 
   it("clears the ended flag on the next sign-in", async () => {
-    respond([200, ALICE], [401], [200, ALICE]);
+    respond([200, ALICE], [401], [404], [200, ALICE]);
     await session.load();
     await session.load();
 
     await session.login("alice", "pw");
 
     expect(session.expired).toBe(false);
+  });
+
+  it("finds an open setup when no one is signed in", async () => {
+    const status = { open: true, time_zone_needed: true, kdf_salt_needed: false };
+    const fetchFn = respond([401], [200, status]);
+
+    await session.load();
+
+    expect(fetchFn.mock.calls[1][0]).toContain("/setup");
+    expect(session.setup).toEqual(status);
+  });
+
+  it.each([
+    ["closed", [200, { open: false, time_zone_needed: false, kdf_salt_needed: false }]],
+    ["hidden from outside the LAN", [404, { detail: "Not Found" }]],
+    ["unreachable", [500, { detail: "down" }]],
+  ] as const)("treats a setup that is %s as closed", async (_, reply) => {
+    respond([401], [...reply]);
+
+    await session.load();
+
+    expect(session.setup).toBeNull();
+    expect(session.loaded).toBe(true);
+  });
+
+  it("finishing setup signs the new admin in", async () => {
+    const admin = { id: 1, username: "frank", role: "admin", time_zone: "UTC" };
+    respond([401], [200, { open: true, time_zone_needed: false, kdf_salt_needed: false }]);
+    await session.load();
+    const fetchFn = respond([201, admin]);
+
+    await session.finishSetup({ code: "AAAA", username: "frank", password: "x".repeat(12) });
+
+    expect(fetchFn.mock.calls[0][1].method).toBe("POST");
+    expect(session.user).toEqual(admin);
+    expect(session.setup).toBeNull();
   });
 });
