@@ -4,6 +4,7 @@
   import Ring from "#lib/components/ui/Ring.svelte";
   import { hexText } from "#lib/format.ts";
   import { thresholdText } from "#lib/inventory.ts";
+  import { sourceText } from "#lib/products.ts";
 
   let { item }: { item: ProductSummary } = $props();
   const product = $derived(item.product);
@@ -45,7 +46,7 @@
   {/if}
   <div class="foot">
     <span>{thresholdText(product.low_stock_threshold)}</span>
-    {#if product.provisional}<span class="badge-hand">Added by hand</span>{/if}
+    {#if product.provisional}<span class="badge-hand">{sourceText(product)}</span>{/if}
   </div>
 </article>
 

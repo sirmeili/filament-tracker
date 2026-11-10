@@ -184,13 +184,18 @@ describe("inventory", () => {
           open_spools: [],
         }),
         summary({ product: product({ id: 3, display_name: "Blue" }), low_stock: false }),
+        summary({
+          product: product({ id: 4, display_name: "PETG HF", provisional: true, from_ams: true }),
+          low_stock: false,
+        }),
       ],
       totals: TOTALS,
       countText: "All 3",
     });
 
     const rows = screen.getAllByRole("row");
-    expect(rows).toHaveLength(5);
+    expect(rows).toHaveLength(6);
+    expect(within(rows[5]).getByText("From AMS")).toBeInTheDocument();
     // The totals sit under the column headings.
     expect(within(rows[1]).getByText("All 3")).toBeInTheDocument();
     expect(within(rows[1]).getByLabelText("14 sealed in all")).toHaveTextContent("14");

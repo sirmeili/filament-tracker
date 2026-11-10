@@ -152,6 +152,31 @@ def test_several_matching_products_give_a_provisional_one(
     assert spool_by_uid(session, BLACK).product.provisional
 
 
+def test_a_provisional_product_keeps_the_trays_material_id_and_is_reused(
+    session: Session, printer: Printer
+) -> None:
+    other = "0F1E2D3C4B5A69788796A5B4C3D2E1F0"
+    ingest(
+        session,
+        printer,
+        [
+            TrayReport(0, 0, BLACK, "GFA00", "PLA", "PLA Basic", "000000FF", 60),
+            TrayReport(0, 1, other, "GFA00", "PLA", "PLA Basic", "000000FF", 80),
+        ],
+        T0,
+    )
+
+    item = spool_by_uid(session, BLACK).product
+    assert (item.material_id, item.variant_id, item.provisional, item.from_ams) == (
+        "GFA00",
+        None,
+        True,
+        True,
+    )
+    # The second spool of the same filament joins it rather than making another.
+    assert spool_by_uid(session, other).product is item
+
+
 def test_a_tray_with_little_data_still_gets_a_product(session: Session, printer: Printer) -> None:
     ingest(session, printer, [TrayReport(0, 0, tray_uuid=BLACK)], T0)
 

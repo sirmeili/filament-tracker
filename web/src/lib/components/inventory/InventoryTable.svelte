@@ -67,7 +67,9 @@
             {:else}
               <span class="muted">{statusText(item)}</span>
             {/if}
-            {#if product.provisional}<span class="badge-hand">By hand</span>{/if}
+            {#if product.provisional}<span class="badge-hand"
+                >{product.from_ams ? "From AMS" : "By hand"}</span
+              >{/if}
           </td>
         </tr>
       {/each}

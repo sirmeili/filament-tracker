@@ -65,8 +65,8 @@ def handle_scan(session: Session, device: Device, scan: ScanEvent, now: datetime
         logger.debug("unreadable tag UID %s", scan.tag_uid.upper())
         return _response(Feedback.UNREADABLE, None, None)
 
-    product = _find_product(session, record)
     spool = session.scalar(select(Spool).where(Spool.tray_uid == record.tray_uid))
+    product = _find_product(session, record, spool)
     placeholder = _oldest_placeholder(session, product) if spool is None and product else None
 
     if scan.action == ScanAction.LOOKUP:
@@ -124,11 +124,13 @@ def _decode(scan: ScanEvent) -> TagRecord | None:
     return record if record.tag_uid == scan.tag_uid.upper() else None
 
 
-def _find_product(session: Session, record: TagRecord) -> Product | None:
+def _find_product(session: Session, record: TagRecord, spool: Spool | None) -> Product | None:
     """The product with this tag's key, or else the one provisional product it can fill in.
 
-    A provisional product (made by hand for manual entry) matches when it has the tag's
-    filament type and color and still has unlinked placeholders.
+    In order: the product with the tag's key; the provisional product of the spool this
+    tag belongs to (made when the AMS saw it first, perhaps renamed since); the one product
+    made from the AMS with the tag's material ID and color; the one provisional product made
+    by hand with the tag's filament type and color that still has unlinked placeholders.
     """
     exact = session.scalar(
         select(Product).where(
@@ -139,6 +141,18 @@ def _find_product(session: Session, record: TagRecord) -> Product | None:
     )
     if exact is not None:
         return exact
+    if spool is not None and spool.product.provisional:
+        return spool.product
+    from_ams = session.scalars(
+        select(Product).where(
+            Product.provisional.is_(True),
+            Product.from_ams.is_(True),
+            Product.material_id == record.material_id,
+            func.upper(Product.color_rgba) == record.color_rgba,
+        )
+    ).all()
+    if len(from_ams) == 1:
+        return from_ams[0]
     candidates = session.scalars(
         select(Product)
         .join(Spool)

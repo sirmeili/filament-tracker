@@ -21,7 +21,13 @@ const petg = summary({
   ],
 });
 const white = summary({
-  product: product({ id: 3, display_name: "White PLA", low_stock_threshold: 0 }),
+  product: product({
+    id: 3,
+    display_name: "White PLA",
+    low_stock_threshold: 0,
+    provisional: true,
+    from_ams: true,
+  }),
   counts: { sealed: 4, open: 0, empty: 1, unknown: 0 },
   low_stock: false,
   open_spools: [],
@@ -187,6 +193,7 @@ describe("CompactList", () => {
 
     await userEvent.click(whiteRow);
     expect(screen.getByText("None open")).toBeInTheDocument();
+    expect(screen.getByText("From the AMS")).toBeInTheDocument();
     expect(screen.getByText("Alert off")).toBeInTheDocument();
     expect(screen.getByText("Low-stock alert off")).toBeInTheDocument();
 

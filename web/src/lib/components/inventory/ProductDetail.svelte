@@ -4,6 +4,7 @@
   import type { ProductSummary } from "#lib/api/types.ts";
   import PctBar from "#lib/components/ui/PctBar.svelte";
   import { spoolsLink, statusText, thresholdText } from "#lib/inventory.ts";
+  import { sourceText } from "#lib/products.ts";
 
   let { item }: { item: ProductSummary } = $props();
   const product = $derived(item.product);
@@ -37,7 +38,7 @@
     </div>
     <div>
       <dt>Source</dt>
-      <dd>{product.provisional ? "Added by hand" : "From tag"}</dd>
+      <dd>{sourceText(product)}</dd>
     </div>
   </dl>
   <div class="actions">

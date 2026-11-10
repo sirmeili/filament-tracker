@@ -2,7 +2,8 @@
 
 - A tray UID seen for the first time becomes a spool, recorded as `opened` (an implicit
   receive) with source `ams` and flagged for review. Its product is the one existing
-  product with the same material ID and color, or else a new provisional product.
+  product with the same material ID and color, or else a new provisional product marked
+  as made from the AMS, which keeps the tray's material ID so a scanned tag can fill it in.
 - A known spool that has never been opened by the AMS, and is sealed or Unknown, is
   recorded as `opened`. Once per spool: an undone AMS `opened` is not recorded again.
 - The remaining % is written to the spool only when it changes; more than 0% brings back a
@@ -101,10 +102,12 @@ def _match_product(session: Session, tray: TrayReport) -> Product:
     color = tray.color_rgba or UNKNOWN_COLOR
     kind = tray.sub_brand or tray.filament_type or UNKNOWN_TYPE
     product = Product(
+        material_id=tray.material_id or None,
         filament_type=tray.filament_type or UNKNOWN_TYPE,
         color_rgba=color,
         display_name=f"{kind} #{color[:6]}",
         provisional=True,
+        from_ams=True,
     )
     session.add(product)
     return product

@@ -24,6 +24,7 @@ class ProductDetail(BaseModel):
     low_stock_threshold: int = Field(description="Low on stock at or below this; 0 is off")
     nearly_out_pct: int = Field(description="An open spool at or below this AMS % is nearly out")
     provisional: bool
+    from_ams: bool = Field(description="Made from an AMS report rather than by hand")
 
 
 class Counts(BaseModel):

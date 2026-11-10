@@ -2,7 +2,7 @@
   import type { ProductSummary } from "#lib/api/types.ts";
   import Ring from "#lib/components/ui/Ring.svelte";
   import { hexText } from "#lib/format.ts";
-  import { type Draft, draftProblem, spoolCount } from "#lib/products.ts";
+  import { type Draft, draftProblem, sourceText, spoolCount } from "#lib/products.ts";
 
   interface Props {
     items: ProductSummary[];
@@ -85,7 +85,7 @@
           </td>
           <td>
             {#if product.provisional}
-              <span class="badge-hand">Added by hand</span>
+              <span class="badge-hand">{sourceText(product)}</span>
             {:else}
               <span class="from-tag">From tag</span>
             {/if}

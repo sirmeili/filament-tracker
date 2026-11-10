@@ -17,6 +17,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     Uuid,
+    false,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -41,9 +42,10 @@ class Base(DeclarativeBase):
 class Product(Base):
     """One filament product, such as Black PLA Basic.
 
-    Provisional products (from the AMS or manual entry) have no material or variant ID
-    until one of their tags is scanned. SQLite treats NULLs as distinct, so any number of
-    provisional products can exist alongside the unique product key.
+    Provisional products (from the AMS or manual entry) have no variant ID until one of
+    their tags is scanned; one made from the AMS keeps the material ID the AMS reported.
+    SQLite treats NULLs as distinct, so any number of provisional products can exist
+    alongside the unique product key.
     """
 
     __tablename__ = "product"
@@ -59,6 +61,8 @@ class Product(Base):
     # AMS remaining % at or below which an open spool is shown as nearly out.
     nearly_out_pct: Mapped[int] = mapped_column(Integer, default=15, server_default="15")
     provisional: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Made from an AMS report rather than by hand ("From the AMS" while provisional).
+    from_ams: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
     spools: Mapped[list["Spool"]] = relationship(back_populates="product")
