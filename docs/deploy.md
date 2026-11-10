@@ -207,7 +207,7 @@ The phone app cannot use Cloudflare Access's sign-in page, so it passes Access w
 
 1. In Cloudflare Zero Trust, under Access (Service Auth, or Service credentials in newer dashboards) › Service Tokens, create a token, for example "RollCall phones", with the duration you want (a year is the default). Copy the Client ID and the Client Secret: the secret is shown only once.
 2. On the RollCall application in Access, add a policy with the action **Service Auth** that includes that service token. Keep your existing Allow policy for people.
-3. In RollCall, on the Settings page under Scanners, enter the Client ID and the Client Secret, and Save. The secret is stored encrypted and never shown again.
+3. In RollCall, on the Settings page under Scanners, enter the Client ID and the Client Secret, and Save. Enter only the values, without the `CF-Access-Client-Id:` and `CF-Access-Client-Secret:` labels Cloudflare shows in front of them, and keep the secret's `cfast_` prefix (tokens made since August 2026 have one). The secret is stored encrypted and never shown again.
 4. Open the app on each phone once at home. It fetches the token when it opens or comes back to the front and reaches RollCall at home; a phone paired from now on gets it when it pairs.
 
 Then check from a phone on mobile data: the app's pages load (no Access sign-in), and Scan's header shows **Away**. A scan away from home is queued and sent the next time the phone is home: scanning stays on your home network.
