@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import Header from "#lib/components/Header.svelte";
 import InventoryCard from "#lib/components/inventory/InventoryCard.svelte";
 import InventoryTable from "#lib/components/inventory/InventoryTable.svelte";
-import SummaryTiles from "#lib/components/inventory/SummaryTiles.svelte";
+import TotalsLine from "#lib/components/inventory/TotalsLine.svelte";
 import Nav from "#lib/components/Nav.svelte";
 import ProductTable from "#lib/components/products/ProductTable.svelte";
 import ActionCard from "#lib/components/spool/ActionCard.svelte";
@@ -125,11 +125,15 @@ describe("header", () => {
 });
 
 describe("inventory", () => {
-  it("shows the totals", () => {
-    render(SummaryTiles, { totals: { sealed: 14, open: 9, nearlyOut: 2, lowStock: 3 } });
+  const TOTALS = { sealed: 14, open: 9, empty: 23, nearlyOut: 2, lowStock: 3 };
 
-    expect(screen.getByText("Open, nearly out").previousElementSibling).toHaveTextContent("2");
-    expect(screen.getByText("Low on stock").previousElementSibling).toHaveTextContent("3");
+  it("shows the totals", () => {
+    render(TotalsLine, { totals: TOTALS, countText: "5 of 11" });
+
+    expect(screen.getByText("5 of 11")).toBeInTheDocument();
+    expect(screen.getByText("14 sealed")).toBeInTheDocument();
+    expect(screen.getByText("9 open")).toBeInTheDocument();
+    expect(screen.getByText("23 used")).toBeInTheDocument();
   });
 
   it("draws a card with counts, bars and badges", () => {
@@ -181,15 +185,20 @@ describe("inventory", () => {
         }),
         summary({ product: product({ id: 3, display_name: "Blue" }), low_stock: false }),
       ],
+      totals: TOTALS,
+      countText: "All 3",
     });
 
     const rows = screen.getAllByRole("row");
-    expect(rows).toHaveLength(4);
-    expect(within(rows[1]).getByText("LOW · ≤2")).toBeInTheDocument();
-    expect(within(rows[2]).getByText("Alert off")).toBeInTheDocument();
-    expect(within(rows[2]).getByText("By hand")).toBeInTheDocument();
-    expect(within(rows[2]).getByText("—")).toBeInTheDocument();
-    expect(within(rows[3]).getByText("OK")).toBeInTheDocument();
+    expect(rows).toHaveLength(5);
+    // The totals sit under the column headings.
+    expect(within(rows[1]).getByText("All 3")).toBeInTheDocument();
+    expect(within(rows[1]).getByLabelText("14 sealed in all")).toHaveTextContent("14");
+    expect(within(rows[2]).getByText("LOW · ≤2")).toBeInTheDocument();
+    expect(within(rows[3]).getByText("Alert off")).toBeInTheDocument();
+    expect(within(rows[3]).getByText("By hand")).toBeInTheDocument();
+    expect(within(rows[3]).getByText("—")).toBeInTheDocument();
+    expect(within(rows[4]).getByText("OK")).toBeInTheDocument();
   });
 });
 

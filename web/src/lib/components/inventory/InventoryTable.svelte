@@ -3,8 +3,16 @@
   import OpenSpools from "#lib/components/inventory/OpenSpools.svelte";
   import Ring from "#lib/components/ui/Ring.svelte";
   import { hexText } from "#lib/format.ts";
+  import { statusText, type Totals } from "#lib/inventory.ts";
 
-  let { items }: { items: ProductSummary[] } = $props();
+  interface Props {
+    items: ProductSummary[];
+    totals: Totals;
+    /** "All 11" or "5 of 11". */
+    countText: string;
+  }
+
+  let { items, totals, countText }: Props = $props();
 </script>
 
 <div class="tablebox">
@@ -18,6 +26,15 @@
         <th scope="col" class="num">Used up</th>
         <th scope="col" class="spools">Open spools · left</th>
         <th scope="col">Status</th>
+      </tr>
+      <tr class="totals">
+        <td>{countText}</td>
+        <td></td>
+        <td class="num" aria-label="{totals.sealed} sealed in all">{totals.sealed}</td>
+        <td class="num" aria-label="{totals.open} open in all">{totals.open}</td>
+        <td class="num muted" aria-label="{totals.empty} used up in all">{totals.empty}</td>
+        <td></td>
+        <td></td>
       </tr>
     </thead>
     <tbody>
@@ -46,9 +63,9 @@
           </td>
           <td class="status">
             {#if item.low_stock}
-              <span class="badge-low">LOW · ≤{product.low_stock_threshold}</span>
+              <span class="badge-low">{statusText(item)}</span>
             {:else}
-              <span class="muted">{product.low_stock_threshold > 0 ? "OK" : "Alert off"}</span>
+              <span class="muted">{statusText(item)}</span>
             {/if}
             {#if product.provisional}<span class="badge-hand">By hand</span>{/if}
           </td>
@@ -107,6 +124,13 @@
     font-family: var(--font-body);
     font-size: 12px;
     font-weight: 600;
+  }
+
+  .totals td {
+    padding-top: 6px;
+    padding-bottom: 8px;
+    font-size: 13px;
+    font-weight: 700;
   }
 
   .spools {

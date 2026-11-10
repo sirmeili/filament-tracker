@@ -5,6 +5,7 @@
   import { session } from "#lib/auth/session.svelte.ts";
   import MoveBar from "#lib/components/spools/MoveBar.svelte";
   import SpoolTable from "#lib/components/spools/SpoolTable.svelte";
+  import { page } from "$app/state";
   import { ALL_TYPES, filamentTypes } from "#lib/inventory.ts";
   import { countText, knownLocations, PAGE_SIZE, rangeText, STATE_FILTERS } from "#lib/spools.ts";
 
@@ -18,7 +19,8 @@
 
   let stateFilter = $state<SpoolState | "all">("all");
   let type = $state(ALL_TYPES);
-  let search = $state("");
+  // Inventory's "View spools" opens this page searched for the product (?q=).
+  let search = $state(page.url?.searchParams.get("q") ?? "");
   let offset = $state(0);
   let reloads = $state(0);
 
