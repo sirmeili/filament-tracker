@@ -1,8 +1,9 @@
 <script lang="ts">
-  // The phone app's start screen: the Rollcall logo animation while the app loads its
+  // The phone app's start screen: the RollCall intro animation while the app loads its
   // pairing and first hears from the server. Shown alone, so the animation's own styles
-  // (global class names inside the SVG) touch nothing else.
-  import loading from "#lib/assets/rollcall-loading.svg?raw";
+  // (global class names inside the SVG) touch nothing else. To change the animation,
+  // replace the file: the screen times itself from it.
+  import intro from "#lib/assets/rollcall-intro-roll.svg?raw";
   import { cycleMs, remainingMs } from "#lib/start-screen.ts";
 
   interface Props {
@@ -32,9 +33,9 @@
   });
 </script>
 
-<main class="start">
+<main class="start" aria-busy="true">
   <!-- A static file from this repo, not user content. -->
-  <div class="logo" bind:this={logo}>{@html loading}</div>
+  <div class="logo" bind:this={logo}>{@html intro}</div>
 </main>
 
 <style>
@@ -48,12 +49,23 @@
   }
 
   .logo {
-    width: 160px;
-    height: 160px;
+    width: min(92vw, 560px);
   }
 
   .logo :global(svg) {
+    display: block;
     width: 100%;
-    height: 100%;
+    height: auto;
+  }
+
+  /* The intro's words are drawn dark for the logo's cream; on the dark theme, light them. */
+  :global(:root[data-theme="dark"]) .logo :global(.roll),
+  :global(:root[data-theme="dark"]) .logo :global(.call) {
+    fill: #fff7f5;
+  }
+
+  :global(:root[data-theme="dark"]) .logo :global(.tag1),
+  :global(:root[data-theme="dark"]) .logo :global(.tag2) {
+    fill: #c9aeb2;
   }
 </style>

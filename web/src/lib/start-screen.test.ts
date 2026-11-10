@@ -65,7 +65,7 @@ describe("the start screen", () => {
     const ondone = vi.fn();
     render(StartScreen, { ready: true, ondone });
 
-    expect(screen.getByRole("img", { name: "Roll Call is loading" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /^Roll Call/ })).toBeInTheDocument();
     await vi.advanceTimersByTimeAsync(2399);
     expect(ondone).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1);

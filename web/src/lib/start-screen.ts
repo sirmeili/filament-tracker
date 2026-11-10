@@ -1,6 +1,6 @@
 /** Timing for the phone app's start screen (docs/SPEC.md, Phone scanner).
  *
- * The logo animation plays through at least one full cycle, so its ending (the check
+ * The intro animation plays through at least one full cycle, so its ending (the check
  * landing) is always seen, and the screen stays until the app is ready, or LIMIT_MS at
  * most. The cycle's length is read from the animation itself, so a redesigned animation
  * needs no change here. */

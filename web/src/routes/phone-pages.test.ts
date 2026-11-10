@@ -108,9 +108,9 @@ describe("layout in the phone app", () => {
 
     render(Layout, { children });
 
-    expect(screen.getByRole("img", { name: "Roll Call is loading" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /^Roll Call/ })).toBeInTheDocument();
     expect(await screen.findByText("page content")).toBeInTheDocument();
-    expect(screen.queryByRole("img", { name: "Roll Call is loading" })).toBeNull();
+    expect(screen.queryByRole("img", { name: /^Roll Call/ })).toBeNull();
   });
 
   it("sends an unpaired phone to Pairing, without signing in", async () => {
