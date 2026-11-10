@@ -76,10 +76,12 @@
 - Fixed on `feature/cf-secret-format` (2026-11-10): the Settings page refused the owner's new Cloudflare Access service token secret. Cloudflare's secrets since 2026-08-26 are `cfast_` with 48 letters and digits, and the check allowed only letters and digits. Both formats are now accepted; anything else is still refused without repeating the value. Spec: Configuration table; deploy guide step 3. Tests: `test_settings_groups.py`.
   - Merged (PR #51).
 - Fixed on `feature/ams-product-match` (2026-11-10): the owner renamed products the AMS had made (for example "PETG HF #000000" to "PETG HF Black"), and a scanned tag then made a new product instead of using the renamed one, because products from the AMS kept no material ID and only hand-made products with placeholders could be filled in. Now products from the AMS keep the tray's material ID and are marked `from_ams` (a migration marks the existing ones, adding the column in place: rebuilding the product table fails while spools refer to it). A tag with no exact match fills in its own spool's provisional product (keeping the name), or the one AMS-made product with its material ID and color. The web app shows "From the AMS" instead of "Added by hand" for them. Spec: Automatic detection from the AMS, the product table. Tests: `test_ams_link.py`, `test_ams.py`, `test_migrations.py`, `test_read_api.py`, and the web label tests.
-  - Next: PR; then the owner scans the PETG HF Black in the AMS, which fills in the renamed product.
+  - Merged (PR #52). The owner then started over with a fresh database (2026-11-10): the old one is kept in `/data/before-reset/` on the server.
+- To fix (owner, 2026-11-10): in the Android app, the phone's Back button always closes the app instead of going back a page. Branch `feature/android-back-button`; not started.
 
 ## Next
 
+- Android Back button: go back a page in the app, and close it only from the opening screen (see In progress).
 - The code rename to RollCall (decisions in SPEC Name and rename, owner 2026-11-10): its own branch, `feature/rename-rollcall`, when the owner asks for it.
 - M10 and M11, print requests Phase 2 and Phase 3 (see SPEC Future enhancements: print requests), before the firmware milestones.
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
