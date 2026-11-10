@@ -67,7 +67,11 @@
     - Merged (PR #48).
   - `feature/inventory-filters` (part 2): search, the filter sheet and quick filters at every size, only products on hand, totals instead of the tiles, compact expanding rows on phones; Cards and List stay on desktop.
     - Done: the filter logic in `lib/inventory.ts` (`onHand`, `typeCounts`, `chosenTypes`, `typeSummary`, `activeFilters`, `applyFilter`, `totals`, `shownText`, `statusText`, `spoolsLink`); `InventoryControls` (search, Filter with its count, Low stock and Nearly out with counts, the type chip with ✕, Clear), `FilterSheet` (types, Low stock only, sort, Clear, Show N products; a bottom sheet on phones, a centred panel wider), `CompactList` with `ProductDetail` on phones, `TotalsLine` above the cards and totals under the List headings (`SummaryTiles` removed). Spools opens searched for `?q=`. Spec: Server: web UI, Inventory row. Tests: `inventory.test.ts`, `inventory-filters.svelte.test.ts`, the page tests, and e2e at desktop and 390 × 844.
-    - Next: install on the owner's phone, then the PR.
+    - Merged (PR #49).
+- Two phone fixes found by the owner (2026-11-10), on `feature/app-start-signin`:
+  - The app showed the sign-in page on its first launch after every update, and was signed in again on the next launch. In the app the sign-in check now asks once more after 500 ms when told "not signed in", and the start screen waits for that check (still 4 s at most). Spec: Phone scanner, Start screen. Tests: `session.test.ts`, `phone-pages.test.ts`.
+  - On a phone, Products and Users were wider than the screen (735px and 547px at 390px), which pushed the bottom bar out of sight: screen-reader-only text in their tables escaped the table's scroll box. `.tablebox` is now positioned. Test: `e2e/phone.spec.ts` checks that every page fits 390px.
+  - Next: install on the owner's phone, then the PR.
 
 ## Next
 

@@ -213,7 +213,10 @@ input[type="checkbox"] {
 }
 
 /* Tables sit in a box that scrolls sideways on phones. */
+/* Positioned so screen-reader-only text inside a table scrolls with it instead of widening
+   the page (on a phone that pushed the bottom bar off the screen). */
 .tablebox {
+  position: relative;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 16px;

@@ -43,6 +43,42 @@ describe("Session", () => {
     expect(session.can("viewer")).toBe(false);
   });
 
+  it("asks once more after a wait when told to, and finds the user then", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchFn = respond([401, { detail: "no" }], [200, ALICE]);
+
+      const loading = session.load(500);
+      await vi.advanceTimersByTimeAsync(499);
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      await loading;
+
+      expect(fetchFn).toHaveBeenCalledTimes(2);
+      expect(session.user).toEqual(ALICE);
+      expect(session.loaded).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("is signed out when the second answer is no too", async () => {
+    const fetchFn = respond([401, { detail: "no" }], [401, { detail: "no" }]);
+
+    await session.load(1);
+
+    expect(fetchFn.mock.calls.filter(([url]) => url === "/api/v1/auth/me")).toHaveLength(2);
+    expect(session.user).toBeNull();
+    expect(session.loaded).toBe(true);
+  });
+
+  it("does not ask again when the server cannot be reached", async () => {
+    const fetchFn = respond([500, { detail: "boom" }]);
+
+    await expect(session.load(1)).rejects.toBeInstanceOf(ApiError);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
   it("passes other failures on, but still finishes loading", async () => {
     respond([500, { detail: "boom" }]);
 

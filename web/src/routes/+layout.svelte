@@ -20,19 +20,21 @@
 
   let { children }: { children: Snippet } = $props();
 
+  /** How long the app waits before asking a second time whether someone is signed in. */
+  const SIGN_IN_RETRY_MS = 500;
+
   // Applies the saved theme; the choice itself is on the Account page.
   theme();
   const screen = viewport();
   let loadError = $state<string | null>(null);
   // The phone app's start screen, shown once per launch until the app is ready.
   let started = $state(false);
-  // Ready: the pairing is loaded and, for a paired phone, the server has answered or not.
-  const startReady = $derived(phone.loaded && (!phone.paired || phone.reach !== null));
 
   async function load(): Promise<void> {
     loadError = null;
     try {
-      await session.load();
+      // In the app, check a "not signed in" answer once more (see Session.load).
+      await session.load(phone.app ? SIGN_IN_RETRY_MS : 0);
     } catch {
       loadError = "Cannot reach the server.";
     }
@@ -47,6 +49,15 @@
   const wantsSession = $derived(
     !phonePage || (phone.app && !phone.paired && phone.server !== null),
   );
+  // Ready: the pairing is loaded, for a paired phone the server has answered or not, and
+  // the sign-in check has finished when the first page needs it (so the sign-in page never
+  // flashes up while the check is still going).
+  const startReady = $derived(
+    phone.loaded &&
+      (!phone.paired || phone.reach !== null) &&
+      (!wantsSession || session.loaded || loadError !== null),
+  );
+
   let openedAt = page.url.pathname;
 
   $effect(() => {

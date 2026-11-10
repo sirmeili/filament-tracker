@@ -160,6 +160,36 @@ describe("layout in the phone app", () => {
     load.mockRestore();
   });
 
+  it("keeps the start screen up until the sign-in check, which asks twice", async () => {
+    await paired();
+    session.loaded = false;
+    let finish: () => void = () => {};
+    const load = vi.spyOn(session, "load").mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = () => {
+            session.user = { id: 1, username: "frank", role: "viewer" } as Me;
+            session.loaded = true;
+            resolve();
+          };
+        }),
+    );
+    phone.openOn = "stock";
+    at("/");
+
+    render(Layout, { children });
+
+    await waitFor(() => expect(load).toHaveBeenCalledWith(500));
+    // Longer than the animation: still on the start screen while the check runs.
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(screen.getByRole("img", { name: /^Roll Call/ })).toBeInTheDocument();
+    finish();
+    expect(await screen.findByText("page content")).toBeInTheDocument();
+    expect(nav.goto).not.toHaveBeenCalledWith("/login", expect.anything());
+    load.mockRestore();
+    session.user = null;
+  });
+
   it("shows Pairing at /pair without the server or a sign-in", async () => {
     await paired();
     session.loaded = false;

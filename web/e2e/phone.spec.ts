@@ -68,3 +68,16 @@ test("a phone lists Inventory as compact rows that expand", async ({ page }) => 
   await expect(page.getByRole("button", { name: "Filter, 1 on" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Dark Gray PETG HF/ })).toHaveCount(0);
 });
+
+test("every page fits the phone's width, so the bottom bar stays on screen", async ({ page }) => {
+  await signInAt(page, "/", "e2e-admin");
+  const pages = ["/", "/spools", "/spools/1", "/products", "/review", "/activity"];
+  for (const path of [...pages, "/devices", "/users", "/settings", "/account"]) {
+    await page.goto(path);
+    await expect(page.getByRole("navigation", { name: "App" })).toBeVisible();
+    // Wait for the page's data before measuring.
+    await expect(page.getByText("Loading…")).toHaveCount(0);
+    const width = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(width, path).toBeLessThanOrEqual(390);
+  }
+});
