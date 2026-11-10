@@ -81,6 +81,7 @@
 
 ## Next
 
+- **Next up (owner, 2026-11-10): app updates through GitHub Releases and Obtainium.** Not started; plan first. A release signing key (kept as a GitHub secret, with the owner holding a backup), a version number in every build shown in the app, a CI job that builds a signed APK and attaches it to a GitHub Release, and steps for installing Obtainium on the owner's and his brother's phones. Moving from today's debug build to a release build means uninstalling once and setting the phone up again. Google Play internal testing stays the fallback if automatic store updates are wanted later.
 - Android Back button: go back a page in the app, and close it only from the opening screen (see In progress).
 - The code rename to RollCall (decisions in SPEC Name and rename, owner 2026-11-10): its own branch, `feature/rename-rollcall`, when the owner asks for it.
 - M10 and M11, print requests Phase 2 and Phase 3 (see SPEC Future enhancements: print requests), before the firmware milestones.
