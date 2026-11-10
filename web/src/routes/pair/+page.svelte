@@ -61,13 +61,13 @@
   }
 </script>
 
-<svelte:head><title>Pairing · Filament Tracker</title></svelte:head>
+<svelte:head><title>Pairing · RollCall</title></svelte:head>
 
 <section class="pair" aria-labelledby="pair-h">
   <h1 id="pair-h">Pairing</h1>
 
   {#if !phone.app}
-    <p class="muted">Pairing is for the Filament Tracker Android app.</p>
+    <p class="muted">Pairing is for the RollCall Android app.</p>
   {:else if phone.session}
     <p>
       Paired with <span class="mono">{phone.session.pairing.url}</span> as

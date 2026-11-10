@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The themed (one-colour) launcher icon. Generated from docs/mockups/logo/rollcall-logo.svg. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="4.839"
+        android:pathData="M26.419,54 a27.581,27.581 0 1,0 55.161,0 a27.581,27.581 0 1,0 -55.161,0 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="4.839"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M47.226,54.484 L52.065,59.323 L61.258,49.161" />
+</vector>

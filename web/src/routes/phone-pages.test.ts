@@ -102,6 +102,17 @@ afterEach(async () => {
 });
 
 describe("layout in the phone app", () => {
+  it("opens on the start screen with the logo, then the app", async () => {
+    await savePairing(PAIRING, "AABB");
+    at("/scan");
+
+    render(Layout, { children });
+
+    expect(screen.getByRole("img", { name: /^Roll Call/ })).toBeInTheDocument();
+    expect(await screen.findByText("page content")).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /^Roll Call/ })).toBeNull();
+  });
+
   it("sends an unpaired phone to Pairing, without signing in", async () => {
     session.loaded = false;
     const load = vi.spyOn(session, "load");
@@ -178,6 +189,7 @@ describe("sign-in page in the phone app", () => {
 describe("account page in the phone app", () => {
   it("links to the phone's pairing, only in the app", () => {
     const app = render(AccountPage);
+    expect(document.title).toBe("Account · RollCall");
     expect(screen.getByRole("link", { name: "Phone pairing" })).toHaveAttribute("href", "/pair");
     app.unmount();
 
@@ -206,7 +218,7 @@ describe("pairing page", () => {
     const scan = screen.getByRole("button", { name: "Scan pairing code" });
 
     await userEvent.click(scan);
-    expect(screen.getByRole("alert")).toHaveTextContent(/not a Filament Tracker pairing code/);
+    expect(screen.getByRole("alert")).toHaveTextContent(/not a RollCall pairing code/);
     await userEvent.click(scan); // backed out: nothing happens
     expect(screen.queryByRole("alert")).toBeNull();
     await userEvent.click(scan);
@@ -595,11 +607,9 @@ describe("phone pages in a browser", () => {
   it("say they belong to the app", () => {
     setBridge(browserBridge);
     render(ScanPage);
-    expect(
-      screen.getByText(/Scanning works in the Filament Tracker Android app/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Scanning works in the RollCall Android app/)).toBeInTheDocument();
     render(PairPage);
-    expect(screen.getByText(/Pairing is for the Filament Tracker Android app/)).toBeInTheDocument();
+    expect(screen.getByText(/Pairing is for the RollCall Android app/)).toBeInTheDocument();
     setBridge(native);
   });
 });

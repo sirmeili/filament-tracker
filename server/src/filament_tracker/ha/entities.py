@@ -1,7 +1,7 @@
 """MQTT discovery messages for Home Assistant (docs/SPEC.md, Home Assistant).
 
 Everything is published retained, so Home Assistant finds the entities and their latest
-state whenever it (re)connects. One device, "Filament Tracker", holds five entities:
+state whenever it (re)connects. One device, "RollCall", holds five entities:
 
 - Total spools (sealed and open, not used up), Total open, Total sealed;
 - Low filament, on while any product is low on stock, listing those products;
@@ -24,8 +24,8 @@ LOW_STOCK_TOPIC = f"{BASE}/low_stock"
 
 DEVICE = {
     "identifiers": [NODE],
-    "name": "Filament Tracker",
-    "manufacturer": "Filament Tracker",
+    "name": "RollCall",
+    "manufacturer": "RollCall",
     "model": "Spool tracker server",
 }
 

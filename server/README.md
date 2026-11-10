@@ -1,6 +1,6 @@
-# Filament Tracker server
+# RollCall server
 
-The FastAPI server for Filament Tracker. See the [repository README](../README.md) for the project overview and [AGENTS.md](../AGENTS.md) for the build and test commands.
+The FastAPI server for RollCall. See the [repository README](../README.md) for the project overview and [AGENTS.md](../AGENTS.md) for the build and test commands.
 
 ## Run it
 
@@ -142,7 +142,7 @@ Each serial is added once, the first time the server sees it; after that the pri
 
 ## Home Assistant
 
-The server publishes Home Assistant entities through MQTT discovery, under one device, **Filament Tracker**:
+The server publishes Home Assistant entities through MQTT discovery, under one device, **RollCall**:
 
 - **Total spools** (sealed and open, not used up), **Total open** and **Total sealed**;
 - **Low filament**: on while any product's sealed count is at or below its low-stock threshold (set on the Products page; 0 turns it off). Its `products` attribute lists the low products with their name, type, color, sealed count and threshold, and `count` says how many;
@@ -210,7 +210,7 @@ uv run ft-ha check            # add --event to fire one filament_tracker_check e
 Checklist before a release that changes the Home Assistant link:
 
 1. `ft-ha check` passes with no problems.
-2. In Home Assistant, Settings → Devices & services → Devices shows **Filament Tracker** with its five entities.
+2. In Home Assistant, Settings → Devices & services → Devices shows **RollCall** with its five entities.
 3. Record an action (a scan, the phone or the web app): the totals change in Home Assistant within about 5 seconds.
 4. Stop the server: the entities show as unavailable. Start it: they come back.
 5. Restart Home Assistant: the entities come back with their values without restarting the server.

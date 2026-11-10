@@ -60,8 +60,8 @@ describe("pairing codes", () => {
   });
 
   it.each([
-    ["not json", /not a Filament Tracker/],
-    ["7", /not a Filament Tracker/],
+    ["not json", /not a RollCall/],
+    ["7", /not a RollCall/],
     [JSON.stringify({ v: 2 }), /different version/],
     [JSON.stringify({ v: 1, url: "https://x" }), /incomplete/],
     ["{}", /different version/],

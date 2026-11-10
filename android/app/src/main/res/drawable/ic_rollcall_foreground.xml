@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The launcher icon's foreground: the RollCall mark. Generated from docs/mockups/logo/rollcall-logo.svg. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFC8324B"
+        android:pathData="M24,54 a30,30 0 1,0 60,0 a30,30 0 1,0 -60,0 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#73FFF7F5"
+        android:strokeWidth="0.968"
+        android:pathData="M29.806,54 a24.194,24.194 0 1,0 48.387,0 a24.194,24.194 0 1,0 -48.387,0 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#73FFF7F5"
+        android:strokeWidth="0.968"
+        android:pathData="M34.645,54 a19.355,19.355 0 1,0 38.71,0 a19.355,19.355 0 1,0 -38.71,0 Z" />
+    <path
+        android:fillColor="#FFFFF7F5"
+        android:pathData="M39.484,54 a14.516,14.516 0 1,0 29.032,0 a14.516,14.516 0 1,0 -29.032,0 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFC8324B"
+        android:strokeWidth="3.871"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M47.226,54.484 L52.065,59.323 L61.258,49.161" />
+</vector>

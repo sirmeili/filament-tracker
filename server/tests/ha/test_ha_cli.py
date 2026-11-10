@@ -36,7 +36,7 @@ STATES = [
     {
         "entity_id": "sensor.a",
         "state": state,
-        "attributes": {"friendly_name": f"Filament Tracker {name}"},
+        "attributes": {"friendly_name": f"RollCall {name}"},
     }
     for name, state in [
         ("Total spools", "2"),

@@ -1,4 +1,4 @@
-# Filament Tracker Android app
+# RollCall Android app
 
 The phone scanner from `docs/SPEC.md` (Phone scanner): a Capacitor wrapper around the web app in `web/`, with a Kotlin plugin for NFC tag reading, QR scanning and Keystore storage. It works only on phones whose NFC chip reads MIFARE Classic, such as Google Pixel phones.
 

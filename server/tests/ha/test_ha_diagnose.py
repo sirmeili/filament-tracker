@@ -49,7 +49,7 @@ def ha_states(**overrides: str) -> list[dict[str, Any]]:
         {
             "entity_id": f"sensor.other_{i}",
             "state": state,
-            "attributes": {"friendly_name": f"Filament Tracker {name}"},
+            "attributes": {"friendly_name": f"RollCall {name}"},
         }
         for i, (name, state) in enumerate(states.items())
     ] + [{"entity_id": "light.kitchen", "state": "on", "attributes": {"friendly_name": "Kitchen"}}]

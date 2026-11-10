@@ -3,7 +3,7 @@
   import SetupForm from "#lib/components/SetupForm.svelte";
 </script>
 
-<svelte:head><title>Set up · Filament Tracker</title></svelte:head>
+<svelte:head><title>Set up · RollCall</title></svelte:head>
 
 {#if session.setup}
   <SetupForm status={session.setup} onsubmit={(fields) => session.finishSetup(fields)} />

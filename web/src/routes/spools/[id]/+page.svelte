@@ -72,7 +72,7 @@
   }
 </script>
 
-<svelte:head><title>Spool #{page.params.id} · Filament Tracker</title></svelte:head>
+<svelte:head><title>Spool #{page.params.id} · RollCall</title></svelte:head>
 
 <div class="page">
   <a class="back" href="/spools">

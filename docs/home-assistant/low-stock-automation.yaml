@@ -8,9 +8,9 @@
 #
 # It runs once each time a product goes from not low to low (filament_tracker_low_stock),
 # so it adds one item per product rather than one per change of the Low filament sensor.
-alias: Filament Tracker - low stock
+alias: RollCall - low stock
 description: >-
-  When Filament Tracker reports a product low on stock, add it to the shopping list
+  When RollCall reports a product low on stock, add it to the shopping list
   and send a phone notification.
 mode: queued
 triggers:

@@ -70,14 +70,14 @@
   const delivery = phone.delivery;
 </script>
 
-<svelte:head><title>Scan · Filament Tracker</title></svelte:head>
+<svelte:head><title>Scan · RollCall</title></svelte:head>
 
 <section class="scan" aria-labelledby="scan-h">
   <ScanHeader reach={phone.reach} queueSize={phone.queueSize} theme={appTheme} />
 
   {#if !phone.app}
     <div class="middle">
-      <p class="muted">Scanning works in the Filament Tracker Android app.</p>
+      <p class="muted">Scanning works in the RollCall Android app.</p>
     </div>
   {:else if nfc && nfc !== "ready"}
     <div class="middle"><p class="message warn" role="alert">{NFC_MESSAGES[nfc]}</p></div>

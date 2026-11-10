@@ -42,7 +42,7 @@
   });
 </script>
 
-<svelte:head><title>Inventory · Filament Tracker</title></svelte:head>
+<svelte:head><title>Inventory · RollCall</title></svelte:head>
 
 <div class="page">
   <div class="pagehead">

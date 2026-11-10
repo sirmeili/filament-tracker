@@ -1,4 +1,4 @@
-// Filament Tracker scanner case
+// RollCall scanner case
 // Wall-mounted enclosure for an ESP32 "Cheap Yellow Display" (ESP32-2432S028R),
 // a PN532 NFC module, three soft-key buttons, a small speaker and a USB-C power input.
 // Coordinates: Z up, front faces -Y, back (wall side) at +Y. Units: mm.
