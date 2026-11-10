@@ -64,7 +64,8 @@
   - Done (server): `POST /devices/unlink`, with which a device revokes its own token (LAN only, like every bearer token; logged without the token). Tests: revoked afterwards, other devices untouched, rotating re-enables it, refused without a device token and from outside the LAN.
   - Done (app): Forget pairing is now **Unlink this phone**. It asks the server to revoke the token, then forgets the pairing, the tag key constant and the queue whatever the answer, and says whether the token was revoked or the device is still listed for an Admin to revoke. Pairing is reachable from Scan's header, the sign-in page in the app and the "Cannot reach the server" screen, none of which need the server.
   - Done (spec): Phone scanner (Unlink, where Pairing is reachable, the Scan header), the API table and the device token scope. The phone checklist in `android/README.md` gains the two unlink checks.
-  - Next: the owner reviews the branch.
+  - Installed on the owner's phone (debug build). Found while away from home: Cloudflare Access answers the app with a redirect to its login page, which the app takes as an answer, so it shows Online, sign-in hangs, and queued scans would be counted as sent and dropped; a "local network only" refusal also drops them. Fixed in part 2 (owner, 2026-11-10): only Rollcall's own answers count, refusals away from home keep scans queued and show Away.
+  - Next: PR, then `feature/phone-away`.
 
 ## Next
 
