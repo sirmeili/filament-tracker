@@ -72,12 +72,13 @@
   - Done (name): the app is named RollCall on the phone (Capacitor `appName`, launcher label). Every name people see now says RollCall (web app texts, Home Assistant device, API title, docs); the app ID and other code identifiers keep the old name until the rename. Spec: Phone scanner (start screen, logo and name) and the Name and rename table.
   - Installed on the owner's phone. The owner asked for the header, the app's name and the page titles to read RollCall, one word with a capital C: done.
   - Next: PR.
+- `feature/mobile-web-mockups`: mockups for the web app on a phone in `docs/mockups/mobile-web/`: the bottom bar (Menu, Scan, the user), the menu as a bottom sheet, Account with the Light/Dark/System choice (saved per device), and Inventory with search, a filter sheet, Low stock / Nearly out quick filters and compact rows that expand. `index.html` there shows all four screens working in one page. The README lists four spec changes waiting for the owner's approval. Docs only, no code or tests changed.
 
 ## Next
 
 - The code rename to RollCall (decisions in SPEC Name and rename, owner 2026-11-10): its own branch, `feature/rename-rollcall`, when the owner asks for it.
 - M10 and M11, print requests Phase 2 and Phase 3 (see SPEC Future enhancements: print requests), before the firmware milestones.
-- Later (owner's request, 2026-11-06, in SPEC Future enhancements): the theme choice moves to the Account page; a phone app setting for the start screen (Scan or the web app); a bottom bar on phones with a menu button, Scan and the user.
+- Later (owner's request, 2026-11-06, in SPEC Future enhancements): the theme choice moves to the Account page; a phone app setting for the start screen (Scan or the web app); a bottom bar on phones with a menu button, Scan and the user. Mockups for the bottom bar, the menu, Account and the phone Inventory are in `docs/mockups/mobile-web/`; build from them once the owner approves the spec changes in its README.
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
 
 ## Decisions
