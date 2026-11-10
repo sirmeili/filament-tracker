@@ -70,12 +70,14 @@
 
 ## Next
 
+- The code rename to RollCall (decisions in SPEC Name and rename, owner 2026-11-10): its own branch, `feature/rename-rollcall`, when the owner asks for it.
 - M10 and M11, print requests Phase 2 and Phase 3 (see SPEC Future enhancements: print requests), before the firmware milestones.
 - Later (owner's request, 2026-11-06, in SPEC Future enhancements): the theme choice moves to the Account page; a phone app setting for the start screen (Scan or the web app); a bottom bar on phones with a menu button, Scan and the user.
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
 
 ## Decisions
 
+- 2026-11-10: Code rename decisions (owner), logged for later: package `rollcall`, `rc-` commands and `RC_` variables, database `rollcall.db` moved on start, app ID `io.github.sirmeili.rollcall`, token prefix `rcd_`, Home Assistant node and events `rollcall`, cookie and write header renamed. All the breaks are accepted, since the owner is the only user and everything is in testing. Not started.
 - 2026-11-09: The image's web build stage uses npm 11.21.2 (owner), an exception to the 7-day rule: the npm bundled with Node 24 (11.19.1) and npm 11.21.1 carry undici and brace-expansion versions with HIGH advisories, and 11.21.2 (5 days old) scans clean. The stage is thrown away; only the built files are kept.
 - 2026-11-09: AMS detection stays as it is (owner): a spool first seen by the AMS is still flagged for review.
 - 2026-11-09: M9 decisions (owner). Working name RollCall, replacing Spoolhouse, still not final; the repo is renamed now. The server runs in Docker Compose on the owner's home server (an Intel x86-64 machine), from a private image on GitHub's container registry built by GitHub Actions. The time zone setting sets every time the web app shows and when the nightly backup runs.

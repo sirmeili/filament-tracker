@@ -556,6 +556,14 @@ None of this is built or scheduled inside the current milestones, and none of it
 | MQTT client IDs, API title, logger names | `filament-tracker-<random>` | Safe |
 | Scanner firmware | Not written yet | Use the final name from the start |
 
+- **Code rename decisions** (owner, 2026-11-10; to be done later on its own branch, `feature/rename-rollcall`, not yet scheduled). The owner is the only user and everything is still in testing, so every name changes:
+  - Python package `rollcall`; commands `rc-admin`, `rc-sim`, `rc-printer`, `rc-ha`, `rc-fakeprinter`; environment variables `RC_` instead of `FT_` (for example `RC_TOKEN`).
+  - Database file `data/rollcall.db`. On start, when `rollcall.db` is missing and `filament.db` exists beside it, the server renames the old file, so the data carries over with no manual step. `settings.key` keeps its name.
+  - Android app ID `io.github.sirmeili.rollcall` (accepted: send queued scans, uninstall, install, pair again).
+  - Device token prefix `rcd_` (accepted: paired devices pair again).
+  - Home Assistant node ID `rollcall` and events `rollcall_spool_received`, `rollcall_spool_opened`, `rollcall_spool_emptied`, `rollcall_low_stock`; the server clears the old node's retained discovery messages once (accepted: automations are edited).
+  - Session cookie and write header renamed (accepted: everyone signs in again once), with the browser storage keys, Keystore alias, MQTT client IDs and logger names.
+
 ### Structure: one app, two modules
 
 - One application, one database and one Docker image, with two modules: **Inventory** (everything built so far) and **Print Requests** (new). Print Requests uses Inventory; Inventory never imports Print Requests, checked by a test that reads each module's imports.
