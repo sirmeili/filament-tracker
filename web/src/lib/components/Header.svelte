@@ -22,7 +22,7 @@
 <header>
   <div class="inner">
     <a class="brand" href="/">
-      <!-- The Rollcall mark (docs/mockups/logo/rollcall-logo.svg). -->
+      <!-- The RollCall mark (docs/mockups/logo/rollcall-logo.svg). -->
       <svg width="30" height="30" viewBox="0 0 140 140" aria-hidden="true">
         <circle cx="70" cy="70" r="62" fill="#C8324B"></circle>
         <circle cx="70" cy="70" r="50" fill="none" stroke="#FFF7F5" stroke-width="4" opacity="0.45"

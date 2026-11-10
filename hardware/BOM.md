@@ -1,6 +1,6 @@
 # Filament Scanner — Bill of Materials
 
-Per scanner unit, matching the Filament Tracker spec (CYD prototype) and `filament-scanner-case.scad`.
+Per scanner unit, matching the RollCall spec (CYD prototype) and `filament-scanner-case.scad`.
 Prices are approximate USD as of 2026-10-31. "Sourced" prices come from the linked page; "Est." prices are typical marketplace prices, so check before ordering.
 
 ## Required parts

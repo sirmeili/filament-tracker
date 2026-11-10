@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The launcher icon's foreground: the Rollcall mark. Generated from docs/mockups/logo/rollcall-logo.svg. -->
+<!-- The launcher icon's foreground: the RollCall mark. Generated from docs/mockups/logo/rollcall-logo.svg. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"

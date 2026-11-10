@@ -1,6 +1,6 @@
-# Rollcall — Spec
+# RollCall — Spec
 
-*Rollcall is a working name (2026-11-09, replacing Spoolhouse) and may change. The GitHub repo is `sirmeili/rollcall`, and the Docker image, container and volumes use `rollcall`. The project was called Filament Tracker, and the code, the phone app and the Home Assistant names still use that name until the rename; see Future enhancements: print requests, Name and rename.*
+*RollCall is a working name (2026-11-09, replacing Spoolhouse) and may change. The GitHub repo is `sirmeili/rollcall`, and the Docker image, container and volumes use `rollcall`. The project was called Filament Tracker. Every name people see (the web app, the phone app, the Home Assistant device, the docs) says RollCall (2026-11-10); the code's identifiers keep the old name until the rename; see Future enhancements: print requests, Name and rename.*
 
 Oct 31, 2026 · @Frank
 
@@ -210,7 +210,7 @@ An Android phone can act as one more scanner, so spools can be scanned before th
   - The list lasts until the app is closed: leaving Scan, or turning Delivery off and on, keeps it. **Clear** empties it; the recorded events stay. Unlinking the phone also clears it.
 - **The full web app**: every page, after a normal user sign-in. Scanning uses the device token, not the user's session. In the app, the header has a Scan button (the same phone icon as Scan's target) that goes back to Scan, and the Account page links to the phone's pairing.
 - **Start screen** (owner's choice, 2026-11-10): the app opens on the RollCall intro animation (`web/src/lib/assets/rollcall-intro-roll.svg`, from `docs/mockups/logo/`; the spool rolls in and the words follow, about 5 seconds; on the dark theme its words are drawn light) while it loads its pairing and first hears from the server. The animation plays through at least one full cycle, so the check is always seen landing, then the screen stays until the app is ready, or 4 seconds at most. The cycle's length is read from the animation itself, so a redesigned animation needs only the new file. With the phone's reduce-motion setting on, the logo is still and the screen ends as soon as the app is ready.
-- **Logo and name**: the spool mark (`docs/mockups/logo/rollcall-logo.svg`) is the launcher icon (an adaptive icon on the logo's cream, with a one-colour version for themed icons), the native splash screen before the start screen, the logo in the web app's header and the favicon. The app is named RollCall on the phone, and the web app's header and page titles say RollCall (owner, 2026-11-10: one word, capital C); the rest of the code keeps Filament Tracker until the rename (see Name and rename).
+- **Logo and name**: the spool mark (`docs/mockups/logo/rollcall-logo.svg`) is the launcher icon (an adaptive icon on the logo's cream, with a one-colour version for themed icons), the native splash screen before the start screen, the logo in the web app's header and the favicon. The app is named RollCall on the phone, and the web app's header and page titles say RollCall (owner, 2026-11-10: one word, capital C); the rest of the code keeps RollCall until the rename (see Name and rename).
 - Scan and Pairing work without a user sign-in, and Scan works without the server (offline). The app opens on Scan once paired, and on Pairing until then. In a browser these two screens only say they belong to the app.
 - Like the scanner's "Last scan", Scan keeps the last scan with an Undo: it reverts the event, or takes it out of the queue if it has not been sent yet. Info shows the AMS remaining % and links to the spool's page.
 
@@ -237,7 +237,7 @@ An Android phone can act as one more scanner, so spools can be scanned before th
 
 - The pages work away from home: browsing the inventory is what the app is for there. Scanning stays on the home network: away from home a scan is decoded on the phone and queued, as when the server is down, and the queue is sent when the phone is home again. The Scan header shows Away.
 - The server marks its refusal of a bearer token from outside `TRUSTED_NETWORKS` with the header `X-Rollcall-Refused: local-network-only`, so the app can tell "away from home" from a revoked or refused token.
-- **Cloudflare Access**: the app cannot use Access's sign-in page, so it sends a Cloudflare Access service token (`CF-Access-Client-Id` and `CF-Access-Client-Secret`) with every request to the paired server, its pages and its scanner requests alike. An Admin enters the token once on the Settings page (Scanners); the server hands it to paired phones with the salt, on the LAN only. One token serves every phone (owner's choice): to replace it, make a new one in Cloudflare, save it on the Settings page, and keep the old one in the Access policy until every phone has been home once. The app sends it only over HTTPS. Rollcall's own sign-in and device tokens still apply behind Access.
+- **Cloudflare Access**: the app cannot use Access's sign-in page, so it sends a Cloudflare Access service token (`CF-Access-Client-Id` and `CF-Access-Client-Secret`) with every request to the paired server, its pages and its scanner requests alike. An Admin enters the token once on the Settings page (Scanners); the server hands it to paired phones with the salt, on the LAN only. One token serves every phone (owner's choice): to replace it, make a new one in Cloudflare, save it on the Settings page, and keep the old one in the Access policy until every phone has been home once. The app sends it only over HTTPS. RollCall's own sign-in and device tokens still apply behind Access.
 
 ## Server: data model
 
@@ -403,7 +403,7 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 
 **Home Assistant**
 
-- Publish entities through MQTT discovery to the existing broker, under one device "Filament Tracker", with five entities (owner's choice, 2026-11-06: a few totals rather than entities per product):
+- Publish entities through MQTT discovery to the existing broker, under one device "RollCall", with five entities (owner's choice, 2026-11-06: a few totals rather than entities per product):
   - **Total spools**: sealed and open spools, not used up;
   - **Total open** and **Total sealed**;
   - **Low filament**: a binary sensor, on while any product is low on stock (sealed count at or below its threshold), with attributes `count` and `products`, a list of the low products (name, type, color, sealed count, threshold);
@@ -534,7 +534,7 @@ None of this is built or scheduled inside the current milestones, and none of it
 
 ### Name and rename
 
-- **Working name: Rollcall** (owner, 2026-11-09; it replaced the earlier working name Spoolhouse). It is not final and may change. The spec uses it from now on; the code keeps "Filament Tracker" until the rename is done as its own piece of work, after the name is settled. The repo was renamed to `sirmeili/rollcall` and the Docker image uses `rollcall` from the start (M9), since both were cheap to name now.
+- **Working name: RollCall** (owner, 2026-11-09; it replaced the earlier working name Spoolhouse). It is not final and may change. The spec uses it from now on, written RollCall, one word (owner, 2026-11-10), and so does every name people see. The code's identifiers (below) keep `filament_tracker` and similar until the rename is done as its own piece of work, after the name is settled. The repo was renamed to `sirmeili/rollcall` and the Docker image uses `rollcall` from the start (M9), since both were cheap to name now.
 - **What a rename touches**, and what breaks (the owner accepted reinstalling the phone app and renaming the Home Assistant names, since everything so far is testing):
 
 | Area | Today | Effect of renaming |
@@ -551,7 +551,7 @@ None of this is built or scheduled inside the current milestones, and none of it
 | Session cookie | `ft_session` | Renaming signs everyone out once |
 | Device token prefix | `ftd_` | **Breaks every paired scanner** if the server stops accepting `ftd_`. Keep it, or accept both prefixes |
 | Browser storage keys | `ft-theme` and similar | Saved preferences reset once; harmless |
-| Home Assistant device and entities | node ID `filament_tracker` (discovery topics, `unique_id`s, the availability topic), device "Filament Tracker" | New entities appear and the old ones go. The server clears retained messages only under its own node ID, so the rename must clear the old node's retained discovery messages once, or they stay in Home Assistant |
+| Home Assistant device and entities | node ID `filament_tracker` (discovery topics, `unique_id`s, the availability topic), device "RollCall" (**Done 2026-11-10**: renamed from "Filament Tracker"; only the shown name changed, so entity IDs stay and nothing breaks) | New entities appear and the old ones go. The server clears retained messages only under its own node ID, so the rename must clear the old node's retained discovery messages once, or they stay in Home Assistant |
 | Home Assistant events | `filament_tracker_spool_received`, `_opened`, `_emptied`, `filament_tracker_low_stock` | Automations listening for the old names stop firing; edit them and `docs/home-assistant/low-stock-automation.yaml` |
 | MQTT client IDs, API title, logger names | `filament-tracker-<random>` | Safe |
 | Scanner firmware | Not written yet | Use the final name from the start |
@@ -778,7 +778,7 @@ None of this is built or scheduled inside the current milestones, and none of it
 
 ### Later
 
-#### L.1 Ask Rollcall (on-demand agent)
+#### L.1 Ask RollCall (on-demand agent)
 
 - **Summary**: an optional button that asks an LLM agent to reason over the app's data, through the same tools as 3.5.
 - **Examples**:
@@ -837,4 +837,4 @@ None of this is built or scheduled inside the current milestones, and none of it
 - [x] Buttons on the CYD prototype: resistor ladder on GPIO35. The PCF8574 expander stays as the fallback.
 - [x] Printer data source: direct MQTT from the server, which also works through an MQTT proxy if the printer's connection limit is hit.
 - [x] Refill packs carry Bambu tags that read through the box. A refill has its own tray UID, so it is tracked as a new spool.
-- [ ] Project name. Working name Rollcall (2026-11-09, replacing Spoolhouse), not final; the repo is already `sirmeili/rollcall`, and the rename of the code waits until the name is settled.
+- [ ] Project name. Working name RollCall (2026-11-09, replacing Spoolhouse), not final; the repo is already `sirmeili/rollcall`, and the rename of the code waits until the name is settled.

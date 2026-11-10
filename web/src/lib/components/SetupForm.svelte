@@ -75,7 +75,7 @@
 {/snippet}
 
 <form onsubmit={submit} aria-labelledby="setup-title" novalidate>
-  <h1 id="setup-title">Set up Filament Tracker</h1>
+  <h1 id="setup-title">Set up RollCall</h1>
   <p class="muted">
     No one can sign in yet. Create the first Admin account. The setup code is in the server's log; a
     new one is made each time the server starts.

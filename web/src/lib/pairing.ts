@@ -122,10 +122,10 @@ export function parsePairing(text: string): { pairing: PairingFields } | { error
   try {
     value = JSON.parse(text);
   } catch {
-    return { error: "This is not a Filament Tracker pairing code." };
+    return { error: "This is not a RollCall pairing code." };
   }
   if (!value || typeof value !== "object") {
-    return { error: "This is not a Filament Tracker pairing code." };
+    return { error: "This is not a RollCall pairing code." };
   }
   const fields = value as Record<string, unknown>;
   if (fields.v !== PAIRING_VERSION) {

@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# The Rollcall image (docs/SPEC.md, Deployment): the web app built with Node, served by the
+# The RollCall image (docs/SPEC.md, Deployment): the web app built with Node, served by the
 # Python server, which runs as a non-root user. x86-64 only. Base images are pinned by
 # digest; see docs/deploy.md for how they are checked and updated.
 
@@ -46,7 +46,7 @@ ENV PATH=/app/.venv/bin:$PATH \
     DATABASE_URL=sqlite:////data/filament.db \
     BACKUP_DIR=/backups
 LABEL org.opencontainers.image.source="https://github.com/sirmeili/rollcall" \
-      org.opencontainers.image.title="Rollcall" \
+      org.opencontainers.image.title="RollCall" \
       org.opencontainers.image.description="Self-hosted tracker for Bambu Lab filament spools"
 USER rollcall
 WORKDIR /data

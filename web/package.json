@@ -2,7 +2,7 @@
   "name": "filament-tracker-web",
   "private": true,
   "version": "0.1.0",
-  "description": "The Filament Tracker web app: a SvelteKit single-page app served by the FastAPI server",
+  "description": "The RollCall web app: a SvelteKit single-page app served by the FastAPI server",
   "type": "module",
   "engines": {
     "node": ">=24 <25"

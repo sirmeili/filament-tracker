@@ -1,6 +1,6 @@
-# Deploying Rollcall with Docker
+# Deploying RollCall with Docker
 
-Rollcall runs as one container on an x86-64 Linux server with Docker and Docker Compose. The image is `ghcr.io/sirmeili/rollcall`, private, built and published by GitHub Actions on every merge to `main` (tags `latest` and the commit SHA). It holds the server and the built web app, runs as an unprivileged user (uid 10001), and keeps everything it writes on two volumes: the database and the nightly backups.
+RollCall runs as one container on an x86-64 Linux server with Docker and Docker Compose. The image is `ghcr.io/sirmeili/rollcall`, private, built and published by GitHub Actions on every merge to `main` (tags `latest` and the commit SHA). It holds the server and the built web app, runs as an unprivileged user (uid 10001), and keeps everything it writes on two volumes: the database and the nightly backups.
 
 ## What you need
 
@@ -65,19 +65,19 @@ docker compose exec rollcall ft-admin reset-password <username>
 
 To use the web app away from home, put it behind your HTTPS reverse proxy (Caddy, Nginx Proxy Manager, Traefik or a Cloudflare Tunnel) pointing at `http://<server>:8000`.
 
-- Set `FORWARDED_ALLOW_IPS` in `.env` to the proxy's address as Rollcall sees it, then `docker compose up -d`. Without it, every visitor through the proxy looks like the proxy; if the proxy is on your LAN or in Docker, they would all look local.
+- Set `FORWARDED_ALLOW_IPS` in `.env` to the proxy's address as RollCall sees it, then `docker compose up -d`. Without it, every visitor through the proxy looks like the proxy; if the proxy is on your LAN or in Docker, they would all look local.
   - A proxy on another machine: that machine's LAN address.
-  - A proxy in Docker on the same server: its container address, fixed on a network it shares with Rollcall (see [A Cloudflare Tunnel](#a-cloudflare-tunnel) for the steps, which suit any proxy in Docker). Check with `docker compose logs rollcall`, where each request line starts with the address it came from.
+  - A proxy in Docker on the same server: its container address, fixed on a network it shares with RollCall (see [A Cloudflare Tunnel](#a-cloudflare-tunnel) for the steps, which suit any proxy in Docker). Check with `docker compose logs rollcall`, where each request line starts with the address it came from.
 - Keep `COOKIE_SECURE=true` once you sign in through the proxy.
-- Forward only `/` and `/api/v1`. Rollcall refuses the scanner routes, bearer tokens, `/docs` and setup from outside `TRUSTED_NETWORKS` anyway.
+- Forward only `/` and `/api/v1`. RollCall refuses the scanner routes, bearer tokens, `/docs` and setup from outside `TRUSTED_NETWORKS` anyway.
 
 Check it from outside your LAN (for example a phone on mobile data): the web app loads and you can sign in, while `https://<your address>/api/v1/setup` and `/docs` answer 404.
 
 ### A Cloudflare Tunnel
 
-With a Cloudflare Tunnel, `cloudflared` is the proxy. Run it in Docker on the same server and give it a fixed address on a network it shares only with Rollcall, so that address can be put in `FORWARDED_ALLOW_IPS`.
+With a Cloudflare Tunnel, `cloudflared` is the proxy. Run it in Docker on the same server and give it a fixed address on a network it shares only with RollCall, so that address can be put in `FORWARDED_ALLOW_IPS`.
 
-Do not trust the address Rollcall sees when the tunnel points at the server's published port (`http://<server>:8000`): that is the gateway of `cloudflared`'s Docker network, such as `172.27.0.1`, and every container on that network arrives from it too, so any of them could claim any visitor address. Nor trust a whole Docker range such as `172.16.0.0/12`.
+Do not trust the address RollCall sees when the tunnel points at the server's published port (`http://<server>:8000`): that is the gateway of `cloudflared`'s Docker network, such as `172.27.0.1`, and every container on that network arrives from it too, so any of them could claim any visitor address. Nor trust a whole Docker range such as `172.16.0.0/12`.
 
 1. Make the shared network, once (in Portainer: Networks › Add network, driver `bridge`, subnet `172.30.0.0/24`, gateway `172.30.0.1`). Pick another range if this one is in use, and change the addresses below to match.
 
@@ -103,7 +103,7 @@ Do not trust the address Rollcall sees when the tunnel points at the server's pu
        name: rollcall-tunnel
    ```
 
-3. Add Rollcall to the network. It needs no fixed address. Keep `default` in the list, or the service leaves its own network:
+3. Add RollCall to the network. It needs no fixed address. Keep `default` in the list, or the service leaves its own network:
 
    ```yaml
    services:
@@ -119,13 +119,13 @@ Do not trust the address Rollcall sees when the tunnel points at the server's pu
        name: rollcall-tunnel
    ```
 
-4. In the settings, set `FORWARDED_ALLOW_IPS=172.30.0.10` and `COOKIE_SECURE=true`, then restart Rollcall (`docker compose up -d`, or Update the stack in Portainer).
-5. In the Cloudflare dashboard (Zero Trust › Networks › Tunnels › the tunnel › Public Hostname), point the hostname at `http://rollcall:8000`. `cloudflared` finds Rollcall by name on the shared network.
-6. Recommended: put the hostname behind Cloudflare Access, so only the people you allow reach the sign-in page. Rollcall's own checks still apply behind it.
+4. In the settings, set `FORWARDED_ALLOW_IPS=172.30.0.10` and `COOKIE_SECURE=true`, then restart RollCall (`docker compose up -d`, or Update the stack in Portainer).
+5. In the Cloudflare dashboard (Zero Trust › Networks › Tunnels › the tunnel › Public Hostname), point the hostname at `http://rollcall:8000`. `cloudflared` finds RollCall by name on the shared network.
+6. Recommended: put the hostname behind Cloudflare Access, so only the people you allow reach the sign-in page. RollCall's own checks still apply behind it.
 
 Then check:
 
-- Open the site through the tunnel; the newest request lines in Rollcall's log start with `172.30.0.10`. If they show another address, the tunnel still goes through the published port (step 5).
+- Open the site through the tunnel; the newest request lines in RollCall's log start with `172.30.0.10`. If they show another address, the tunnel still goes through the published port (step 5).
 - From outside your LAN (a phone on mobile data), `https://<hostname>/api/v1/setup` and `/docs` answer 404 (`{"detail":"Not Found"}`). From the LAN, `http://<server>:8000/api/v1/setup` answers `{"open": false, ...}`.
 - Signing in through the `https://` hostname stays signed in after a reload.
 
@@ -189,30 +189,30 @@ To reach the same `https://` hostname directly at home, run a reverse proxy on t
          - traefik.http.services.rollcall.loadbalancer.server.port=8000
    ```
 
-4. Trust both proxies: `FORWARDED_ALLOW_IPS=172.30.0.10,172.30.0.20`, then restart Rollcall.
+4. Trust both proxies: `FORWARDED_ALLOW_IPS=172.30.0.10,172.30.0.20`, then restart RollCall.
 5. Check Traefik's log for the certificate (errors mention `acme` or `cloudflare`), or its dashboard's HTTP Routers.
 6. Only then add the local DNS entry: `rollcall.example.com` → the server's LAN address, as a Host (A) record. On UniFi Network: Settings › Policy Engine › Policy Table › Create New Policy › DNS (9.x), or Settings › Routing › DNS (8.x). Each network's DHCP must hand out the gateway as its DNS server (DNS Server: Auto). Add one entry per service rather than a DNS wildcard, which would also capture subdomains Traefik does not serve.
 
 Then check from the LAN:
 
 - `nslookup rollcall.example.com` answers with the server's LAN address.
-- `https://rollcall.example.com` opens with a valid certificate and no Cloudflare Access sign-in, and its request lines in Rollcall's log start with `172.30.0.20`.
-- `https://rollcall.example.com/api/v1/setup` answers `{"open": false, ...}`: Rollcall sees your LAN address through Traefik.
+- `https://rollcall.example.com` opens with a valid certificate and no Cloudflare Access sign-in, and its request lines in RollCall's log start with `172.30.0.20`.
+- `https://rollcall.example.com/api/v1/setup` answers `{"open": false, ...}`: RollCall sees your LAN address through Traefik.
 
-Devices that skip your home DNS (Android's Private DNS, or a browser's secure DNS set to a fixed provider) still work, through Cloudflare. Pair the phone app with the `https://` hostname: at home its scans reach Rollcall through Traefik with the phone's LAN address, and away from home its pages come through the tunnel.
+Devices that skip your home DNS (Android's Private DNS, or a browser's secure DNS set to a fixed provider) still work, through Cloudflare. Pair the phone app with the `https://` hostname: at home its scans reach RollCall through Traefik with the phone's LAN address, and away from home its pages come through the tunnel.
 
 ### The phone app behind Cloudflare Access
 
-The phone app cannot use Cloudflare Access's sign-in page, so it passes Access with a service token instead. Rollcall keeps one token for all phones and hands it to each one on your home network; nobody types it on a phone. Rollcall's own sign-in still applies behind it.
+The phone app cannot use Cloudflare Access's sign-in page, so it passes Access with a service token instead. RollCall keeps one token for all phones and hands it to each one on your home network; nobody types it on a phone. RollCall's own sign-in still applies behind it.
 
-1. In Cloudflare Zero Trust, under Access (Service Auth, or Service credentials in newer dashboards) › Service Tokens, create a token, for example "Rollcall phones", with the duration you want (a year is the default). Copy the Client ID and the Client Secret: the secret is shown only once.
-2. On the Rollcall application in Access, add a policy with the action **Service Auth** that includes that service token. Keep your existing Allow policy for people.
-3. In Rollcall, on the Settings page under Scanners, enter the Client ID and the Client Secret, and Save. The secret is stored encrypted and never shown again.
-4. Open the app on each phone once at home. It fetches the token when it opens or comes back to the front and reaches Rollcall at home; a phone paired from now on gets it when it pairs.
+1. In Cloudflare Zero Trust, under Access (Service Auth, or Service credentials in newer dashboards) › Service Tokens, create a token, for example "RollCall phones", with the duration you want (a year is the default). Copy the Client ID and the Client Secret: the secret is shown only once.
+2. On the RollCall application in Access, add a policy with the action **Service Auth** that includes that service token. Keep your existing Allow policy for people.
+3. In RollCall, on the Settings page under Scanners, enter the Client ID and the Client Secret, and Save. The secret is stored encrypted and never shown again.
+4. Open the app on each phone once at home. It fetches the token when it opens or comes back to the front and reaches RollCall at home; a phone paired from now on gets it when it pairs.
 
 Then check from a phone on mobile data: the app's pages load (no Access sign-in), and Scan's header shows **Away**. A scan away from home is queued and sent the next time the phone is home: scanning stays on your home network.
 
-To replace the token (or before it expires): make a new one in Cloudflare, add it to the Service Auth policy, save it in Rollcall's Settings, and remove the old one from the policy once every phone has been opened at home. A phone that missed the change is let in again the next time it is home. Clearing the two fields in Settings takes the token off the phones the same way.
+To replace the token (or before it expires): make a new one in Cloudflare, add it to the Service Auth policy, save it in RollCall's Settings, and remove the old one from the policy once every phone has been opened at home. A phone that missed the change is let in again the next time it is home. Clearing the two fields in Settings takes the token off the phones the same way.
 
 
 ## 6. Scanners, the phone app and Home Assistant
@@ -235,7 +235,7 @@ Steps 1 to 4 work the same in Portainer, through its web UI:
 
 ## Backups
 
-Every night at 03:00 in the server's time zone, Rollcall copies its database to the backup volume with SQLite's online backup, and keeps the newest 14. Files are named by their UTC time, like `filament-20261110T090000Z.db`. A failed backup is logged and tried again the next night.
+Every night at 03:00 in the server's time zone, RollCall copies its database to the backup volume with SQLite's online backup, and keeps the newest 14. Files are named by their UTC time, like `filament-20261110T090000Z.db`. A failed backup is logged and tried again the next night.
 
 ```sh
 docker compose exec rollcall ls -l /backups          # list them

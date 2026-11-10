@@ -77,7 +77,7 @@
 
   {#if !phone.app}
     <div class="middle">
-      <p class="muted">Scanning works in the Filament Tracker Android app.</p>
+      <p class="muted">Scanning works in the RollCall Android app.</p>
     </div>
   {:else if nfc && nfc !== "ready"}
     <div class="middle"><p class="message warn" role="alert">{NFC_MESSAGES[nfc]}</p></div>

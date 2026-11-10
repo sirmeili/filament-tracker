@@ -81,7 +81,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             printer_links.stop()
             engine.dispose()
 
-    app = FastAPI(title="Filament Tracker", lifespan=lifespan)
+    app = FastAPI(title="RollCall", lifespan=lifespan)
     app.state.settings = settings
     app.state.login_throttle = LoginThrottle()
     # Wrong setup codes are throttled like sign-ins, but apart from them.

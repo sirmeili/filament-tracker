@@ -1,4 +1,4 @@
-# Rollcall on the home server (docs/deploy.md). Put this file and a .env made from
+# RollCall on the home server (docs/deploy.md). Put this file and a .env made from
 # .env.example in one folder, log in to ghcr.io, then: docker compose up -d
 name: rollcall
 services:

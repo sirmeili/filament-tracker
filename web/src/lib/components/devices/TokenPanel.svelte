@@ -51,8 +51,7 @@
     <div class="pair">
       <QrCode text={payload} label="Pairing QR code for {name}" />
       <span class="muted">
-        In the Filament Tracker app, choose Pair and scan this code. It holds the token, so don't
-        share it.
+        In the RollCall app, choose Pair and scan this code. It holds the token, so don't share it.
       </span>
     </div>
   {:else}

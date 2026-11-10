@@ -67,7 +67,7 @@
   <h1 id="pair-h">Pairing</h1>
 
   {#if !phone.app}
-    <p class="muted">Pairing is for the Filament Tracker Android app.</p>
+    <p class="muted">Pairing is for the RollCall Android app.</p>
   {:else if phone.session}
     <p>
       Paired with <span class="mono">{phone.session.pairing.url}</span> as

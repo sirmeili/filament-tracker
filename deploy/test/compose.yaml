@@ -1,4 +1,4 @@
-# The end-to-end test stack (Testing in docs/SPEC.md): the Rollcall image with a Mosquitto
+# The end-to-end test stack (Testing in docs/SPEC.md): the RollCall image with a Mosquitto
 # broker standing in for Home Assistant's. server/tests/deploy/test_compose_stack.py starts
 # it, drives it with the scan simulator, and removes it with its volumes. Test values only.
 name: rollcall-test

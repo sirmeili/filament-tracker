@@ -218,7 +218,7 @@ describe("pairing page", () => {
     const scan = screen.getByRole("button", { name: "Scan pairing code" });
 
     await userEvent.click(scan);
-    expect(screen.getByRole("alert")).toHaveTextContent(/not a Filament Tracker pairing code/);
+    expect(screen.getByRole("alert")).toHaveTextContent(/not a RollCall pairing code/);
     await userEvent.click(scan); // backed out: nothing happens
     expect(screen.queryByRole("alert")).toBeNull();
     await userEvent.click(scan);
@@ -607,11 +607,9 @@ describe("phone pages in a browser", () => {
   it("say they belong to the app", () => {
     setBridge(browserBridge);
     render(ScanPage);
-    expect(
-      screen.getByText(/Scanning works in the Filament Tracker Android app/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Scanning works in the RollCall Android app/)).toBeInTheDocument();
     render(PairPage);
-    expect(screen.getByText(/Pairing is for the Filament Tracker Android app/)).toBeInTheDocument();
+    expect(screen.getByText(/Pairing is for the RollCall Android app/)).toBeInTheDocument();
     setBridge(native);
   });
 });

@@ -34,7 +34,7 @@ _UID_PREFIX = re.compile(r"^[0-9A-Fa-f]{8}(?=[-_.])")
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="ft-sim", description="Filament Tracker scan simulator")
+    parser = argparse.ArgumentParser(prog="ft-sim", description="RollCall scan simulator")
     commands = parser.add_subparsers(dest="command", required=True)
 
     scan = commands.add_parser("scan", help="send tag dumps to the server as scans")
