@@ -39,7 +39,7 @@
           stroke-linejoin="round"
         ></polyline>
       </svg>
-      Filament Tracker
+      Roll Call
     </a>
     <Nav
       items={visibleNav(user.role)}

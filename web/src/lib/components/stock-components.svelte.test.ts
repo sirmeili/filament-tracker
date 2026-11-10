@@ -90,6 +90,7 @@ describe("header", () => {
       reviewCount: 2,
     });
 
+    expect(screen.getByRole("link", { name: "Roll Call" })).toHaveAttribute("href", "/");
     const account = screen.getByRole("link", { name: "frank" });
     expect(account).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Users" })).toBeInTheDocument();
