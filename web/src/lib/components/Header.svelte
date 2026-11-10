@@ -39,7 +39,7 @@
           stroke-linejoin="round"
         ></polyline>
       </svg>
-      Roll Call
+      RollCall
     </a>
     <Nav
       items={visibleNav(user.role)}
