@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="280" height="280" viewBox="0 0 140 140" role="img" aria-label="Roll Call is loading">
+  <style>
+    .spool { transform-origin: 70px 70px; animation: spin 2.4s cubic-bezier(.6,.1,.3,1) infinite; }
+    .check { stroke-dasharray: 44; stroke-dashoffset: 44; animation: draw 2.4s ease-in-out infinite; }
+    .hub   { transform-origin: 70px 70px; animation: pop 2.4s ease-in-out infinite; }
+    @keyframes spin    { 0% { transform: rotate(0deg); } 55%, 100% { transform: rotate(720deg); } }
+    @keyframes draw    { 0%, 50% { stroke-dashoffset: 44; opacity: 1; } 68% { stroke-dashoffset: 0; } 88% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+    @keyframes pop     { 0%, 52% { transform: scale(1); } 60% { transform: scale(1.12); } 70%, 100% { transform: scale(1); } }
+    @media (prefers-reduced-motion: reduce) {
+      .spool, .hub { animation: none; }
+      .check { animation: none; stroke-dashoffset: 0; }
+    }
+  </style>
+
+  <!-- Spool: spins up, then settles -->
+  <g class="spool">
+    <circle cx="70" cy="70" r="62" fill="#C8324B"/>
+    <circle cx="70" cy="70" r="50" fill="none" stroke="#FFF7F5" stroke-width="2" opacity="0.45" stroke-dasharray="18 8"/>
+    <circle cx="70" cy="70" r="40" fill="none" stroke="#FFF7F5" stroke-width="2" opacity="0.45" stroke-dasharray="12 6"/>
+  </g>
+
+  <!-- Hub pops as the check lands -->
+  <circle class="hub" cx="70" cy="70" r="30" fill="#FFF7F5"/>
+
+  <!-- Check draws on, holds, fades, repeats -->
+  <polyline class="check" points="56,71 66,81 85,60" fill="none" stroke="#C8324B" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

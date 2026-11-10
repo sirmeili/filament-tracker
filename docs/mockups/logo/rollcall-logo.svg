@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 140 140" role="img" aria-label="Roll Call logo: a filament spool with a check mark">
+  <circle cx="70" cy="70" r="62" fill="#C8324B"/>
+  <circle cx="70" cy="70" r="50" fill="none" stroke="#FFF7F5" stroke-width="2" opacity="0.45"/>
+  <circle cx="70" cy="70" r="40" fill="none" stroke="#FFF7F5" stroke-width="2" opacity="0.45"/>
+  <circle cx="70" cy="70" r="30" fill="#FFF7F5"/>
+  <polyline points="56,71 66,81 85,60" fill="none" stroke="#C8324B" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
