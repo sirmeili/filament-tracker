@@ -59,6 +59,9 @@
 
 ## In progress
 
+- `feature/phone-sign-in` (part 4 of the phone plan, approved 2026-11-10): set a phone up by signing in, a user's own phone following their role, the opening-screen choice, sessions in use renewed.
+  - Done (server): `device.user_id` (migration), `POST /devices/mine` (signed in, home network, write header, 5 phones per user), scans and undo from a user's phone checked against the user's role and recorded as the user, a Viewer's phone gets Info and Cancel only, `records` in the provisioning, a disabled user's phone refused, sessions renewed when half their time is gone (SessionRenewalMiddleware). Tests in `tests/api/test_own_devices.py`.
+  - Next: the app (first-start address, setup after sign-in, opening screen, Viewer on Scan, unlink signs out), docs, then PR.
 - The phone app at home and away. Plan approved (owner, 2026-11-10), three branches merged in order: `feature/phone-unlink`, `feature/phone-away` (the Cloudflare Access service token kept in Settings and handed to phones at pairing; scans refused away from home are queued), `feature/phone-start-screen` (the loading screen plays the logo animation in `docs/mockups/logo/` through at least one cycle, timed from the animation itself so it can change; the spool mark becomes the Android launcher icon, the header logo and the favicon; the app is named RollCall on the phone).
 - `feature/phone-unlink` (part 1) merged (PR #43); `feature/phone-away` (part 2) merged (PR #44).
 - `feature/phone-start-screen` (part 3):

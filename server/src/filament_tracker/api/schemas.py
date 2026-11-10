@@ -98,6 +98,20 @@ class DeviceOut(BaseModel):
     queue_length: int | None = Field(description="Scans in the offline queue at the last heartbeat")
     online: bool = Field(description="Not revoked, and seen in the last 15 minutes")
     revoked: bool
+    owner: str | None = Field(
+        default=None, description="The user a phone belongs to; none for a shared scanner"
+    )
+
+
+class OwnDevice(Strict):
+    """A signed-in user's phone setting itself up; the name says which phone it is."""
+
+    name: Annotated[
+        str,
+        StringConstraints(
+            min_length=1, max_length=60, strip_whitespace=True, pattern=r"^[^\x00-\x1f\x7f]+$"
+        ),
+    ]
 
 
 class Heartbeat(Strict):
@@ -118,6 +132,10 @@ class Provisioning(BaseModel):
         default=None,
         description="The Cloudflare Access service token the phone app sends to pass Access "
         "away from home, when both parts are set",
+    )
+    records: bool = Field(
+        default=True,
+        description="Whether the device may record actions; false for a Viewer's phone",
     )
 
 

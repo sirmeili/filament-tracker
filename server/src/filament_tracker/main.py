@@ -23,6 +23,7 @@ from filament_tracker.api import settings as app_settings
 from filament_tracker.api.errors import validation_error
 from filament_tracker.api.limits import BodySizeLimitMiddleware
 from filament_tracker.api.security import SecurityHeadersMiddleware
+from filament_tracker.api.session_renewal import SessionRenewalMiddleware
 from filament_tracker.app_settings.crypto import SecretBox, load_key
 from filament_tracker.app_settings.offline import database_file
 from filament_tracker.app_settings.store import SettingsStore
@@ -89,6 +90,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.setup_gate = SetupGate()
     app.add_exception_handler(RequestValidationError, validation_error)
     app.add_middleware(BodySizeLimitMiddleware)
+    app.add_middleware(SessionRenewalMiddleware)
     # Added last, so it runs first: headers go on every response, including a 413.
     app.add_middleware(SecurityHeadersMiddleware, settings=settings)
     for module in (

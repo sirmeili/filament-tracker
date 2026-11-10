@@ -113,7 +113,11 @@ class Tag(Base):
 
 
 class Device(Base):
-    """A registered scanner. Only a hash of its token is stored."""
+    """A registered scanner. Only a hash of its token is stored.
+
+    A phone that set itself up after its owner signed in belongs to that user: its scans
+    are theirs, and their role decides what it may record. Scanners and phones paired with
+    a code from the Devices page belong to no one."""
 
     __tablename__ = "device"
 
@@ -126,6 +130,9 @@ class Device(Base):
     # Scans waiting in the device's offline queue, from its last heartbeat.
     queue_length: Mapped[int | None]
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"), index=True)
+
+    user: Mapped["User | None"] = relationship()
 
 
 class Event(Base):

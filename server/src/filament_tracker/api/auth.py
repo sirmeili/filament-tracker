@@ -10,6 +10,7 @@ from filament_tracker.auth import (
     SignedInUser,
     check_csrf,
     current_session,
+    set_session_cookie,
     settings_of,
     unauthorized,
 )
@@ -48,19 +49,6 @@ def me_out(request: Request, user: User) -> Me:
         username=user.username,
         role=user.role,
         time_zone=_store(request).time_zone(),
-    )
-
-
-def set_session_cookie(request: Request, response: Response, token: str, days: int) -> None:
-    settings = settings_of(request)
-    response.set_cookie(
-        SESSION_COOKIE,
-        token,
-        max_age=days * 24 * 3600,
-        path="/",
-        httponly=True,
-        secure=settings.cookie_secure,
-        samesite="strict",
     )
 
 

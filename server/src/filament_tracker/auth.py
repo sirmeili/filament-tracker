@@ -6,7 +6,8 @@ Three kinds of caller:
   may do. Requests that change something must also send `X-Requested-With:
   filament-tracker`, which a page on another site cannot add.
 - A scanner, with a device token: random, shown once at registration, stored only as a
-  SHA-256 hash and refused once revoked.
+  SHA-256 hash and refused once revoked. A phone that belongs to a user is also refused
+  once that user is disabled, and records actions only if the user's role allows it.
 - Home Assistant or a script, with a machine token made on the Settings page: it acts with
   the token's role, is stored only as a SHA-256 hash and is refused once revoked. Or with
   `ADMIN_TOKEN`, which acts as an Admin; if none is configured, it is refused.
@@ -22,7 +23,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -33,7 +34,7 @@ from filament_tracker.db.models import Device, MachineToken, User, UserSession
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import Role
 from filament_tracker.net import is_trusted
-from filament_tracker.services.accounts import find_session
+from filament_tracker.services.accounts import find_session, renew_session
 
 TOKEN_PREFIX = "ftd_"  # noqa: S105 - a public marker on device tokens, not a secret
 MACHINE_TOKEN_PREFIX = "ftm_"  # noqa: S105 - a public marker on machine tokens
@@ -43,6 +44,8 @@ SESSION_COOKIE = "ft_session"
 CSRF_HEADER = "x-requested-with"
 CSRF_VALUE = "filament-tracker"
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+# Where a renewed session's cookie waits for SessionRenewalMiddleware (request.state).
+RENEWED_COOKIE = "renewed_session_cookie"
 
 _bearer = HTTPBearer(auto_error=False)
 Credentials = Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)]
@@ -120,6 +123,8 @@ def _device_for(session: Session, token: str) -> Device | None:
     device = session.scalar(select(Device).where(Device.token_hash == hash_token(token)))
     if device is None or device.revoked_at is not None:
         return None
+    if device.user is not None and device.user.disabled_at is not None:
+        return None
     return device
 
 
@@ -154,6 +159,30 @@ def _from_bearer(request: Request, session: Session, token: str) -> Principal:
     return Principal(device=device)
 
 
+def set_session_cookie(request: Request, response: Response, token: str, days: int) -> None:
+    response.set_cookie(
+        SESSION_COOKIE,
+        token,
+        max_age=days * 24 * 3600,
+        path="/",
+        httponly=True,
+        secure=settings_of(request).cookie_secure,
+        samesite="strict",
+    )
+
+
+def _renew(request: Request, session: Session, user_session: UserSession) -> None:
+    """Keep a session in use alive: renewed with a fresh cookie when less than half its
+    time is left, so only a session unused for SESSION_DAYS ends by itself."""
+    days = request.app.state.settings_store.session_days()
+    if not renew_session(user_session, days, utcnow()):
+        return
+    session.commit()
+    carrier = Response()
+    set_session_cookie(request, carrier, request.cookies[SESSION_COOKIE], days)
+    setattr(request.state, RENEWED_COOKIE, carrier.headers["set-cookie"])
+
+
 def current_session(request: Request, session: Session) -> UserSession | None:
     """The live session for the request's cookie, if any."""
     token = request.cookies.get(SESSION_COOKIE)
@@ -167,6 +196,7 @@ def get_principal(request: Request, credentials: Credentials, session: DbSession
     if user_session is None:
         raise unauthorized()
     check_csrf(request)
+    _renew(request, session, user_session)
     return Principal(user=user_session.user, session=user_session)
 
 
