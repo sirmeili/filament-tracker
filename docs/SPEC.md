@@ -532,7 +532,6 @@ Each milestone ends with something usable. Reading is proved first with a phone,
 - **Non-Bambu filament**: NTAG stickers in an open format, or QR labels printed by the server.
 - **Second scanner by the printer**: same firmware, its own device token.
 - **Theme choice in Account**: move the light, dark and system theme choice off the web app header and the phone Scan screen onto the Account page, to free space on both.
-- **Phone app start screen**: a setting in the phone app for which screen it opens on, Scan or the web app (today it opens on Scan).
 - **Phone bottom bar**: on a phone, the web app's menu moves behind a menu button instead of running across the top. The menu button, the Scan button (in the phone app) and the signed-in user sit in a bar at the bottom of the screen, for one-handed use.
 
 ## Future enhancements: print requests
