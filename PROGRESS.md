@@ -74,7 +74,9 @@
   - On a phone, Products and Users were wider than the screen (735px and 547px at 390px), which pushed the bottom bar out of sight: screen-reader-only text in their tables escaped the table's scroll box. `.tablebox` is now positioned. Test: `e2e/phone.spec.ts` checks that every page fits 390px.
   - Merged (PR #50); the owner's server is updated (2026-11-10).
 - Fixed on `feature/cf-secret-format` (2026-11-10): the Settings page refused the owner's new Cloudflare Access service token secret. Cloudflare's secrets since 2026-08-26 are `cfast_` with 48 letters and digits, and the check allowed only letters and digits. Both formats are now accepted; anything else is still refused without repeating the value. Spec: Configuration table; deploy guide step 3. Tests: `test_settings_groups.py`.
-  - Next: PR, then the owner saves the token in Settings, opens the app at home, and runs checks 25 to 30.
+  - Merged (PR #51).
+- Fixed on `feature/ams-product-match` (2026-11-10): the owner renamed products the AMS had made (for example "PETG HF #000000" to "PETG HF Black"), and a scanned tag then made a new product instead of using the renamed one, because products from the AMS kept no material ID and only hand-made products with placeholders could be filled in. Now products from the AMS keep the tray's material ID and are marked `from_ams` (a migration marks the existing ones, adding the column in place: rebuilding the product table fails while spools refer to it). A tag with no exact match fills in its own spool's provisional product (keeping the name), or the one AMS-made product with its material ID and color. The web app shows "From the AMS" instead of "Added by hand" for them. Spec: Automatic detection from the AMS, the product table. Tests: `test_ams_link.py`, `test_ams.py`, `test_migrations.py`, `test_read_api.py`, and the web label tests.
+  - Next: PR; then the owner scans the PETG HF Black in the AMS, which fills in the renamed product.
 
 ## Next
 

@@ -7,7 +7,7 @@ import pytest
 from api_helpers import scan, signed_in
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from filament_tracker.db.models import Printer, Product, Spool
@@ -39,12 +39,14 @@ def _spool(db: Session) -> Spool:
     return spool
 
 
-def test_a_scanned_tag_moves_the_spool_and_removes_the_provisional_product(
+def test_scanning_a_spool_the_ams_saw_fills_in_its_renamed_product(
     client: TestClient, token: str, db: Session
 ) -> None:
     _from_ams(db, TrayReport(0, 0, UID, "GFA00", "PLA", "PLA Basic", "000000FF", 60))
     guess = _spool(db).product
-    assert guess.provisional
+    assert (guess.provisional, guess.from_ams) == (True, True)
+    guess.display_name = "PLA Basic Black"
+    db.commit()
     guess_id = guess.id
 
     result = scan(client, token, SyntheticTag(tray_uid=bytes.fromhex(UID)), "opened")
@@ -52,12 +54,68 @@ def test_a_scanned_tag_moves_the_spool_and_removes_the_provisional_product(
     spool = _spool(db)
     assert result["feedback"] == "already_in_state"
     assert result["spool"]["id"] == spool.id
+    assert spool.product.id == guess_id
+    assert spool.product.display_name == "PLA Basic Black"
     assert not spool.product.provisional
-    assert spool.product.variant_id == "A00-K00"
-    assert not _product_exists(db, guess_id)
+    assert (spool.product.material_id, spool.product.variant_id) == ("GFA00", "A00-K00")
 
 
-def test_only_the_scanned_spools_provisional_product_is_removed(
+def test_a_product_the_ams_saw_before_its_ids_were_kept_is_filled_in_by_its_spool(
+    client: TestClient, token: str, db: Session
+) -> None:
+    # Made before products from the AMS kept the material ID (or from a tray without one).
+    _from_ams(db, TrayReport(0, 0, UID, None, "PETG", "PETG HF", "000000FF", 60))
+    guess_id = _spool(db).product.id
+
+    scan(client, token, SyntheticTag(tray_uid=bytes.fromhex(UID), filament_type="PETG"), "opened")
+
+    product = _spool(db).product
+    assert (product.id, product.provisional, product.material_id) == (guess_id, False, "GFA00")
+
+
+def test_another_spool_of_the_same_filament_joins_the_product_the_ams_made(
+    client: TestClient, token: str, db: Session
+) -> None:
+    _from_ams(db, TrayReport(0, 0, UID, "GFA00", "PLA", "PLA Basic", "000000FF", 60))
+    guess = _spool(db).product
+    guess.display_name = "PLA Basic Black"
+    db.commit()
+    guess_id = guess.id
+    sealed = SyntheticTag()  # a new spool: another tray UID
+
+    result = scan(client, token, sealed, "received")
+
+    db.expire_all()
+    assert result["product"]["display_name"] == "PLA Basic Black"
+    new_spool = db.scalar(select(Spool).where(Spool.tray_uid == sealed.tray_uid.hex().upper()))
+    assert new_spool is not None
+    assert new_spool.product.id == guess_id
+    assert not new_spool.product.provisional
+    assert db.scalar(select(func.count()).select_from(Product)) == 1
+
+
+def test_two_products_the_ams_made_alike_are_not_guessed_between(
+    client: TestClient, token: str, db: Session
+) -> None:
+    for name in ("One", "Two"):
+        db.add(
+            Product(
+                material_id="GFA00",
+                filament_type="PLA",
+                color_rgba="000000FF",
+                display_name=name,
+                provisional=True,
+                from_ams=True,
+            )
+        )
+    db.commit()
+
+    result = scan(client, token, SyntheticTag(), "received")
+
+    assert result["product"]["display_name"] not in ("One", "Two")
+
+
+def test_only_the_scanned_spools_provisional_product_is_filled_in(
     client: TestClient, token: str, db: Session
 ) -> None:
     other = "0F1E2D3C4B5A69788796A5B4C3D2E1F0"
@@ -67,11 +125,10 @@ def test_only_the_scanned_spools_provisional_product_is_removed(
         TrayReport(0, 1, other, None, "PLA", None, "000000FF", 60),
     )
     # Neither tray has a material ID, so each got its own provisional product.
-    guess = _spool(db).product.id
 
     scan(client, token, SyntheticTag(tray_uid=bytes.fromhex(UID)), "opened")
 
-    assert not _product_exists(db, guess)
+    assert not _spool(db).product.provisional
     assert db.scalar(select(Spool).where(Spool.tray_uid == other)).product.provisional
 
 

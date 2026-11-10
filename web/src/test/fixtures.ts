@@ -20,6 +20,7 @@ export function product(overrides: Partial<Product> = {}): Product {
     low_stock_threshold: 2,
     nearly_out_pct: 15,
     provisional: false,
+    from_ams: false,
     ...overrides,
   };
 }

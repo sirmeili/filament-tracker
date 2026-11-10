@@ -150,6 +150,7 @@ def test_inventory_lists_products_with_no_spools(
 
     assert card["counts"] == {"sealed": 0, "open": 0, "empty": 0, "unknown": 0}
     assert card["product"]["provisional"] is True
+    assert card["product"]["from_ams"] is False
 
 
 def test_spools_with_every_event_undone_count_as_unknown(

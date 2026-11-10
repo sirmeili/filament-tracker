@@ -32,6 +32,8 @@ export interface Product {
   low_stock_threshold: number;
   nearly_out_pct: number;
   provisional: boolean;
+  /** Made from an AMS report rather than by hand. */
+  from_ams: boolean;
 }
 
 export interface Counts {

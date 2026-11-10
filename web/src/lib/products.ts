@@ -54,3 +54,10 @@ export function spoolCount(item: ProductSummary): number {
 export function unsavedText(count: number): string {
   return count === 1 ? "1 product changed" : `${count} products changed`;
 }
+
+/** Where a product came from: a scanned tag, or, until one of its tags is scanned, the AMS
+ * or someone adding it by hand. */
+export function sourceText(product: Product): "From tag" | "From the AMS" | "Added by hand" {
+  if (!product.provisional) return "From tag";
+  return product.from_ams ? "From the AMS" : "Added by hand";
+}

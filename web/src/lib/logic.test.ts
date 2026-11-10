@@ -11,7 +11,14 @@ import {
   STATE_LABELS,
   swatchColor,
 } from "#lib/format.ts";
-import { changesFor, draftOf, draftProblem, spoolCount, unsavedText } from "#lib/products.ts";
+import {
+  changesFor,
+  draftOf,
+  draftProblem,
+  sourceText,
+  spoolCount,
+  unsavedText,
+} from "#lib/products.ts";
 import {
   actionsFor,
   countText,
@@ -146,6 +153,14 @@ describe("spools", () => {
 
 describe("products", () => {
   const saved = product();
+
+  it("says where a product came from", () => {
+    expect(sourceText(saved)).toBe("From tag");
+    expect(sourceText(product({ provisional: true }))).toBe("Added by hand");
+    expect(sourceText(product({ provisional: true, from_ams: true }))).toBe("From the AMS");
+    // Once a tag fills it in, it is a product from a tag.
+    expect(sourceText(product({ from_ams: true }))).toBe("From tag");
+  });
 
   it("finds only the changed fields", () => {
     expect(changesFor(saved, draftOf(saved))).toBeNull();
