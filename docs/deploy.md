@@ -129,7 +129,78 @@ Then check:
 - From outside your LAN (a phone on mobile data), `https://<hostname>/api/v1/setup` and `/docs` answer 404 (`{"detail":"Not Found"}`). From the LAN, `http://<server>:8000/api/v1/setup` answers `{"open": false, ...}`.
 - Signing in through the `https://` hostname stays signed in after a reload.
 
-With `COOKIE_SECURE=true`, sign in to the web app through the `https://` hostname, at home too: browsers drop the sign-in cookie on `http://<server>:8000`. The phone app, scanners and Home Assistant keep using `http://<server>:8000` on the LAN with their tokens. The name `rollcall` resolves only inside Docker; to use a name on the LAN, add a DNS entry for the server on your router.
+With `COOKIE_SECURE=true`, browsers drop the sign-in cookie on `http://<server>:8000`, so sign in through the `https://` hostname. Without the next section, that sends you through Cloudflare even at home. Scanners and Home Assistant keep using `http://<server>:8000` on the LAN with their tokens. The name `rollcall` resolves only inside Docker.
+
+### HTTPS at home with Traefik and split DNS
+
+To reach the same `https://` hostname directly at home, run a reverse proxy on the LAN with a certificate for it, and have your home DNS answer the hostname with the server's LAN address ("split DNS"). Away from home, public DNS still sends it to Cloudflare. The same address then works everywhere, with one sign-in, and home traffic never leaves the house. These steps use Traefik v3 on the same server, with a Let's Encrypt wildcard certificate for every service behind it (`*.example.com`), obtained through Cloudflare's DNS so nothing needs to be open to the internet.
+
+1. In Cloudflare (My Profile › API Tokens › Create Token › *Edit zone DNS*), make an API token for your zone only. Give it to Traefik as the `CF_DNS_API_TOKEN` environment variable (in Portainer, the stack's environment variables), never in a file in a repository.
+2. Add to Traefik's compose file (static configuration as command flags):
+
+   ```yaml
+   services:
+     traefik:
+       image: traefik:v3.x          # a current v3 release
+       command:
+         - --providers.docker
+         - --providers.docker.exposedbydefault=false
+         - --entrypoints.http.address=:80
+         - --entrypoints.https.address=:443
+         - --entrypoints.https.http.tls.certresolver=cloudflare
+         - --entrypoints.https.http.tls.domains[0].main=example.com
+         - --entrypoints.https.http.tls.domains[0].sans=*.example.com
+         - --certificatesresolvers.cloudflare.acme.email=you@example.com
+         - --certificatesresolvers.cloudflare.acme.storage=/letsencrypt/acme.json
+         - --certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare
+         - --certificatesresolvers.cloudflare.acme.dnschallenge.resolvers=1.1.1.1:53,1.0.0.1:53
+       environment:
+         - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
+       ports:
+         - "80:80"
+         - "443:443"
+       volumes:
+         - /var/run/docker.sock:/var/run/docker.sock:ro
+         - letsencrypt:/letsencrypt
+       networks:
+         rollcall-tunnel:
+           ipv4_address: 172.30.0.20
+
+   networks:
+     rollcall-tunnel:
+       external: true
+       name: rollcall-tunnel
+
+   volumes:
+     letsencrypt:
+   ```
+
+   - Both the service's `letsencrypt:/letsencrypt` line and the top-level `volumes:` block are needed. Without the folder, Traefik logs `open /letsencrypt/acme.json: no such file or directory` and gets no certificate.
+   - `exposedbydefault=false` stops Traefik from routing every container (and logging `port is missing` for the ones without a web port). Each service you reach through Traefik then needs the `traefik.enable=true` label.
+   - The wildcard covers one level of subdomains. Its private key, in `acme.json`, is valid for all of them: keep the volume private.
+3. Add labels to the `rollcall` service:
+
+   ```yaml
+       labels:
+         - traefik.enable=true
+         - traefik.docker.network=rollcall-tunnel
+         - traefik.http.routers.rollcall.rule=Host(`rollcall.example.com`)
+         - traefik.http.routers.rollcall.entrypoints=https
+         - traefik.http.services.rollcall.loadbalancer.server.port=8000
+   ```
+
+4. Trust both proxies: `FORWARDED_ALLOW_IPS=172.30.0.10,172.30.0.20`, then restart Rollcall.
+5. Check Traefik's log for the certificate (errors mention `acme` or `cloudflare`), or its dashboard's HTTP Routers.
+6. Only then add the local DNS entry: `rollcall.example.com` → the server's LAN address, as a Host (A) record. On UniFi Network: Settings › Policy Engine › Policy Table › Create New Policy › DNS (9.x), or Settings › Routing › DNS (8.x). Each network's DHCP must hand out the gateway as its DNS server (DNS Server: Auto). Add one entry per service rather than a DNS wildcard, which would also capture subdomains Traefik does not serve.
+
+Then check from the LAN:
+
+- `nslookup rollcall.example.com` answers with the server's LAN address.
+- `https://rollcall.example.com` opens with a valid certificate and no Cloudflare Access sign-in, and its request lines in Rollcall's log start with `172.30.0.20`.
+- `https://rollcall.example.com/api/v1/setup` answers `{"open": false, ...}`: Rollcall sees your LAN address through Traefik.
+
+Devices that skip your home DNS (Android's Private DNS, or a browser's secure DNS set to a fixed provider) still work, through Cloudflare. Pair the phone app with the `https://` hostname: at home its scans reach Rollcall through Traefik with the phone's LAN address.
+
 
 ## 6. Scanners, the phone app and Home Assistant
 
