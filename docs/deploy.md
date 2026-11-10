@@ -67,17 +67,158 @@ To use the web app away from home, put it behind your HTTPS reverse proxy (Caddy
 
 - Set `FORWARDED_ALLOW_IPS` in `.env` to the proxy's address as Rollcall sees it, then `docker compose up -d`. Without it, every visitor through the proxy looks like the proxy; if the proxy is on your LAN or in Docker, they would all look local.
   - A proxy on another machine: that machine's LAN address.
-  - A proxy in Docker on the same server: its container address. Check with `docker compose logs rollcall`, where each request line starts with the address it came from, and give that container a fixed address in its network.
+  - A proxy in Docker on the same server: its container address, fixed on a network it shares with Rollcall (see [A Cloudflare Tunnel](#a-cloudflare-tunnel) for the steps, which suit any proxy in Docker). Check with `docker compose logs rollcall`, where each request line starts with the address it came from.
 - Keep `COOKIE_SECURE=true` once you sign in through the proxy.
 - Forward only `/` and `/api/v1`. Rollcall refuses the scanner routes, bearer tokens, `/docs` and setup from outside `TRUSTED_NETWORKS` anyway.
 
 Check it from outside your LAN (for example a phone on mobile data): the web app loads and you can sign in, while `https://<your address>/api/v1/setup` and `/docs` answer 404.
+
+### A Cloudflare Tunnel
+
+With a Cloudflare Tunnel, `cloudflared` is the proxy. Run it in Docker on the same server and give it a fixed address on a network it shares only with Rollcall, so that address can be put in `FORWARDED_ALLOW_IPS`.
+
+Do not trust the address Rollcall sees when the tunnel points at the server's published port (`http://<server>:8000`): that is the gateway of `cloudflared`'s Docker network, such as `172.27.0.1`, and every container on that network arrives from it too, so any of them could claim any visitor address. Nor trust a whole Docker range such as `172.16.0.0/12`.
+
+1. Make the shared network, once (in Portainer: Networks › Add network, driver `bridge`, subnet `172.30.0.0/24`, gateway `172.30.0.1`). Pick another range if this one is in use, and change the addresses below to match.
+
+   ```sh
+   docker network create --subnet 172.30.0.0/24 --gateway 172.30.0.1 rollcall-tunnel
+   ```
+
+2. Give `cloudflared` a fixed address on it. Keep any networks it already uses for other services:
+
+   ```yaml
+   services:
+     cloudflared:
+       image: cloudflare/cloudflared:<version>
+       command: tunnel --no-autoupdate run --token ${token}
+       restart: unless-stopped
+       networks:
+         rollcall-tunnel:
+           ipv4_address: 172.30.0.10
+
+   networks:
+     rollcall-tunnel:
+       external: true
+       name: rollcall-tunnel
+   ```
+
+3. Add Rollcall to the network. It needs no fixed address. Keep `default` in the list, or the service leaves its own network:
+
+   ```yaml
+   services:
+     rollcall:
+       # ...as in compose.yaml...
+       networks:
+         - default
+         - rollcall-tunnel
+
+   networks:
+     rollcall-tunnel:
+       external: true
+       name: rollcall-tunnel
+   ```
+
+4. In the settings, set `FORWARDED_ALLOW_IPS=172.30.0.10` and `COOKIE_SECURE=true`, then restart Rollcall (`docker compose up -d`, or Update the stack in Portainer).
+5. In the Cloudflare dashboard (Zero Trust › Networks › Tunnels › the tunnel › Public Hostname), point the hostname at `http://rollcall:8000`. `cloudflared` finds Rollcall by name on the shared network.
+6. Recommended: put the hostname behind Cloudflare Access, so only the people you allow reach the sign-in page. Rollcall's own checks still apply behind it.
+
+Then check:
+
+- Open the site through the tunnel; the newest request lines in Rollcall's log start with `172.30.0.10`. If they show another address, the tunnel still goes through the published port (step 5).
+- From outside your LAN (a phone on mobile data), `https://<hostname>/api/v1/setup` and `/docs` answer 404 (`{"detail":"Not Found"}`). From the LAN, `http://<server>:8000/api/v1/setup` answers `{"open": false, ...}`.
+- Signing in through the `https://` hostname stays signed in after a reload.
+
+With `COOKIE_SECURE=true`, browsers drop the sign-in cookie on `http://<server>:8000`, so sign in through the `https://` hostname. Without the next section, that sends you through Cloudflare even at home. Scanners and Home Assistant keep using `http://<server>:8000` on the LAN with their tokens. The name `rollcall` resolves only inside Docker.
+
+### HTTPS at home with Traefik and split DNS
+
+To reach the same `https://` hostname directly at home, run a reverse proxy on the LAN with a certificate for it, and have your home DNS answer the hostname with the server's LAN address ("split DNS"). Away from home, public DNS still sends it to Cloudflare. The same address then works everywhere, with one sign-in, and home traffic never leaves the house. These steps use Traefik v3 on the same server, with a Let's Encrypt wildcard certificate for every service behind it (`*.example.com`), obtained through Cloudflare's DNS so nothing needs to be open to the internet.
+
+1. In Cloudflare (My Profile › API Tokens › Create Token › *Edit zone DNS*), make an API token for your zone only. Give it to Traefik as the `CF_DNS_API_TOKEN` environment variable (in Portainer, the stack's environment variables), never in a file in a repository.
+2. Add to Traefik's compose file (static configuration as command flags):
+
+   ```yaml
+   services:
+     traefik:
+       image: traefik:v3.x          # a current v3 release
+       command:
+         - --providers.docker
+         - --providers.docker.exposedbydefault=false
+         - --entrypoints.http.address=:80
+         - --entrypoints.https.address=:443
+         - --entrypoints.https.http.tls.certresolver=cloudflare
+         - --entrypoints.https.http.tls.domains[0].main=example.com
+         - --entrypoints.https.http.tls.domains[0].sans=*.example.com
+         - --certificatesresolvers.cloudflare.acme.email=you@example.com
+         - --certificatesresolvers.cloudflare.acme.storage=/letsencrypt/acme.json
+         - --certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare
+         - --certificatesresolvers.cloudflare.acme.dnschallenge.resolvers=1.1.1.1:53,1.0.0.1:53
+       environment:
+         - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
+       ports:
+         - "80:80"
+         - "443:443"
+       volumes:
+         - /var/run/docker.sock:/var/run/docker.sock:ro
+         - letsencrypt:/letsencrypt
+       networks:
+         rollcall-tunnel:
+           ipv4_address: 172.30.0.20
+
+   networks:
+     rollcall-tunnel:
+       external: true
+       name: rollcall-tunnel
+
+   volumes:
+     letsencrypt:
+   ```
+
+   - Both the service's `letsencrypt:/letsencrypt` line and the top-level `volumes:` block are needed. Without the folder, Traefik logs `open /letsencrypt/acme.json: no such file or directory` and gets no certificate.
+   - `exposedbydefault=false` stops Traefik from routing every container (and logging `port is missing` for the ones without a web port). Each service you reach through Traefik then needs the `traefik.enable=true` label.
+   - The wildcard covers one level of subdomains. Its private key, in `acme.json`, is valid for all of them: keep the volume private.
+3. Add labels to the `rollcall` service:
+
+   ```yaml
+       labels:
+         - traefik.enable=true
+         - traefik.docker.network=rollcall-tunnel
+         - traefik.http.routers.rollcall.rule=Host(`rollcall.example.com`)
+         - traefik.http.routers.rollcall.entrypoints=https
+         - traefik.http.services.rollcall.loadbalancer.server.port=8000
+   ```
+
+4. Trust both proxies: `FORWARDED_ALLOW_IPS=172.30.0.10,172.30.0.20`, then restart Rollcall.
+5. Check Traefik's log for the certificate (errors mention `acme` or `cloudflare`), or its dashboard's HTTP Routers.
+6. Only then add the local DNS entry: `rollcall.example.com` → the server's LAN address, as a Host (A) record. On UniFi Network: Settings › Policy Engine › Policy Table › Create New Policy › DNS (9.x), or Settings › Routing › DNS (8.x). Each network's DHCP must hand out the gateway as its DNS server (DNS Server: Auto). Add one entry per service rather than a DNS wildcard, which would also capture subdomains Traefik does not serve.
+
+Then check from the LAN:
+
+- `nslookup rollcall.example.com` answers with the server's LAN address.
+- `https://rollcall.example.com` opens with a valid certificate and no Cloudflare Access sign-in, and its request lines in Rollcall's log start with `172.30.0.20`.
+- `https://rollcall.example.com/api/v1/setup` answers `{"open": false, ...}`: Rollcall sees your LAN address through Traefik.
+
+Devices that skip your home DNS (Android's Private DNS, or a browser's secure DNS set to a fixed provider) still work, through Cloudflare. Pair the phone app with the `https://` hostname: at home its scans reach Rollcall through Traefik with the phone's LAN address.
+
 
 ## 6. Scanners, the phone app and Home Assistant
 
 - **Phone app and scanners**: on the Devices page, register a scanner and pair the phone with its QR code, using `http://<server>:8000` as the server address. Scanners stay on the LAN.
 - **Printers**: add them on the Devices page (or seed them once with `PRINTERS`).
 - **Home Assistant**: enter the broker and Home Assistant settings on the Settings page, and make a machine token there for any script or automation that calls the API.
+
+## With Portainer instead
+
+Steps 1 to 4 work the same in Portainer, through its web UI:
+
+- **Registry**: Registries › Add registry › Custom registry, with URL `ghcr.io`, authentication on, username `sirmeili` and the `read:packages` token as the password.
+- **Stack**: Stacks › Add stack › Web editor, and paste `deploy/compose.yaml`. Change `env_file: .env` to `env_file: stack.env`: Portainer writes the stack's environment variables to `stack.env`, not `.env`. Add the settings from step 2 under Environment variables (Load variables from .env file accepts a filled-in copy of `.env.example`), then Deploy the stack.
+- **Setup code**: Containers › rollcall › Logs, and search for `setup code`.
+- **Commands** such as `ft-admin backup` or `ft-admin reset-password <username>`: Containers › rollcall › Console, with `/bin/sh`.
+- **Changing a setting**: edit it under the stack's Environment variables, then Update the stack.
+- **Updating**: make a backup from the Console, then Stacks › rollcall › Update the stack with Re-pull image turned on.
+- **Restoring a backup** needs a shell on the server for the `docker run` command below; stop the stack from Portainer first and start it again afterwards.
 
 ## Backups
 

@@ -75,7 +75,7 @@ Select the image above to open the interactive 3D mockup. The source is in [hard
 
 ```text
 docs/SPEC.md                  Full specification: the source of truth
-docs/deploy.md                Running Rollcall with Docker Compose: setup, proxy, backups, updates
+docs/deploy.md                Running Rollcall with Docker Compose or Portainer: setup, proxy, Cloudflare Tunnel, backups, updates
 docs/mockups/web/             Web app page mockups and design tokens
 docs/mockups/mobile-scanner/  Phone app Scan screen mockups
 hardware/BOM.md               Bill of materials for one scanner
