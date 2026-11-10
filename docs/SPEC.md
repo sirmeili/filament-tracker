@@ -196,12 +196,12 @@ An Android phone can act as one more scanner, so spools can be scanned before th
 
 - **Scan**: a screen shown only in the app that mirrors the scanner flow: tap a spool, see the spool card (name, color swatch, state with its date), choose from the same actions with the suggested one highlighted (see User workflows), and see the result. No choice within 15 seconds cancels with no event sent, and the same action confirmed twice for a spool within 30 seconds sends one event.
 - **Scan layout** (owner's choice, 2026-11-06; follows `docs/mockups/mobile-scanner/`): everything touched while scanning is in the bottom half of the screen, for one hand.
-  - Header: the connection status (Online or Offline, with the queue size when anything is queued), the theme control (the same Light / Dark / System choice as the web app's header), a button to Pairing and a button to the full app.
+  - Header: the connection status (Online, Offline or Away, with the queue size when anything is queued), the theme control (the same Light / Dark / System choice as the web app's header), a button to Pairing and a button to the full app.
   - Waiting: a large target, "Hold a spool to the back of your phone", and the last scan with Undo at the bottom.
   - Spool found: the spool's color ring, state chip, name and state date, a bar counting down the 15 seconds, and the action keys in a row with the suggested one marked "Suggested".
   - Result: the action in large type with the spool, and a bar counting down the 3 seconds. Undo, View spool (for a spool the server knows) and Scan next, which goes back to waiting at once.
   - The countdown bars follow the real timers: each new spool or result starts a new bar.
-  - Online means the server answered the last request (a heartbeat, lookup, action or undo); Offline means it could not be reached.
+  - Online means the server answered the last request (a heartbeat, lookup, action or undo); Offline means it could not be reached; Away means it answered that the phone is not on the home network (see Away from home). Only the server's own answers count: a page that is not its JSON (Cloudflare Access's sign-in page after a redirect, a proxy's error page, a Wi-Fi sign-in portal) means it could not be reached.
 - **Unpacking a delivery** (owner's choice, 2026-11-06): a **Delivery** toggle beside the last scan turns on a list of the spools recorded in this session, for checking off a whole box.
   - The top of the screen is the list, newest at the bottom, with totals ("4 new · 1 opened", and empty when there are any). Each row has the spool's color, name, time and number; a spool still in the offline queue is marked queued; an undone one is marked Undone and leaves the totals.
   - Only the newest row has Undo, matching the single Undo; while its result is on screen, the Undo is in the panel instead.
@@ -215,7 +215,7 @@ An Android phone can act as one more scanner, so spools can be scanned before th
 **Device behavior**
 
 - Scans and undo of its own events use the device token, exactly as the scanner does. A heartbeat is sent every 5 minutes while the app is open.
-- Offline, as on the scanner: if the lookup fails, the product, type and color are decoded on the phone from the raw tag, New, Opened and Empty are offered, and chosen actions are queued (at least 50) and retried with backoff. As soon as the server answers again (a heartbeat, which is also sent when the app comes back to the front, or any lookup or action), the whole queue is sent without waiting for the backoff. The `event_id` makes retries idempotent. The Scan screen shows the queue size.
+- Offline, as on the scanner: if the lookup fails, the product, type and color are decoded on the phone from the raw tag, New, Opened and Empty are offered, and chosen actions are queued (at least 50) and retried with backoff. As soon as the server answers again (a heartbeat, which is also sent when the app comes back to the front, or any lookup or action), the whole queue is sent without waiting for the backoff. The `event_id` makes retries idempotent. The Scan screen shows the queue size. A queued scan leaves the queue only when the server accepts or refuses it; not reaching the server, or being away from home, keeps it queued.
 
 **Pairing**
 
@@ -223,12 +223,19 @@ An Android phone can act as one more scanner, so spools can be scanned before th
 - The app scans the QR code with the camera; typing the URL and token is the fallback.
 - **Unlink this phone** (owner's request, 2026-11-10), on the Pairing page, after a confirmation: the app asks the server to revoke its own token (`POST /devices/unlink`), then forgets the server address, token, key-derivation constant and offline queue on the phone whatever the answer, so a phone whose server is gone can still be unlinked. It says whether the token was revoked; if the server could not be reached, the device is still listed on the Devices page, where an Admin revokes it. The confirmation warns when queued scans would be dropped. An unlinked device stays listed like a revoked one, and rotating its token re-enables it.
 - Pairing is reachable without signing in or reaching the server: from Scan's header, from the sign-in page in the app, and from the app's "Cannot reach the server" screen (as well as from the Account page).
-- The token and the key-derivation constant are stored encrypted with the Android Keystore. The constant comes from `GET /devices/provisioning` after pairing and is never bundled in the app. The app opts out of Android backup, because the Keystore key cannot be restored on another phone; a restored or damaged value reads as missing and the phone pairs again.
+- The token, the key-derivation constant and the Cloudflare Access service token (if the server has one) are stored encrypted with the Android Keystore. The constant and the Access token come from `GET /devices/provisioning` after pairing and are never bundled in the app. The app fetches both again the first time it reaches the server at home after it opens or comes back to the front, so a replaced Access token or salt reaches the phone without pairing again, and an Access token removed on the server is removed from the phone. The app opts out of Android backup, because the Keystore key cannot be restored on another phone; a restored or damaged value reads as missing and the phone pairs again.
 
 **Network**
 
 - The app allows plain HTTP for LAN addresses, like the scanner, and HTTPS everywhere. A LAN address is a private IPv4 or IPv6 address, a name without dots, or a name ending in `.local`, `.lan` or `.home.arpa`; pairing refuses any other `http://` address. Pairing also refuses loopback addresses (`localhost`, `127.x.x.x`, `::1`), on the Devices page and in the app, because on the phone they name the phone itself.
-- The session cookie is `Secure`, so signing in over a plain `http://` address works only with `COOKIE_SECURE=false`. Pairing with the HTTPS address of the reverse proxy is recommended: scanning still works on the LAN, because the proxy forwards the phone's LAN address.
+- The session cookie is `Secure`, so signing in over a plain `http://` address works only with `COOKIE_SECURE=false`. Pairing with the HTTPS address is recommended.
+- **Same address at home and away** (owner's setup, 2026-11-10): the web app's hostname reaches a reverse proxy on the LAN at home (the home DNS answers it with the server's LAN address, "split DNS"), and Cloudflare's tunnel away from home. The phone keeps one address and one sign-in. At home, scans reach the server through the LAN proxy with the phone's LAN address (the proxy is in `FORWARDED_ALLOW_IPS`); through a tunnel, the server sees a public address, so scanning works only at home. See `docs/deploy.md`.
+
+**Away from home** (owner's request, 2026-11-10)
+
+- The pages work away from home: browsing the inventory is what the app is for there. Scanning stays on the home network: away from home a scan is decoded on the phone and queued, as when the server is down, and the queue is sent when the phone is home again. The Scan header shows Away.
+- The server marks its refusal of a bearer token from outside `TRUSTED_NETWORKS` with the header `X-Rollcall-Refused: local-network-only`, so the app can tell "away from home" from a revoked or refused token.
+- **Cloudflare Access**: the app cannot use Access's sign-in page, so it sends a Cloudflare Access service token (`CF-Access-Client-Id` and `CF-Access-Client-Secret`) with every request to the paired server, its pages and its scanner requests alike. An Admin enters the token once on the Settings page (Scanners); the server hands it to paired phones with the salt, on the LAN only. One token serves every phone (owner's choice): to replace it, make a new one in Cloudflare, save it on the Settings page, and keep the old one in the Access policy until every phone has been home once. The app sends it only over HTTPS. Rollcall's own sign-in and device tokens still apply behind Access.
 
 ## Server: data model
 
@@ -283,7 +290,7 @@ A versioned REST API under `/api/v1`, documented by FastAPI's generated OpenAPI 
 | POST | `/scans` | Scanner | Submit a scan event; a lookup returns spool, product, state, allowed and suggested actions; an action returns the new state and a `feedback` code for the screen |
 | POST | `/devices/heartbeat` | Scanner | Online status, firmware version, queue length |
 | POST | `/devices/unlink` | Scanner | The calling device revokes its own token (the phone app's Unlink this phone) |
-| GET | `/devices/provisioning` | Scanner | Returns the key-derivation constant to an authenticated device (scanner firmware and the phone app) |
+| GET | `/devices/provisioning` | Scanner | Returns the key-derivation constant to an authenticated device (scanner firmware and the phone app), and the Cloudflare Access service token when one is set |
 | GET | `/inventory` | Viewer, HA | Counts by product and state, low-stock flags, and each open spool's remaining % with a nearly-out flag |
 | GET | `/spools` | Viewer | List with filters (state, product, filament type, location) and search |
 | POST | `/spools` | Editor | Manual entry: create a placeholder spool for a product, with a `received` event |
@@ -435,6 +442,7 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 | `ADMIN_TOKEN` | random 32 bytes | Machine access for Home Assistant and scripts, from the LAN only; machine tokens made in the app replace it, and it keeps working if set |
 | `SETTINGS_KEY` | random 32 bytes, base64 | Encrypts the secrets stored in the app. Unset: a key file is created beside the database |
 | `BAMBU_KDF_SALT` | hex string | *app*. Key-derivation constant, served to provisioned devices |
+| `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET` | `….access`, 64 hex digits | *app*. A Cloudflare Access service token, handed to paired phones so the app passes Access away from home. Unset: none |
 | `PRINTERS` | `[{"name": "P1S", "host": "192.168.1.40", "serial": "01P00A...", "access_code": "..."}]` | *app*, seeded once. Printers to watch over MQTT, as a JSON list; each entry may also set `port` (default 8883). `host` and `port` may be an MQTT proxy's |
 | `MQTT_URL`, `MQTT_USER`, `MQTT_PASSWORD` | `mqtt://homeassistant.local:1883` | *app*. Home Assistant's MQTT broker, for discovery and state publishing; `mqtts://` for TLS. Unset: nothing is published. The URL must not hold the password |
 | `HA_DISCOVERY_PREFIX` | `homeassistant` | *app*. Home Assistant's MQTT discovery prefix |
@@ -458,7 +466,7 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 - Input validation on all payloads (Pydantic); block arrays capped in size. A refused request's answer says where and what is wrong, never the value sent, which may be a password, token or access code.
 - No tag UIDs or derived keys in logs above debug level, in line with the RFID guide's request not to publish UID/key pairs.
 - Secrets saved in the app are encrypted at rest and never returned by the API (see Settings and first start). Machine tokens are stored hashed, like device tokens. The setup code is written to the log once per start while setup is open, and nowhere else.
-- The printer access code, HA token, MQTT password and `BAMBU_KDF_SALT` never appear in logs, and a rejected setting's error message does not repeat its value. The salt is returned only by `/devices/provisioning`, to a device token from the LAN.
+- The printer access code, HA token, MQTT password, `BAMBU_KDF_SALT` and the Cloudflare Access client secret never appear in logs, and a rejected setting's error message does not repeat its value. The salt and the Access token are returned only by `/devices/provisioning`, to a device token from the LAN; the settings API never returns the client secret.
 - The printer access code and HA token never leave the server or appear in API responses or logs. The access code is sent only to a printer (or proxy) whose certificate matches the pin.
 
 ## Testing
@@ -556,7 +564,7 @@ None of this is built or scheduled inside the current milestones, and none of it
 
 - **The whole web app stays reachable from the internet**, as today, through the owner's HTTPS reverse proxy with personal accounts. Only scanning and saving scans stays on the home network (`/scans`, heartbeat, provisioning and bearer tokens, as today); away from home the phone app queues scans and sends them on its return.
 - **Requester role**: see Users and roles. A Requester reaches only the request route group, the catalog and the stock summary, which the server enforces on every route, so it does not depend on what the proxy forwards.
-- **Recommended exposure: a Cloudflare Tunnel** to the web app's hostname. It needs no open port on the home router and hides the home address, and the app's own accounts do the signing in, so the phone app's web view keeps working. Cloudflare Access can be added in front as a second sign-in (for example a one-time code to an allowed email address) at the cost of signing in twice. **Tailscale** is the alternative if both people are happy to install it: nothing is public at all, but every device that uses the app, including the brother's, must join the tailnet. Either way the tunnel forwards only the web app and `/api/v1`, never the API docs.
+- **Recommended exposure: a Cloudflare Tunnel** to the web app's hostname. It needs no open port on the home router and hides the home address, and the app's own accounts do the signing in. Cloudflare Access can be added in front as a second sign-in (for example a one-time code to an allowed email address) at the cost of signing in twice in a browser; the phone app passes it with a service token (see Phone scanner, Away from home). **Tailscale** is the alternative if both people are happy to install it: nothing is public at all, but every device that uses the app, including the brother's, must join the tailnet. Either way the tunnel forwards only the web app and `/api/v1`, never the API docs.
 
 ### Phase 2
 

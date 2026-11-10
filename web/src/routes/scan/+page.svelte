@@ -73,7 +73,7 @@
 <svelte:head><title>Scan · Filament Tracker</title></svelte:head>
 
 <section class="scan" aria-labelledby="scan-h">
-  <ScanHeader online={phone.online} queueSize={phone.queueSize} theme={appTheme} />
+  <ScanHeader reach={phone.reach} queueSize={phone.queueSize} theme={appTheme} />
 
   {#if !phone.app}
     <div class="middle">

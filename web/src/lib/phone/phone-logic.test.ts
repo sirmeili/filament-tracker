@@ -145,7 +145,7 @@ describe("device API", () => {
 
     await api.revert("a/b");
     await api.heartbeat("1.0", 3);
-    expect(await api.provisioning()).toBe("AA");
+    expect(await api.provisioning()).toEqual({ salt: "AA", access: null });
     expect(fetch.calls[0].url).toMatch(/events\/a%2Fb\/revert$/);
     expect(JSON.parse(String(fetch.calls[1].init.body))).toEqual({
       fw_version: "1.0",
@@ -204,12 +204,14 @@ describe("device API", () => {
     vi.useRealTimers();
   });
 
-  it("reads non-JSON error bodies", async () => {
-    const fetch = (async () => new Response("<html>", { status: 502 })) as typeof globalThis.fetch;
-    await expect(new DeviceApi(PAIRING, fetch).provisioning()).rejects.toMatchObject({
-      status: 502,
-      message: "Request failed (502)",
-    });
+  it("counts a page that is not the server's JSON as not reaching it", async () => {
+    for (const status of [502, 200, 403]) {
+      const fetch = (async () => new Response("<html>", { status })) as typeof globalThis.fetch;
+      await expect(new DeviceApi(PAIRING, fetch).provisioning()).rejects.toMatchObject({
+        status: 0,
+        message: "Cannot reach the server",
+      });
+    }
   });
 
   it("knows which errors are worth retrying", () => {
@@ -522,18 +524,26 @@ describe("scan screen parts", async () => {
     expect(screen.queryByRole("button", { name: "Undo" })).toBeNull(); // not the last scan
   });
 
-  it("says Online, Offline and the queue size in the header", () => {
+  it("says Online, Offline, Away and the queue size in the header", () => {
     const theme = new Theme(document.createElement("html"), undefined, undefined);
-    const header = render(ScanHeader, { online: null, queueSize: 0, theme });
+    const header = render(ScanHeader, { reach: null, queueSize: 0, theme });
     expect(screen.queryByRole("status")).toBeNull();
-    header.rerender({ online: null, queueSize: 2, theme });
+    header.rerender({ reach: null, queueSize: 2, theme });
     expect(screen.getByRole("status")).toHaveTextContent("2 queued");
-    header.rerender({ online: true, queueSize: 0, theme });
+    header.rerender({ reach: "online", queueSize: 0, theme });
     expect(screen.getByRole("status")).toHaveTextContent("Online");
     expect(screen.getByRole("status")).not.toHaveClass("off");
-    header.rerender({ online: false, queueSize: 3, theme });
+    expect(screen.getByRole("status")).not.toHaveAttribute("title");
+    header.rerender({ reach: "offline", queueSize: 3, theme });
     expect(screen.getByRole("status")).toHaveTextContent("Offline · 3 queued");
     expect(screen.getByRole("status")).toHaveClass("off");
+    header.rerender({ reach: "away", queueSize: 1, theme });
+    expect(screen.getByRole("status")).toHaveTextContent("Away · 1 queued");
+    expect(screen.getByRole("status")).toHaveClass("off");
+    expect(screen.getByRole("status")).toHaveAttribute(
+      "title",
+      "Away from home: scans are sent when you're back.",
+    );
   });
 
   it("leaves a blank slot for a missing action and no hint without a suggestion", () => {

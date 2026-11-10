@@ -1,6 +1,14 @@
 /** Requests the phone makes as a scanner, with its device token (not a user session). */
 
-import { ApiError, API_PREFIX, errorMessage } from "#lib/api/client.ts";
+import {
+  accessHeaders,
+  ApiError,
+  API_PREFIX,
+  errorMessage,
+  NOT_THE_SERVER,
+  parseAnswer,
+  type AccessToken,
+} from "#lib/api/client.ts";
 import type { Pairing } from "#lib/phone/pairing-store.ts";
 import type { TagRead } from "#lib/phone/bridge.ts";
 
@@ -72,9 +80,48 @@ export function scanEvent(
 /** How long the phone waits for the server before treating it as offline. */
 export const REQUEST_TIMEOUT_MS = 5000;
 
+/** The header and value the server sends when it refuses a token from outside the LAN. */
+export const REFUSED_HEADER = "X-Rollcall-Refused";
+export const LOCAL_NETWORK_ONLY = "local-network-only";
+
+/** The server refused the phone's token because the phone is not on the home network. */
+export class AwayError extends ApiError {
+  constructor(message: string) {
+    super(403, message);
+    this.name = "AwayError";
+  }
+}
+
 /** True when a request never got an answer, so it is worth queueing and retrying. */
 export function isOffline(error: unknown): boolean {
   return error instanceof ApiError && (error.status === 0 || error.status >= 500);
+}
+
+/** True when the phone is away from home: the server answered, but scans wait until the
+ * phone is back on the home network. */
+export function isAway(error: unknown): boolean {
+  return error instanceof AwayError;
+}
+
+/** Whether a scan that failed with this error should stay queued and be sent again. */
+export function keepQueued(error: unknown): boolean {
+  return isOffline(error) || isAway(error) || !(error instanceof ApiError);
+}
+
+/** How the server was reached: it answered, it could not be reached, or it answered that the
+ * phone is away from home. */
+export type Reach = "online" | "offline" | "away";
+
+/** What a failed request says about reaching the server. A refusal is still an answer. */
+export function reachOf(error: unknown): Reach {
+  if (isAway(error)) return "away";
+  return isOffline(error) ? "offline" : "online";
+}
+
+/** What /devices/provisioning hands a device. */
+export interface Provisioning {
+  salt: string;
+  access: AccessToken | null;
 }
 
 export class DeviceApi {
@@ -103,27 +150,36 @@ export class DeviceApi {
     return this.request("POST", "/devices/unlink");
   }
 
-  async provisioning(): Promise<string> {
-    const body = await this.request<{ kdf_salt: string }>("GET", "/devices/provisioning");
-    return body.kdf_salt;
+  async provisioning(): Promise<Provisioning> {
+    const body = await this.request<{
+      kdf_salt: string;
+      access?: { client_id: string; client_secret: string } | null;
+    }>("GET", "/devices/provisioning");
+    const access = body.access
+      ? { clientId: body.access.client_id, clientSecret: body.access.client_secret }
+      : null;
+    return { salt: body.kdf_salt, access };
   }
 
   private async request<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T> {
+    const url = this.pairing.url + API_PREFIX + path;
     const headers: Record<string, string> = {
       Accept: "application/json",
       Authorization: `Bearer ${this.pairing.token}`,
+      ...accessHeaders(url),
     };
     const init: RequestInit = { method, headers, credentials: "omit" };
     if (body !== undefined) {
       headers["Content-Type"] = "application/json";
       init.body = JSON.stringify(body);
     }
-    const { response, text } = await this.send(this.pairing.url + API_PREFIX + path, init);
-    let parsed: unknown;
-    try {
-      parsed = text ? JSON.parse(text) : undefined;
-    } catch {
-      parsed = undefined;
+    const { response, text } = await this.send(url, init);
+    const parsed = parseAnswer(text);
+    // Not the server's JSON (Cloudflare Access's sign-in page, a proxy's error page): the
+    // server was not reached, so a queued scan must stay queued.
+    if (parsed === NOT_THE_SERVER) throw new ApiError(0, "Cannot reach the server");
+    if (response.status === 403 && response.headers.get(REFUSED_HEADER) === LOCAL_NETWORK_ONLY) {
+      throw new AwayError(errorMessage(parsed, "Away from the home network"));
     }
     if (!response.ok) {
       throw new ApiError(

@@ -199,12 +199,25 @@ Then check from the LAN:
 - `https://rollcall.example.com` opens with a valid certificate and no Cloudflare Access sign-in, and its request lines in Rollcall's log start with `172.30.0.20`.
 - `https://rollcall.example.com/api/v1/setup` answers `{"open": false, ...}`: Rollcall sees your LAN address through Traefik.
 
-Devices that skip your home DNS (Android's Private DNS, or a browser's secure DNS set to a fixed provider) still work, through Cloudflare. Pair the phone app with the `https://` hostname: at home its scans reach Rollcall through Traefik with the phone's LAN address.
+Devices that skip your home DNS (Android's Private DNS, or a browser's secure DNS set to a fixed provider) still work, through Cloudflare. Pair the phone app with the `https://` hostname: at home its scans reach Rollcall through Traefik with the phone's LAN address, and away from home its pages come through the tunnel.
+
+### The phone app behind Cloudflare Access
+
+The phone app cannot use Cloudflare Access's sign-in page, so it passes Access with a service token instead. Rollcall keeps one token for all phones and hands it to each one on your home network; nobody types it on a phone. Rollcall's own sign-in still applies behind it.
+
+1. In Cloudflare Zero Trust, under Access (Service Auth, or Service credentials in newer dashboards) › Service Tokens, create a token, for example "Rollcall phones", with the duration you want (a year is the default). Copy the Client ID and the Client Secret: the secret is shown only once.
+2. On the Rollcall application in Access, add a policy with the action **Service Auth** that includes that service token. Keep your existing Allow policy for people.
+3. In Rollcall, on the Settings page under Scanners, enter the Client ID and the Client Secret, and Save. The secret is stored encrypted and never shown again.
+4. Open the app on each phone once at home. It fetches the token when it opens or comes back to the front and reaches Rollcall at home; a phone paired from now on gets it when it pairs.
+
+Then check from a phone on mobile data: the app's pages load (no Access sign-in), and Scan's header shows **Away**. A scan away from home is queued and sent the next time the phone is home: scanning stays on your home network.
+
+To replace the token (or before it expires): make a new one in Cloudflare, add it to the Service Auth policy, save it in Rollcall's Settings, and remove the old one from the policy once every phone has been opened at home. A phone that missed the change is let in again the next time it is home. Clearing the two fields in Settings takes the token off the phones the same way.
 
 
 ## 6. Scanners, the phone app and Home Assistant
 
-- **Phone app and scanners**: on the Devices page, register a scanner and pair the phone with its QR code, using `http://<server>:8000` as the server address. Scanners stay on the LAN.
+- **Phone app and scanners**: on the Devices page, register a scanner and pair the phone with its QR code, from home. For the phone, use the `https://` hostname if you set up HTTPS at home (above), so the app works at home and away; otherwise `http://<server>:8000`, which works only at home. Scanners stay on the LAN.
 - **Printers**: add them on the Devices page (or seed them once with `PRINTERS`).
 - **Home Assistant**: enter the broker and Home Assistant settings on the Settings page, and make a machine token there for any script or automation that calls the API.
 

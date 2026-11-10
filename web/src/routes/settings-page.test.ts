@@ -44,7 +44,14 @@ const GENERAL = {
     setting("session_days", { value: "30", set: true }),
   ],
 };
-const SCANNERS = { group: "scanners", settings: [setting("bambu_kdf_salt", { secret: true })] };
+const SCANNERS = {
+  group: "scanners",
+  settings: [
+    setting("bambu_kdf_salt", { secret: true }),
+    setting("cf_access_client_id"),
+    setting("cf_access_client_secret", { secret: true }),
+  ],
+};
 
 /** The form of one settings group. */
 function form(name: string) {
@@ -287,6 +294,33 @@ describe("Settings page", () => {
       "placeholder",
       "Saved. Leave empty to keep it.",
     );
+  });
+
+  it("saves the Cloudflare Access token, showing the ID but never the secret", async () => {
+    const id = "0123456789abcdef0123456789abcdef.access";
+    const fetch = serve({
+      "PUT /settings/scanners": {
+        group: "scanners",
+        settings: [
+          setting("bambu_kdf_salt", { secret: true }),
+          setting("cf_access_client_id", { value: id, set: true, source: "app" }),
+          setting("cf_access_client_secret", { secret: true, set: true, source: "app" }),
+        ],
+      },
+    });
+    render(SettingsPage);
+
+    await userEvent.type(await screen.findByLabelText("Cloudflare Access client ID"), id);
+    await userEvent.type(screen.getByLabelText("Cloudflare Access client secret"), "s3cret");
+    await userEvent.click(form("Scanners").getByRole("button", { name: "Save" }));
+
+    expect(fetch.calls.at(-1)?.body).toEqual({
+      values: { cf_access_client_id: id, cf_access_client_secret: "s3cret" },
+      clear: [],
+    });
+    expect(await screen.findByRole("status")).toHaveTextContent("when the app opens at home");
+    expect(screen.getByLabelText("Cloudflare Access client ID")).toHaveValue(id);
+    expect(screen.getByLabelText("Cloudflare Access client secret")).toHaveValue("");
   });
 });
 

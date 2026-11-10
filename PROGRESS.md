@@ -63,7 +63,9 @@
 - `feature/phone-unlink` (part 1) merged (PR #43).
 - `feature/phone-away` (part 2):
   - Done (server): a Cloudflare Access service token in the Scanners settings (Client ID shown to Admins, Client Secret sealed and never returned; `.env` fallbacks `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET`; checked against Cloudflare's format, errors never repeat the value). `GET /devices/provisioning` hands it to LAN devices with the salt when both parts are set. Refusing a bearer token from outside the LAN now carries `X-Rollcall-Refused: local-network-only`.
-  - Next (app): only Rollcall's own answers count; Away status with scans kept queued; the Access headers on every request to the paired server, fetched at pairing and refreshed at home. Then the spec and the deploy guide.
+  - Done (app): only the server's own JSON counts as an answer, in the pages and the scanner alike, so Cloudflare Access's sign-in page or a proxy's error page reads as "cannot reach" and queued scans stay queued (regression tests for the lost-queue case). The marked refusal is Away: lookups decode on the phone and choices are queued "until you're home", the Scan header shows Away, and nothing leaves the queue. The Access token is fetched at pairing, kept in the Keystore storage, refreshed the first time the app reaches the server at home after opening or returning to the front (a removed token is removed), sent with every request to the paired server over HTTPS only, and forgotten on unlink. Settings › Scanners gains the two fields.
+  - Done (spec and docs): Phone scanner (Away from home, the status, the queue rule, the stored Access token, the same address at home and away), the API, Configuration and Security sections, and Access from outside the home. `docs/deploy.md` gains the service token steps (create, Service Auth policy, Settings, replacing it) and pairing with the `https://` hostname. Two phone checks added to `android/README.md`.
+  - Next: the owner reviews the branch.
 
 ## Next
 

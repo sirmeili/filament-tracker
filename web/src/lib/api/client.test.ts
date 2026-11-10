@@ -53,8 +53,23 @@ describe("api", () => {
     expect(error).toMatchObject({ status: 409, message: "already exists" });
   });
 
-  it("falls back to a generic message when the body is not JSON", async () => {
-    const fetchFn = vi.fn().mockResolvedValue(reply(502, "<html>Bad gateway</html>"));
+  it("counts a page that is not the server's JSON as not reaching it", async () => {
+    // A proxy's error page, or Cloudflare Access's sign-in page after its redirect.
+    for (const [status, text] of [
+      [502, "<html>Bad gateway</html>"],
+      [200, "<!doctype html><title>Sign in</title>"],
+      [403, "<html>Forbidden</html>"],
+    ] as const) {
+      const fetchFn = vi.fn().mockResolvedValue(reply(status, text));
+      await expect(api("/x", {}, fetchFn)).rejects.toMatchObject({
+        status: 0,
+        message: "Cannot reach the server",
+      });
+    }
+  });
+
+  it("falls back to a generic message for a JSON error without a detail", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(reply(502, JSON.stringify({ oops: true })));
 
     await expect(api("/x", {}, fetchFn)).rejects.toMatchObject({
       status: 502,

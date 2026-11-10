@@ -5,8 +5,7 @@
  * server replays events by when they happened, so delivery order does not matter.
  */
 
-import { ApiError } from "#lib/api/client.ts";
-import { isOffline, type ScanEvent } from "#lib/phone/device-api.ts";
+import { keepQueued, type ScanEvent } from "#lib/phone/device-api.ts";
 
 export const QUEUE_LIMIT = 100;
 export const BACKOFF_FIRST_MS = 5_000;
@@ -111,7 +110,7 @@ export class OfflineQueue {
         await send(item.event);
         result.sent += 1;
       } catch (error) {
-        if (isOffline(error) || !(error instanceof ApiError)) {
+        if (keepQueued(error)) {
           reachable = false;
           const attempts = item.attempts + 1;
           keep.push({ ...item, attempts, nextAt: now + backoff(attempts) });

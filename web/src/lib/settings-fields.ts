@@ -43,6 +43,17 @@ export const SCANNER_FIELDS: readonly FieldInfo[] = [
     label: "Key-derivation salt",
     help: "The constant that turns a tag's UID into its keys, in hex. Empty: scanners and phones can't read tags.",
   },
+  {
+    key: "cf_access_client_id",
+    label: "Cloudflare Access client ID",
+    help: "A service token's Client ID, ending in .access. With the secret, paired phones pass Cloudflare Access when away from home. Empty: no token.",
+    placeholder: "….access",
+  },
+  {
+    key: "cf_access_client_secret",
+    label: "Cloudflare Access client secret",
+    help: "The same service token's Client Secret, shown once by Cloudflare.",
+  },
 ];
 
 export const HOME_ASSISTANT_FIELDS: readonly FieldInfo[] = [

@@ -44,18 +44,20 @@ describe("phone session", () => {
     const fetch = fakeFetch({ "POST /api/v1/devices/heartbeat": () => ({ status: 204 }) });
     const session = (await PhoneSession.open(native, fetch))!;
 
+    const beats = () => fetch.calls.filter((call) => call.url.endsWith("/heartbeat"));
+
     session.start();
     await vi.advanceTimersByTimeAsync(0);
-    expect(fetch.calls).toHaveLength(1);
-    expect(JSON.parse(String(fetch.calls[0].init.body))).toEqual({
+    expect(beats()).toHaveLength(1);
+    expect(JSON.parse(String(beats()[0].init.body))).toEqual({
       fw_version: "app-test",
       queue_length: 0,
     });
     await vi.advanceTimersByTimeAsync(HEARTBEAT_MS);
-    expect(fetch.calls).toHaveLength(2);
+    expect(beats()).toHaveLength(2);
     session.stop();
     await vi.advanceTimersByTimeAsync(HEARTBEAT_MS);
-    expect(fetch.calls).toHaveLength(2);
+    expect(beats()).toHaveLength(2);
   });
 
   it("retries queued scans when they are due", async () => {
@@ -91,13 +93,13 @@ describe("phone session", () => {
     await vi.advanceTimersByTimeAsync(0);
     await session.retry(true); // fails again: backed off further
     expect(session.queue.size).toBe(1);
-    expect(session.online).toBe(false);
+    expect(session.reach).toBe("offline");
 
     up = true;
     document.dispatchEvent(new Event("visibilitychange")); // back to the front: a heartbeat
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(session.online).toBe(true);
+    expect(session.reach).toBe("online");
     expect(session.queue.size).toBe(0);
     session.stop();
   });
@@ -113,7 +115,7 @@ describe("phone session", () => {
     await session.queue.add(scanEvent(PAIRING, tagRead(), "opened", "1"), Date.now());
     session.start();
     await vi.advanceTimersByTimeAsync(0);
-    expect(session.online).toBe(false);
+    expect(session.reach).toBe("offline");
 
     up = true;
     void session.flow.tapped(tagRead());
@@ -239,20 +241,20 @@ describe("online status", () => {
       "POST /api/v1/devices/heartbeat": () => (up ? { status: 204 } : new TypeError("down")),
     });
     const session = (await PhoneSession.open(native, fetch))!;
-    const seen: boolean[] = [];
-    expect(session.online).toBeNull();
+    const seen: string[] = [];
+    expect(session.reach).toBeNull();
 
-    session.subscribeOnline((online) => seen.push(online));
+    session.subscribeReach((reach) => seen.push(reach));
     await session.beat();
     up = false;
     await session.beat();
     await session.beat(); // no change, not repeated
-    const late: boolean[] = [];
-    const stop = session.subscribeOnline((online) => late.push(online));
+    const late: string[] = [];
+    const stop = session.subscribeReach((reach) => late.push(reach));
     stop();
 
-    expect(seen).toEqual([true, false]);
-    expect(late).toEqual([false]); // told the current status at once
+    expect(seen).toEqual(["online", "offline"]);
+    expect(late).toEqual(["offline"]); // told the current status at once
     session.stop();
   });
 
@@ -261,7 +263,7 @@ describe("online status", () => {
     const fetch = fakeFetch({ "POST /api/v1/devices/heartbeat": () => ({ status: 401 }) });
     const session = (await PhoneSession.open(native, fetch))!;
     await session.beat();
-    expect(session.online).toBe(true);
+    expect(session.reach).toBe("online");
   });
 
   it("is shown on the phone state", async () => {
@@ -272,9 +274,9 @@ describe("online status", () => {
     );
     await phone.load();
     await vi.advanceTimersByTimeAsync(0);
-    expect(phone.online).toBe(true);
+    expect(phone.reach).toBe("online");
     await phone.unpair();
-    expect(phone.online).toBeNull();
+    expect(phone.reach).toBeNull();
     vi.unstubAllGlobals();
   });
 });
