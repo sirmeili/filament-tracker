@@ -67,17 +67,87 @@ To use the web app away from home, put it behind your HTTPS reverse proxy (Caddy
 
 - Set `FORWARDED_ALLOW_IPS` in `.env` to the proxy's address as Rollcall sees it, then `docker compose up -d`. Without it, every visitor through the proxy looks like the proxy; if the proxy is on your LAN or in Docker, they would all look local.
   - A proxy on another machine: that machine's LAN address.
-  - A proxy in Docker on the same server: its container address. Check with `docker compose logs rollcall`, where each request line starts with the address it came from, and give that container a fixed address in its network.
+  - A proxy in Docker on the same server: its container address, fixed on a network it shares with Rollcall (see [A Cloudflare Tunnel](#a-cloudflare-tunnel) for the steps, which suit any proxy in Docker). Check with `docker compose logs rollcall`, where each request line starts with the address it came from.
 - Keep `COOKIE_SECURE=true` once you sign in through the proxy.
 - Forward only `/` and `/api/v1`. Rollcall refuses the scanner routes, bearer tokens, `/docs` and setup from outside `TRUSTED_NETWORKS` anyway.
 
 Check it from outside your LAN (for example a phone on mobile data): the web app loads and you can sign in, while `https://<your address>/api/v1/setup` and `/docs` answer 404.
+
+### A Cloudflare Tunnel
+
+With a Cloudflare Tunnel, `cloudflared` is the proxy. Run it in Docker on the same server and give it a fixed address on a network it shares only with Rollcall, so that address can be put in `FORWARDED_ALLOW_IPS`.
+
+Do not trust the address Rollcall sees when the tunnel points at the server's published port (`http://<server>:8000`): that is the gateway of `cloudflared`'s Docker network, such as `172.27.0.1`, and every container on that network arrives from it too, so any of them could claim any visitor address. Nor trust a whole Docker range such as `172.16.0.0/12`.
+
+1. Make the shared network, once (in Portainer: Networks › Add network, driver `bridge`, subnet `172.30.0.0/24`, gateway `172.30.0.1`). Pick another range if this one is in use, and change the addresses below to match.
+
+   ```sh
+   docker network create --subnet 172.30.0.0/24 --gateway 172.30.0.1 rollcall-tunnel
+   ```
+
+2. Give `cloudflared` a fixed address on it. Keep any networks it already uses for other services:
+
+   ```yaml
+   services:
+     cloudflared:
+       image: cloudflare/cloudflared:<version>
+       command: tunnel --no-autoupdate run --token ${token}
+       restart: unless-stopped
+       networks:
+         rollcall-tunnel:
+           ipv4_address: 172.30.0.10
+
+   networks:
+     rollcall-tunnel:
+       external: true
+       name: rollcall-tunnel
+   ```
+
+3. Add Rollcall to the network. It needs no fixed address. Keep `default` in the list, or the service leaves its own network:
+
+   ```yaml
+   services:
+     rollcall:
+       # ...as in compose.yaml...
+       networks:
+         - default
+         - rollcall-tunnel
+
+   networks:
+     rollcall-tunnel:
+       external: true
+       name: rollcall-tunnel
+   ```
+
+4. In the settings, set `FORWARDED_ALLOW_IPS=172.30.0.10` and `COOKIE_SECURE=true`, then restart Rollcall (`docker compose up -d`, or Update the stack in Portainer).
+5. In the Cloudflare dashboard (Zero Trust › Networks › Tunnels › the tunnel › Public Hostname), point the hostname at `http://rollcall:8000`. `cloudflared` finds Rollcall by name on the shared network.
+6. Recommended: put the hostname behind Cloudflare Access, so only the people you allow reach the sign-in page. Rollcall's own checks still apply behind it.
+
+Then check:
+
+- Open the site through the tunnel; the newest request lines in Rollcall's log start with `172.30.0.10`. If they show another address, the tunnel still goes through the published port (step 5).
+- From outside your LAN (a phone on mobile data), `https://<hostname>/api/v1/setup` and `/docs` answer 404 (`{"detail":"Not Found"}`). From the LAN, `http://<server>:8000/api/v1/setup` answers `{"open": false, ...}`.
+- Signing in through the `https://` hostname stays signed in after a reload.
+
+With `COOKIE_SECURE=true`, sign in to the web app through the `https://` hostname, at home too: browsers drop the sign-in cookie on `http://<server>:8000`. The phone app, scanners and Home Assistant keep using `http://<server>:8000` on the LAN with their tokens. The name `rollcall` resolves only inside Docker; to use a name on the LAN, add a DNS entry for the server on your router.
 
 ## 6. Scanners, the phone app and Home Assistant
 
 - **Phone app and scanners**: on the Devices page, register a scanner and pair the phone with its QR code, using `http://<server>:8000` as the server address. Scanners stay on the LAN.
 - **Printers**: add them on the Devices page (or seed them once with `PRINTERS`).
 - **Home Assistant**: enter the broker and Home Assistant settings on the Settings page, and make a machine token there for any script or automation that calls the API.
+
+## With Portainer instead
+
+Steps 1 to 4 work the same in Portainer, through its web UI:
+
+- **Registry**: Registries › Add registry › Custom registry, with URL `ghcr.io`, authentication on, username `sirmeili` and the `read:packages` token as the password.
+- **Stack**: Stacks › Add stack › Web editor, and paste `deploy/compose.yaml`. Change `env_file: .env` to `env_file: stack.env`: Portainer writes the stack's environment variables to `stack.env`, not `.env`. Add the settings from step 2 under Environment variables (Load variables from .env file accepts a filled-in copy of `.env.example`), then Deploy the stack.
+- **Setup code**: Containers › rollcall › Logs, and search for `setup code`.
+- **Commands** such as `ft-admin backup` or `ft-admin reset-password <username>`: Containers › rollcall › Console, with `/bin/sh`.
+- **Changing a setting**: edit it under the stack's Environment variables, then Update the stack.
+- **Updating**: make a backup from the Console, then Stacks › rollcall › Update the stack with Re-pull image turned on.
+- **Restoring a backup** needs a shell on the server for the `docker run` command below; stop the stack from Portainer first and start it again afterwards.
 
 ## Backups
 

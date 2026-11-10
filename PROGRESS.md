@@ -63,7 +63,9 @@
   - Done (Compose): `deploy/compose.yaml` (data and backup volumes, read-only root, no new privileges, all capabilities dropped, log rotation) and `deploy/.env.example`. `deploy/test/compose.yaml`, the end-to-end stack with Mosquitto, and `server/tests/deploy/test_compose_stack.py`: first-start setup with the code from the log, the scan simulator driving Received, Opened and Empty with the Home Assistant totals checked on the broker, `ft-admin backup`, and a restart that keeps the data and does not reopen setup. Passed locally.
   - Done (CI): `.github/workflows/image.yml` builds the image on every PR and runs the stack test; on a merge to `main` a separate job, the only one allowed to write packages, pushes the tested image to `ghcr.io/sirmeili/rollcall` as `latest` and the commit SHA, with `GITHUB_TOKEN`.
   - Done (docs): `docs/deploy.md` (registry login with a read-only token, `.env`, setup code, reverse proxy and `FORWARDED_ALLOW_IPS`, backups, restoring one, updating), README, AGENTS.md, `server/README.md`, `server/.env.example`. The restore steps were run against the image (a scanner registered after the backup was gone afterwards).
-  - Next: the owner reviews the branch; after the merge, the first image is published and the walkthrough on the home server follows.
+  - Merged (PR #41). The first image was published to `ghcr.io/sirmeili/rollcall` and made private (an anonymous pull is refused).
+- Walkthrough on the home server (2026-11-10): Rollcall runs from a Portainer stack behind a Cloudflare Tunnel with Cloudflare Access. `cloudflared` has a fixed address on a network shared only with Rollcall, which is `FORWARDED_ALLOW_IPS`; `COOKIE_SECURE=true`. Checked: tunnel visitors keep their public address (setup and `/docs` answer 404 through the tunnel, setup answers on the LAN), and `ft-admin backup` works.
+- `feature/deploy-portainer-tunnel`: `docs/deploy.md` gains Portainer steps and a Cloudflare Tunnel section (the shared network and fixed address, why the network gateway must not be trusted, the checks).
 
 ## Next
 
