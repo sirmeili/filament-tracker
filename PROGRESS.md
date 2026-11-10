@@ -72,7 +72,9 @@
   - The app showed the sign-in page on its first launch after every update, and was signed in again on the next launch. Probed over USB on the owner's phone: Android restarts the app when the phone is unlocked, before its Wi-Fi is back, so the sign-in check cannot reach the server, and the layout then treated "not reached" as "signed out". Now a check that cannot reach the server never redirects to sign-in; the app shows "Cannot reach the server" and tries again when the network returns and every 5 s. The start screen also waits for the sign-in check (still 4 s at most). A first attempt (asking again after 500 ms on "not signed in") was dropped, since the probe showed no "not signed in" answer. Spec: Phone scanner, Start screen. Tests: `phone-pages.test.ts`.
   - Seen in the probe: this phone holds no Cloudflare Access service token, so away from home its pages cannot reach the server; checks 25–30 (after the server update) cover setting it up.
   - On a phone, Products and Users were wider than the screen (735px and 547px at 390px), which pushed the bottom bar out of sight: screen-reader-only text in their tables escaped the table's scroll box. `.tablebox` is now positioned. Test: `e2e/phone.spec.ts` checks that every page fits 390px.
-  - Next: install on the owner's phone, then the PR.
+  - Merged (PR #50); the owner's server is updated (2026-11-10).
+- Fixed on `feature/cf-secret-format` (2026-11-10): the Settings page refused the owner's new Cloudflare Access service token secret. Cloudflare's secrets since 2026-08-26 are `cfast_` with 48 letters and digits, and the check allowed only letters and digits. Both formats are now accepted; anything else is still refused without repeating the value. Spec: Configuration table; deploy guide step 3. Tests: `test_settings_groups.py`.
+  - Next: PR, then the owner saves the token in Settings, opens the app at home, and runs checks 25 to 30.
 
 ## Next
 

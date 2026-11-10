@@ -18,7 +18,9 @@ MAX_VALUE = 1024
 PREFIX_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}(/[A-Za-z0-9_-]{1,64}){0,3}$")
 SALT_PATTERN = re.compile(r"(?:[0-9A-Fa-f]{2}){1,64}")
 ACCESS_ID_PATTERN = re.compile(r"[A-Za-z0-9]{16,64}\.access")
-ACCESS_SECRET_PATTERN = re.compile(r"[A-Za-z0-9]{32,128}")
+# Cloudflare Access service token secrets: "cfast_" with 40 characters and an 8-character
+# checksum since 2026-08-26, or the older form of letters and digits, which still works.
+ACCESS_SECRET_PATTERN = re.compile(r"cfast_[A-Za-z0-9]{48}|[A-Za-z0-9]{32,128}")
 MIN_SESSION_DAYS, MAX_SESSION_DAYS = 1, 365
 
 

@@ -459,7 +459,7 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 | `ADMIN_TOKEN` | random 32 bytes | Machine access for Home Assistant and scripts, from the LAN only; machine tokens made in the app replace it, and it keeps working if set |
 | `SETTINGS_KEY` | random 32 bytes, base64 | Encrypts the secrets stored in the app. Unset: a key file is created beside the database |
 | `BAMBU_KDF_SALT` | hex string | *app*. Key-derivation constant, served to provisioned devices |
-| `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET` | `….access`, 64 hex digits | *app*. A Cloudflare Access service token, handed to paired phones so the app passes Access away from home. Unset: none |
+| `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET` | `….access`; the secret as Cloudflare gives it: `cfast_` and 48 letters and digits (since 2026-08-26), or 32 to 128 letters and digits (older tokens) | *app*. A Cloudflare Access service token, handed to paired phones so the app passes Access away from home. Unset: none |
 | `PRINTERS` | `[{"name": "P1S", "host": "192.168.1.40", "serial": "01P00A...", "access_code": "..."}]` | *app*, seeded once. Printers to watch over MQTT, as a JSON list; each entry may also set `port` (default 8883). `host` and `port` may be an MQTT proxy's |
 | `MQTT_URL`, `MQTT_USER`, `MQTT_PASSWORD` | `mqtt://homeassistant.local:1883` | *app*. Home Assistant's MQTT broker, for discovery and state publishing; `mqtts://` for TLS. Unset: nothing is published. The URL must not hold the password |
 | `HA_DISCOVERY_PREFIX` | `homeassistant` | *app*. Home Assistant's MQTT discovery prefix |

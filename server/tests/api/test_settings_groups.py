@@ -30,6 +30,8 @@ SALT = "00112233445566778899AABBCCDDEEFF"  # made up; the real constant is never
 # A made-up Cloudflare Access service token, in Cloudflare's format.
 ACCESS_ID = "0123456789abcdef0123456789abcdef.access"
 ACCESS_SECRET = "f" * 24 + "0123456789abcdef" * 2 + "e" * 8
+# The format Cloudflare uses since 2026-08-26: a prefix, 40 characters and a checksum.
+NEW_ACCESS_SECRET = "cfast_" + "Ab3" * 13 + "x" + "Zz09Zz09"
 
 
 def by_key(body: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -157,6 +159,27 @@ def test_an_access_token_saved_in_the_app_goes_to_devices_and_never_shows_its_se
     assert ACCESS_SECRET not in caplog.text
 
 
+@pytest.mark.parametrize("secret", [NEW_ACCESS_SECRET, ACCESS_SECRET])
+def test_both_cloudflare_secret_formats_are_saved_and_handed_out_whole(
+    client: TestClient, secret: str
+) -> None:
+    token = register(client)
+
+    response = _save_scanners(
+        client,
+        {
+            "bambu_kdf_salt": SALT,
+            "cf_access_client_id": ACCESS_ID,
+            "cf_access_client_secret": secret,
+        },
+    )
+
+    assert response.status_code == 200
+    assert secret not in response.text
+    provisioning = client.get("/api/v1/devices/provisioning", headers=bearer(token))
+    assert provisioning.json()["access"]["client_secret"] == secret
+
+
 def test_half_an_access_token_is_not_handed_out(client: TestClient) -> None:
     token = register(client)
     url = "/api/v1/devices/provisioning"
@@ -200,6 +223,11 @@ def test_the_access_token_is_only_for_lan_devices(app: FastAPI, client: TestClie
         ("cf_access_client_id", "0123456789abcdef0123456789abcdef.access extra"),
         ("cf_access_client_secret", "too-short-secret"),
         ("cf_access_client_secret", "x" * 40 + "!"),
+        ("cf_access_client_secret", NEW_ACCESS_SECRET[:-1]),
+        ("cf_access_client_secret", NEW_ACCESS_SECRET + "a"),
+        ("cf_access_client_secret", "cfat_" + NEW_ACCESS_SECRET[6:]),
+        ("cf_access_client_secret", NEW_ACCESS_SECRET.replace("Zz09", "Zz-9", 1)),
+        ("cf_access_client_secret", "CF-Access-Client-Secret: " + NEW_ACCESS_SECRET),
     ],
 )
 def test_bad_access_token_parts_are_refused_without_repeating_them(
