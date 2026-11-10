@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Behind the splash screen: the logo's cream, and the web app's dark page colour at night. -->
+    <color name="rollcall_splash_background">#FFF7F5</color>
+</resources>

@@ -22,18 +22,22 @@
 <header>
   <div class="inner">
     <a class="brand" href="/">
-      <svg
-        width="28"
-        height="28"
-        viewBox="0 0 28 28"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2.2"
-        aria-hidden="true"
-      >
-        <circle cx="14" cy="14" r="11"></circle>
-        <circle cx="14" cy="14" r="4"></circle>
-        <path d="M14 3v4M14 21v4M3 14h4M21 14h4"></path>
+      <!-- The Rollcall mark (docs/mockups/logo/rollcall-logo.svg). -->
+      <svg width="30" height="30" viewBox="0 0 140 140" aria-hidden="true">
+        <circle cx="70" cy="70" r="62" fill="#C8324B"></circle>
+        <circle cx="70" cy="70" r="50" fill="none" stroke="#FFF7F5" stroke-width="4" opacity="0.45"
+        ></circle>
+        <circle cx="70" cy="70" r="40" fill="none" stroke="#FFF7F5" stroke-width="4" opacity="0.45"
+        ></circle>
+        <circle cx="70" cy="70" r="30" fill="#FFF7F5"></circle>
+        <polyline
+          points="56,71 66,81 85,60"
+          fill="none"
+          stroke="#C8324B"
+          stroke-width="9"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        ></polyline>
       </svg>
       Filament Tracker
     </a>

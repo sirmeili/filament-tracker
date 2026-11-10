@@ -60,12 +60,12 @@
 ## In progress
 
 - The phone app at home and away. Plan approved (owner, 2026-11-10), three branches merged in order: `feature/phone-unlink`, `feature/phone-away` (the Cloudflare Access service token kept in Settings and handed to phones at pairing; scans refused away from home are queued), `feature/phone-start-screen` (the loading screen plays the logo animation in `docs/mockups/logo/` through at least one cycle, timed from the animation itself so it can change; the spool mark becomes the Android launcher icon, the header logo and the favicon; the app is named Rollcall on the phone).
-- `feature/phone-unlink` (part 1) merged (PR #43).
-- `feature/phone-away` (part 2):
-  - Done (server): a Cloudflare Access service token in the Scanners settings (Client ID shown to Admins, Client Secret sealed and never returned; `.env` fallbacks `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET`; checked against Cloudflare's format, errors never repeat the value). `GET /devices/provisioning` hands it to LAN devices with the salt when both parts are set. Refusing a bearer token from outside the LAN now carries `X-Rollcall-Refused: local-network-only`.
-  - Done (app): only the server's own JSON counts as an answer, in the pages and the scanner alike, so Cloudflare Access's sign-in page or a proxy's error page reads as "cannot reach" and queued scans stay queued (regression tests for the lost-queue case). The marked refusal is Away: lookups decode on the phone and choices are queued "until you're home", the Scan header shows Away, and nothing leaves the queue. The Access token is fetched at pairing, kept in the Keystore storage, refreshed the first time the app reaches the server at home after opening or returning to the front (a removed token is removed), sent with every request to the paired server over HTTPS only, and forgotten on unlink. Settings › Scanners gains the two fields.
-  - Done (spec and docs): Phone scanner (Away from home, the status, the queue rule, the stored Access token, the same address at home and away), the API, Configuration and Security sections, and Access from outside the home. `docs/deploy.md` gains the service token steps (create, Service Auth policy, Settings, replacing it) and pairing with the `https://` hostname. Two phone checks added to `android/README.md`.
-  - Next: the owner reviews the branch.
+- `feature/phone-unlink` (part 1) merged (PR #43); `feature/phone-away` (part 2) merged (PR #44).
+- `feature/phone-start-screen` (part 3):
+  - Done (app): a start screen with the owner's logo animation (`web/src/lib/assets/rollcall-loading.svg`, copied from `docs/mockups/logo/`) while the app loads its pairing and hears from the server: at least one full cycle, timed from the animation itself (`getAnimations`), then until ready or 4 s; still with reduce motion. Tests for the timing and the screen.
+  - Done (logo): the spool mark in the web app's header and as the favicon. On Android, the launcher icon is an adaptive icon generated from the mark as vector drawables (with a themed one-colour version, and a plain vector for Android 7), the native splash is the mark on cream (dark at night), and Capacitor's default icons and splash images are gone.
+  - Done (name): the app is named Rollcall on the phone (Capacitor `appName`, launcher label). The app ID and the rest of the code keep Filament Tracker until the rename. Spec: Phone scanner (start screen, logo and name) and the Name and rename table.
+  - Installed on the owner's phone. Next: the owner reviews it.
 
 ## Next
 

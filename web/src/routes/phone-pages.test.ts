@@ -102,6 +102,17 @@ afterEach(async () => {
 });
 
 describe("layout in the phone app", () => {
+  it("opens on the start screen with the logo, then the app", async () => {
+    await savePairing(PAIRING, "AABB");
+    at("/scan");
+
+    render(Layout, { children });
+
+    expect(screen.getByRole("img", { name: "Roll Call is loading" })).toBeInTheDocument();
+    expect(await screen.findByText("page content")).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "Roll Call is loading" })).toBeNull();
+  });
+
   it("sends an unpaired phone to Pairing, without signing in", async () => {
     session.loaded = false;
     const load = vi.spyOn(session, "load");

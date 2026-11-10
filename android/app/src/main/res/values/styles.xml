@@ -16,7 +16,10 @@
     </style>
 
 
+    <!-- The launch screen: the Rollcall mark on the logo's cream (dark at night). From
+         Android 12 the system draws it from the launcher icon on this background. -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
+        <item name="windowSplashScreenBackground">@color/rollcall_splash_background</item>
     </style>
 </resources>

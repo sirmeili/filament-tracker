@@ -9,6 +9,7 @@
   import { session } from "#lib/auth/session.svelte.ts";
   import Forbidden from "#lib/components/Forbidden.svelte";
   import Header from "#lib/components/Header.svelte";
+  import StartScreen from "#lib/components/phone/StartScreen.svelte";
   import { requiredRole } from "#lib/nav.ts";
   import { isPhonePath, phone } from "#lib/phone/phone-state.svelte.ts";
   import { reviewBadge } from "#lib/review-badge.svelte.ts";
@@ -18,6 +19,10 @@
 
   const appTheme = theme();
   let loadError = $state<string | null>(null);
+  // The phone app's start screen, shown once per launch until the app is ready.
+  let started = $state(false);
+  // Ready: the pairing is loaded and, for a paired phone, the server has answered or not.
+  const startReady = $derived(phone.loaded && (!phone.paired || phone.reach !== null));
 
   async function load(): Promise<void> {
     loadError = null;
@@ -73,8 +78,8 @@
   });
 </script>
 
-{#if phone.app && !phone.loaded}
-  <main class="centered"><p class="muted">Loading…</p></main>
+{#if phone.app && !started}
+  <StartScreen ready={startReady} ondone={() => (started = true)} />
 {:else if phonePage}
   <main class:bare={page.url.pathname === "/scan"}>{@render children()}</main>
 {:else if page.url.pathname === LOGIN_PATH || page.url.pathname === SETUP_PATH}
