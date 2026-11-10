@@ -87,8 +87,14 @@ def unauthorized(detail: str = "Not signed in or invalid token") -> HTTPExceptio
     )
 
 
-def forbidden(detail: str) -> HTTPException:
-    return HTTPException(status.HTTP_403_FORBIDDEN, detail=detail)
+# Marks the refusal of a bearer token from outside TRUSTED_NETWORKS, so the phone app can
+# tell "away from home" (keep scans queued) from other refusals.
+REFUSED_HEADER = "X-Rollcall-Refused"
+LOCAL_NETWORK_ONLY = "local-network-only"
+
+
+def forbidden(detail: str, headers: dict[str, str] | None = None) -> HTTPException:
+    return HTTPException(status.HTTP_403_FORBIDDEN, detail=detail, headers=headers)
 
 
 def settings_of(request: Request) -> Settings:
@@ -133,7 +139,10 @@ def _machine_token_for(session: Session, token: str) -> MachineToken | None:
 def _from_bearer(request: Request, session: Session, token: str) -> Principal:
     settings = settings_of(request)
     if not is_trusted(request, settings):
-        raise forbidden("tokens are accepted only from the local network")
+        raise forbidden(
+            "tokens are accepted only from the local network",
+            headers={REFUSED_HEADER: LOCAL_NETWORK_ONLY},
+        )
     if _is_admin_token(settings, token):
         return Principal()
     machine_token = _machine_token_for(session, token)

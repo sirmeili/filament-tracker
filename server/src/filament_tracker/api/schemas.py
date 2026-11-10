@@ -107,8 +107,18 @@ class Heartbeat(Strict):
     queue_length: Annotated[int, Field(ge=0, le=100_000)]
 
 
+class AccessToken(BaseModel):
+    client_id: str
+    client_secret: str
+
+
 class Provisioning(BaseModel):
     kdf_salt: str = Field(description="The tag key-derivation constant, as upper-case hex")
+    access: AccessToken | None = Field(
+        default=None,
+        description="The Cloudflare Access service token the phone app sends to pass Access "
+        "away from home, when both parts are set",
+    )
 
 
 class DeviceCreated(DeviceOut):

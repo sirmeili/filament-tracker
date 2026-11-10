@@ -17,6 +17,8 @@ from filament_tracker.ha.rest import parse_ha_url
 MAX_VALUE = 1024
 PREFIX_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}(/[A-Za-z0-9_-]{1,64}){0,3}$")
 SALT_PATTERN = re.compile(r"(?:[0-9A-Fa-f]{2}){1,64}")
+ACCESS_ID_PATTERN = re.compile(r"[A-Za-z0-9]{16,64}\.access")
+ACCESS_SECRET_PATTERN = re.compile(r"[A-Za-z0-9]{32,128}")
 MIN_SESSION_DAYS, MAX_SESSION_DAYS = 1, 365
 
 
@@ -65,6 +67,20 @@ def kdf_salt(value: str) -> str:
     return value.upper()
 
 
+def access_client_id(value: str) -> str:
+    """A Cloudflare Access service token's Client ID. The error never repeats it."""
+    if not ACCESS_ID_PATTERN.fullmatch(value):
+        raise ValueError("use the service token's Client ID from Cloudflare, ending in .access")
+    return value
+
+
+def access_client_secret(value: str) -> str:
+    """A Cloudflare Access service token's Client Secret. The error never repeats it."""
+    if not ACCESS_SECRET_PATTERN.fullmatch(value):
+        raise ValueError("use the service token's Client Secret from Cloudflare")
+    return value
+
+
 def _plain(value: str) -> str:
     return value
 
@@ -108,6 +124,14 @@ DEFINITIONS: tuple[SettingDef, ...] = (
     SettingDef("ha_url", HOME_ASSISTANT, "ha_url", check=_ha_url),
     SettingDef("ha_token", HOME_ASSISTANT, "ha_token", secret=True),
     SettingDef("bambu_kdf_salt", SCANNERS, "bambu_kdf_salt", secret=True, check=kdf_salt),
+    SettingDef("cf_access_client_id", SCANNERS, "cf_access_client_id", check=access_client_id),
+    SettingDef(
+        "cf_access_client_secret",
+        SCANNERS,
+        "cf_access_client_secret",
+        secret=True,
+        check=access_client_secret,
+    ),
 )
 
 BY_KEY = {d.key: d for d in DEFINITIONS}

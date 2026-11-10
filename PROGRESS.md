@@ -60,12 +60,10 @@
 ## In progress
 
 - The phone app at home and away. Plan approved (owner, 2026-11-10), three branches merged in order: `feature/phone-unlink`, `feature/phone-away` (the Cloudflare Access service token kept in Settings and handed to phones at pairing; scans refused away from home are queued), `feature/phone-start-screen` (the loading screen plays the logo animation in `docs/mockups/logo/` through at least one cycle, timed from the animation itself so it can change; the spool mark becomes the Android launcher icon, the header logo and the favicon; the app is named Rollcall on the phone).
-- `feature/phone-unlink` (part 1):
-  - Done (server): `POST /devices/unlink`, with which a device revokes its own token (LAN only, like every bearer token; logged without the token). Tests: revoked afterwards, other devices untouched, rotating re-enables it, refused without a device token and from outside the LAN.
-  - Done (app): Forget pairing is now **Unlink this phone**. It asks the server to revoke the token, then forgets the pairing, the tag key constant and the queue whatever the answer, and says whether the token was revoked or the device is still listed for an Admin to revoke. Pairing is reachable from Scan's header, the sign-in page in the app and the "Cannot reach the server" screen, none of which need the server.
-  - Done (spec): Phone scanner (Unlink, where Pairing is reachable, the Scan header), the API table and the device token scope. The phone checklist in `android/README.md` gains the two unlink checks.
-  - Installed on the owner's phone (debug build). Found while away from home: Cloudflare Access answers the app with a redirect to its login page, which the app takes as an answer, so it shows Online, sign-in hangs, and queued scans would be counted as sent and dropped; a "local network only" refusal also drops them. Fixed in part 2 (owner, 2026-11-10): only Rollcall's own answers count, refusals away from home keep scans queued and show Away.
-  - Next: PR, then `feature/phone-away`.
+- `feature/phone-unlink` (part 1) merged (PR #43).
+- `feature/phone-away` (part 2):
+  - Done (server): a Cloudflare Access service token in the Scanners settings (Client ID shown to Admins, Client Secret sealed and never returned; `.env` fallbacks `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET`; checked against Cloudflare's format, errors never repeat the value). `GET /devices/provisioning` hands it to LAN devices with the salt when both parts are set. Refusing a bearer token from outside the LAN now carries `X-Rollcall-Refused: local-network-only`.
+  - Next (app): only Rollcall's own answers count; Away status with scans kept queued; the Access headers on every request to the paired server, fetched at pairing and refreshed at home. Then the spec and the deploy guide.
 
 ## Next
 
