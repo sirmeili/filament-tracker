@@ -31,6 +31,9 @@
   --font-body: Inter, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
+  /* The phone layout's bottom bar, and what the pages leave free for it. */
+  --bottom-bar: calc(84px + env(safe-area-inset-bottom, 0px));
+
   color-scheme: light;
 }
 

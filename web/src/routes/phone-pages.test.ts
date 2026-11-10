@@ -190,12 +190,14 @@ describe("account page in the phone app", () => {
   it("links to the phone's pairing, only in the app", () => {
     const app = render(AccountPage);
     expect(document.title).toBe("Account · RollCall");
-    expect(screen.getByRole("link", { name: "Phone pairing" })).toHaveAttribute("href", "/pair");
+    const row = screen.getByRole("link", { name: /This phone/ });
+    expect(row).toHaveAttribute("href", "/pair");
+    expect(row).toHaveTextContent("Not set up");
     app.unmount();
 
     setBridge(browserBridge);
     render(AccountPage);
-    expect(screen.queryByRole("link", { name: "Phone pairing" })).toBeNull();
+    expect(screen.queryByRole("link", { name: /This phone/ })).toBeNull();
   });
 });
 
@@ -447,7 +449,8 @@ describe("scan page", () => {
     expect(await screen.findByText("Online")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open the full app" })).toHaveAttribute("href", "/");
     expect(screen.getByRole("link", { name: "Phone pairing" })).toHaveAttribute("href", "/pair");
-    expect(screen.getByRole("group", { name: "Theme" })).toBeInTheDocument();
+    // The theme choice is on Account now, not on Scan.
+    expect(screen.queryByRole("group", { name: "Theme" })).toBeNull();
   });
 
   it("restarts the countdown bar for each spool", async () => {

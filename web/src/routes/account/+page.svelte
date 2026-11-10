@@ -1,12 +1,18 @@
 <script lang="ts">
+  // Account (docs/mockups/mobile-web/PhoneAccount.dc.html): Appearance, the password, this
+  // phone (in the app) and Sign out, at every screen size.
   import { goto } from "$app/navigation";
   import { LOGIN_PATH } from "#lib/auth/redirect.ts";
   import { session } from "#lib/auth/session.svelte.ts";
+  import AppearanceChoice from "#lib/components/account/AppearanceChoice.svelte";
   import ChangePassword from "#lib/components/account/ChangePassword.svelte";
   import { phone } from "#lib/phone/phone-state.svelte.ts";
   import { ROLE_LABELS } from "#lib/roles.ts";
+  import { theme } from "#lib/theme.svelte.ts";
 
+  const appTheme = theme();
   let busy = $state(false);
+  let changing = $state(false);
 
   async function signOut(): Promise<void> {
     busy = true;
@@ -30,26 +36,57 @@
         <p class="muted">{ROLE_LABELS[session.user.role]}</p>
       </div>
     </div>
-    <ChangePassword />
   {/if}
 
-  {#if phone.app}
-    <section class="card signout" aria-labelledby="phone-h">
-      <div>
-        <h2 id="phone-h" class="label">This phone</h2>
-        <p class="muted">Its pairing with the server, used for scanning.</p>
-      </div>
-      <a class="button" href="/pair">Phone pairing</a>
-    </section>
-  {/if}
+  <AppearanceChoice theme={appTheme} />
 
-  <section class="card signout" aria-labelledby="so-h">
-    <div>
-      <h2 id="so-h" class="label">Sign out</h2>
-      <p class="muted">Ends this session on this device.</p>
-    </div>
-    <button type="button" onclick={signOut} disabled={busy}>Sign out</button>
+  <section class="card rows" aria-label="Account actions">
+    {#if session.user}
+      <button
+        type="button"
+        class="row"
+        aria-expanded={changing}
+        aria-controls="change-password"
+        onclick={() => (changing = !changing)}
+      >
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          aria-hidden="true"
+          ><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"
+          ></path></svg
+        >
+        <span class="grow">Change password</span>
+        <span class="chev" class:open={changing} aria-hidden="true">›</span>
+      </button>
+    {/if}
+    {#if phone.app}
+      <a class="row" href="/pair">
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          aria-hidden="true"
+          ><rect x="5" y="2" width="14" height="20" rx="2"></rect><path d="M12 18h.01"></path></svg
+        >
+        <span class="grow">This phone</span>
+        <span class="state">{phone.paired ? "Paired" : "Not set up"}</span>
+      </a>
+    {/if}
   </section>
+
+  {#if changing}
+    <div id="change-password"><ChangePassword /></div>
+  {/if}
+
+  <button type="button" class="signout" onclick={signOut} disabled={busy}>Sign out</button>
 </div>
 
 <style>
@@ -77,16 +114,60 @@
     font-size: 15px;
   }
 
-  .signout {
+  .rows {
     max-width: 560px;
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
+    gap: 0;
+    padding: 4px 16px;
   }
 
-  .signout p {
-    margin: 6px 0 0;
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 52px;
+    padding: 0;
+    border: 0;
+    border-top: 1px solid var(--line);
+    border-radius: 0;
+    background: transparent;
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 600;
+    text-align: left;
+  }
+
+  .row:first-child {
+    border-top: 0;
+  }
+
+  .grow {
+    flex: 1;
+  }
+
+  .state {
+    color: var(--muted);
     font-size: 14px;
+    font-weight: 500;
+  }
+
+  .chev {
+    color: var(--muted);
+    font-size: 20px;
+    transition: transform 0.15s;
+  }
+
+  .chev.open {
+    transform: rotate(90deg);
+  }
+
+  .rows:empty {
+    display: none;
+  }
+
+  .signout {
+    max-width: 560px;
+    min-height: 52px;
+    font-size: 16px;
+    font-weight: 600;
   }
 </style>

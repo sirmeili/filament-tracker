@@ -14,7 +14,7 @@ import TagData from "#lib/components/spool/TagData.svelte";
 import WhereNotes from "#lib/components/spool/WhereNotes.svelte";
 import MoveBar from "#lib/components/spools/MoveBar.svelte";
 import SpoolTable from "#lib/components/spools/SpoolTable.svelte";
-import ThemeControl from "#lib/components/ThemeControl.svelte";
+import AppearanceChoice from "#lib/components/account/AppearanceChoice.svelte";
 import PctBar from "#lib/components/ui/PctBar.svelte";
 import Ring from "#lib/components/ui/Ring.svelte";
 import StateChip from "#lib/components/ui/StateChip.svelte";
@@ -81,12 +81,10 @@ describe("header", () => {
     expect(screen.getByRole("link", { name: "Review" })).toBeInTheDocument();
   });
 
-  it("has the account button and the theme control", async () => {
-    const theme = new Theme(document.createElement("html"), freshStorage(), undefined);
+  it("has the account button, and no theme control", () => {
     render(Header, {
       user: { id: 1, username: "frank", role: "admin", time_zone: "UTC" },
       pathname: "/account",
-      theme,
       reviewCount: 2,
     });
 
@@ -96,21 +94,13 @@ describe("header", () => {
     expect(screen.getByRole("link", { name: "Users" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Account" })).toBeNull();
     expect(screen.getByRole("link", { name: "Review, 2 waiting" })).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("button", { name: "Dark theme" }));
-    expect(theme.choice).toBe("dark");
-    expect(screen.getByRole("button", { name: "Dark theme" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    expect(screen.queryByRole("group", { name: "Theme" })).toBeNull();
   });
 
   it("has a Scan button only in the phone app", () => {
-    const theme = new Theme(document.createElement("html"), freshStorage(), undefined);
     const props = {
       user: { id: 1, username: "frank", role: "viewer" as const, time_zone: "UTC" },
       pathname: "/",
-      theme,
       reviewCount: 0,
     };
     const header = render(Header, props);
@@ -120,18 +110,17 @@ describe("header", () => {
     expect(screen.getByRole("link", { name: "Scan" })).toHaveAttribute("href", "/scan");
   });
 
-  it("offers light, dark and system", async () => {
+  it("offers light, dark and system on Account", async () => {
     const theme = new Theme(document.createElement("html"), freshStorage(), undefined);
-    render(ThemeControl, { theme });
+    render(AppearanceChoice, { theme });
 
-    const group = screen.getByRole("group", { name: "Theme" });
+    const group = screen.getByRole("group", { name: "Appearance" });
     expect(within(group).getAllByRole("button")).toHaveLength(3);
-    expect(screen.getByRole("button", { name: "Follow the device" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    await userEvent.click(screen.getByRole("button", { name: "Light theme" }));
-    expect(theme.choice).toBe("light");
+    expect(screen.getByRole("button", { name: "System" })).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(screen.getByRole("button", { name: "Dark" }));
+    expect(theme.choice).toBe("dark");
+    expect(screen.getByRole("button", { name: "Dark" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText(/Saved on this device/)).toBeInTheDocument();
   });
 });
 

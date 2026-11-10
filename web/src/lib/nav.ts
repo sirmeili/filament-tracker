@@ -41,3 +41,23 @@ export function navItemFor(pathname: string): NavItem | undefined {
 export function requiredRole(pathname: string): Role {
   return navItemFor(pathname)?.role ?? "viewer";
 }
+
+/** Titles for pages that are not in the nav (or are sub-pages with their own name). */
+const TITLES: Record<string, string> = {
+  "/account": "Account",
+  "/spools/new": "Add a spool",
+};
+
+/** The title the phone layout's top bar shows for a path. */
+export function pageTitle(pathname: string): string {
+  return TITLES[pathname] ?? navItemFor(pathname)?.label ?? "RollCall";
+}
+
+/** The pages anyone may open, and the Admin ones, as the phone menu groups them. */
+export function menuGroups(role: Role | null | undefined): { main: NavItem[]; admin: NavItem[] } {
+  const items = visibleNav(role);
+  return {
+    main: items.filter((item) => item.role !== "admin"),
+    admin: items.filter((item) => item.role === "admin"),
+  };
+}

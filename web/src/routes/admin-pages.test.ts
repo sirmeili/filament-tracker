@@ -658,6 +658,12 @@ describe("Users page", () => {
 });
 
 describe("Account page", () => {
+  /** Account, with the password form opened from its row. */
+  async function openAccount(): Promise<void> {
+    render(AccountPage);
+    await userEvent.click(screen.getByRole("button", { name: "Change password" }));
+  }
+
   async function fill(current: string, next: string, confirm = next): Promise<void> {
     for (const [label, value] of [
       ["Current password", current],
@@ -668,12 +674,12 @@ describe("Account page", () => {
       await userEvent.clear(input);
       if (value) await userEvent.type(input, value);
     }
-    await userEvent.click(screen.getByRole("button", { name: "Change password" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save new password" }));
   }
 
   it("shows the user and changes the password", async () => {
     admin.changePassword.mockResolvedValue(undefined);
-    render(AccountPage);
+    await openAccount();
 
     expect(screen.getByRole("heading", { name: "frank" })).toBeInTheDocument();
     expect(screen.getByText("Admin")).toBeInTheDocument();
@@ -689,7 +695,7 @@ describe("Account page", () => {
     ["old", "short", "short", "at least 12 characters"],
     ["old", "a new password", "a new passw0rd", "do not match"],
   ])("checks the form (%s, %s, %s)", async (current, next, confirm, message) => {
-    render(AccountPage);
+    await openAccount();
 
     await fill(current, next, confirm);
 
@@ -703,7 +709,7 @@ describe("Account page", () => {
     [new ApiError(422, "passwords must be 12 to 256 characters"), "passwords must be"],
   ])("explains a refusal (%s)", async (error, message) => {
     admin.changePassword.mockRejectedValue(error);
-    render(AccountPage);
+    await openAccount();
 
     await fill("old password", "a new password");
 
@@ -711,7 +717,7 @@ describe("Account page", () => {
   });
 
   it("shows the meter's progress", async () => {
-    render(AccountPage);
+    await openAccount();
 
     await userEvent.type(screen.getByLabelText("New password"), "abcdef");
 

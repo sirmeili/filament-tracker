@@ -2,43 +2,25 @@
   import type { Me } from "#lib/api/types.ts";
   import Nav from "#lib/components/Nav.svelte";
   import ScanIcon from "#lib/components/phone/ScanIcon.svelte";
-  import ThemeControl from "#lib/components/ThemeControl.svelte";
+  import RollCallMark from "#lib/components/shell/RollCallMark.svelte";
   import { ACCOUNT_PATH, navItemFor, visibleNav } from "#lib/nav.ts";
   import { ROLE_LABELS } from "#lib/roles.ts";
-  import type { Theme } from "#lib/theme.svelte.ts";
 
   interface Props {
     user: Me;
     pathname: string;
-    theme: Theme;
     reviewCount: number;
     /** In the phone app: show the button back to Scan. */
     scan?: boolean;
   }
 
-  let { user, pathname, theme, reviewCount, scan = false }: Props = $props();
+  let { user, pathname, reviewCount, scan = false }: Props = $props();
 </script>
 
 <header>
   <div class="inner">
     <a class="brand" href="/">
-      <!-- The RollCall mark (docs/mockups/logo/rollcall-logo.svg). -->
-      <svg width="30" height="30" viewBox="0 0 140 140" aria-hidden="true">
-        <circle cx="70" cy="70" r="62" fill="#C8324B"></circle>
-        <circle cx="70" cy="70" r="50" fill="none" stroke="#FFF7F5" stroke-width="4" opacity="0.45"
-        ></circle>
-        <circle cx="70" cy="70" r="40" fill="none" stroke="#FFF7F5" stroke-width="4" opacity="0.45"
-        ></circle>
-        <circle cx="70" cy="70" r="30" fill="#FFF7F5"></circle>
-        <polyline
-          points="56,71 66,81 85,60"
-          fill="none"
-          stroke="#C8324B"
-          stroke-width="9"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        ></polyline>
-      </svg>
+      <RollCallMark />
       RollCall
     </a>
     <Nav
@@ -50,7 +32,6 @@
       {#if scan}
         <a class="scan" href="/scan" aria-label="Scan" title="Scan"><ScanIcon size={24} /></a>
       {/if}
-      <ThemeControl {theme} />
       <a
         class="account"
         href={ACCOUNT_PATH}

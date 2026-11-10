@@ -14,7 +14,6 @@
   import { phone } from "#lib/phone/phone-state.svelte.ts";
   import { pause } from "#lib/phone/pause.ts";
   import type { FlowView } from "#lib/phone/scan-flow.ts";
-  import { theme } from "#lib/theme.svelte.ts";
 
   /** How often to check NFC again while it is off. */
   const NFC_RECHECK_MS = 2000;
@@ -66,14 +65,13 @@
   });
 
   const flow = $derived(phone.session?.flow ?? null);
-  const appTheme = theme();
   const delivery = phone.delivery;
 </script>
 
 <svelte:head><title>Scan · RollCall</title></svelte:head>
 
 <section class="scan" aria-labelledby="scan-h">
-  <ScanHeader reach={phone.reach} queueSize={phone.queueSize} theme={appTheme} />
+  <ScanHeader reach={phone.reach} queueSize={phone.queueSize} />
 
   {#if !phone.app}
     <div class="middle">

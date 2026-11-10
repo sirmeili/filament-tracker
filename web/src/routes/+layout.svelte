@@ -10,14 +10,19 @@
   import Forbidden from "#lib/components/Forbidden.svelte";
   import Header from "#lib/components/Header.svelte";
   import StartScreen from "#lib/components/phone/StartScreen.svelte";
-  import { requiredRole } from "#lib/nav.ts";
+  import PhoneNav from "#lib/components/shell/PhoneNav.svelte";
+  import PhoneTopBar from "#lib/components/shell/PhoneTopBar.svelte";
+  import { pageTitle, requiredRole } from "#lib/nav.ts";
   import { isPhonePath, phone } from "#lib/phone/phone-state.svelte.ts";
   import { reviewBadge } from "#lib/review-badge.svelte.ts";
   import { theme } from "#lib/theme.svelte.ts";
+  import { viewport } from "#lib/viewport.svelte.ts";
 
   let { children }: { children: Snippet } = $props();
 
-  const appTheme = theme();
+  // Applies the saved theme; the choice itself is on the Account page.
+  theme();
+  const screen = viewport();
   let loadError = $state<string | null>(null);
   // The phone app's start screen, shown once per launch until the app is ready.
   let started = $state(false);
@@ -95,20 +100,31 @@
 {:else if page.url.pathname === LOGIN_PATH || page.url.pathname === SETUP_PATH}
   <main class="centered">{@render children()}</main>
 {:else if session.user}
-  <Header
-    user={session.user}
-    pathname={page.url.pathname}
-    theme={appTheme}
-    reviewCount={reviewBadge.count}
-    scan={phone.app}
-  />
-  <main>
+  {#if screen.phone}
+    <PhoneTopBar title={pageTitle(page.url.pathname)} />
+  {:else}
+    <Header
+      user={session.user}
+      pathname={page.url.pathname}
+      reviewCount={reviewBadge.count}
+      scan={phone.app}
+    />
+  {/if}
+  <main class:phone={screen.phone}>
     {#if session.can(requiredRole(page.url.pathname))}
       {@render children()}
     {:else}
       <Forbidden />
     {/if}
   </main>
+  {#if screen.phone}
+    <PhoneNav
+      user={session.user}
+      pathname={page.url.pathname}
+      reviewCount={reviewBadge.count}
+      scan={phone.app}
+    />
+  {/if}
 {:else if loadError}
   <main class="centered">
     <p role="alert" class="error">{loadError}</p>
@@ -131,6 +147,21 @@
 
   main.bare {
     padding: 0;
+  }
+
+  /* Room for the bottom bar; the top bar shows the title, so the page's own stays for
+     screen readers only. */
+  main.phone {
+    padding: 4px 16px calc(var(--bottom-bar) + 24px);
+  }
+
+  main.phone :global(.pagehead h1) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
 
   @media (max-width: 600px) {

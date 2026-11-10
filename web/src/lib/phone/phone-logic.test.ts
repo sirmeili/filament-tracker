@@ -360,7 +360,6 @@ describe("scan screen parts", async () => {
   const ActionKeys = (await import("#lib/components/phone/ActionKeys.svelte")).default;
   const ScanResult = (await import("#lib/components/phone/ScanResult.svelte")).default;
   const ScanHeader = (await import("#lib/components/phone/ScanHeader.svelte")).default;
-  const { Theme } = await import("#lib/theme.svelte.ts");
 
   const spool: Card = {
     name: "PLA Basic #000000",
@@ -525,19 +524,18 @@ describe("scan screen parts", async () => {
   });
 
   it("says Online, Offline, Away and the queue size in the header", () => {
-    const theme = new Theme(document.createElement("html"), undefined, undefined);
-    const header = render(ScanHeader, { reach: null, queueSize: 0, theme });
+    const header = render(ScanHeader, { reach: null, queueSize: 0 });
     expect(screen.queryByRole("status")).toBeNull();
-    header.rerender({ reach: null, queueSize: 2, theme });
+    header.rerender({ reach: null, queueSize: 2 });
     expect(screen.getByRole("status")).toHaveTextContent("2 queued");
-    header.rerender({ reach: "online", queueSize: 0, theme });
+    header.rerender({ reach: "online", queueSize: 0 });
     expect(screen.getByRole("status")).toHaveTextContent("Online");
     expect(screen.getByRole("status")).not.toHaveClass("off");
     expect(screen.getByRole("status")).not.toHaveAttribute("title");
-    header.rerender({ reach: "offline", queueSize: 3, theme });
+    header.rerender({ reach: "offline", queueSize: 3 });
     expect(screen.getByRole("status")).toHaveTextContent("Offline · 3 queued");
     expect(screen.getByRole("status")).toHaveClass("off");
-    header.rerender({ reach: "away", queueSize: 1, theme });
+    header.rerender({ reach: "away", queueSize: 1 });
     expect(screen.getByRole("status")).toHaveTextContent("Away · 1 queued");
     expect(screen.getByRole("status")).toHaveClass("off");
     expect(screen.getByRole("status")).toHaveAttribute(

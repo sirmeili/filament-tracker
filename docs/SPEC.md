@@ -375,7 +375,15 @@ Most settings live in the app, so a deployment needs only a short `.env` file (o
 
 ## Server: web UI
 
-A small, mobile-friendly web app for checking stock and fixing mistakes; day-to-day input comes from the scanner. It is a SvelteKit single-page app built to static files, so production needs no Node.js. Controls a user's role does not allow are hidden, and the API enforces the same rules. The look follows the mockups in `docs/mockups/web/`. A header control chooses the theme: Light, Dark or System (follow the device), remembered in the browser.
+A small, mobile-friendly web app for checking stock and fixing mistakes; day-to-day input comes from the scanner. It is a SvelteKit single-page app built to static files, so production needs no Node.js. Controls a user's role does not allow are hidden, and the API enforces the same rules. The look follows the mockups in `docs/mockups/web/`, and on phones `docs/mockups/mobile-web/`. The theme, Light, Dark or System (follow the device), is chosen on the Account page and remembered on each device (owner, 2026-11-10: each phone and browser keeps its own).
+
+**Phone layout** (owner's choice, 2026-11-10; follows `docs/mockups/mobile-web/`): at 600px wide or less (the phone app, or a narrow browser) the header is replaced by:
+
+- **A top bar** with the RollCall mark (a link to Inventory) and the page title, nothing else. The page's own heading stays for screen readers.
+- **A bottom bar** on every page but Scan: **Menu** at the left, a raised round **Scan** button in the centre (only in the Android app), and the signed-in user (initial and name) at the right, who opens Account. Menu shows a dot while Review has items waiting.
+- **The menu**: a sheet that rises from the bottom over a dimmed page, with large buttons for Inventory, Spools, Products, Review (with its count) and Activity, then an Admin row of Devices, Users and Settings. Pages the user's role does not allow are hidden, and the current page is filled in. The Menu button turns into Close while it is open; the dimmed page, Escape, Close or choosing a page closes it, and the focus stays in the sheet while it is open.
+
+Wider screens keep the header with the pages across the top; Scan keeps its own one-handed layout at every size.
 
 | Page | Shows | Actions |
 | --- | --- | --- |
@@ -388,7 +396,7 @@ A small, mobile-friendly web app for checking stock and fixing mistakes; day-to-
 | Users | Accounts and roles (Admin only), with a short description of what each role can do | Create, change role, reset password, disable |
 | Settings | App settings by group (Admin only): General (time zone, sign-in length), Home Assistant, Scanners (the key-derivation salt) and machine tokens; each value shows where it comes from | Save, Test (Home Assistant), Use the .env value, create and revoke machine tokens (each shown once) |
 | Setup | First-start setup, shown only until the first admin exists | Create the first admin and the starter settings, with the setup code |
-| Account | The signed-in user | Change password (with a meter showing progress to the 12-character minimum), sign out |
+| Account | The signed-in user | Appearance (Light, Dark or System, saved on this device), Change password (opens the form, with a meter showing progress to the 12-character minimum), This phone (in the phone app: whether it is set up, linking to Pairing), sign out |
 | Activity | Global event log, newest first, grouped by day | Filter by source (scanners, web app, printer); undo |
 
 The color swatch comes from the tag's RGBA value, so new colors appear correctly with no setup.
@@ -531,9 +539,6 @@ Each milestone ends with something usable. Reading is proved first with a phone,
 - **Spoolman sync**: one-way export, as described under Integrations.
 - **Non-Bambu filament**: NTAG stickers in an open format, or QR labels printed by the server.
 - **Second scanner by the printer**: same firmware, its own device token.
-- **Theme choice in Account**: move the light, dark and system theme choice off the web app header and the phone Scan screen onto the Account page, to free space on both.
-- **Phone app start screen**: a setting in the phone app for which screen it opens on, Scan or the web app (today it opens on Scan).
-- **Phone bottom bar**: on a phone, the web app's menu moves behind a menu button instead of running across the top. The menu button, the Scan button (in the phone app) and the signed-in user sit in a bar at the bottom of the screen, for one-handed use.
 
 ## Future enhancements: print requests
 

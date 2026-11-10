@@ -75,14 +75,18 @@ test("editors change a product's settings", async ({ page }) => {
   await expect(page.getByLabel("Nearly-out % for Dark Gray PETG HF")).toHaveValue("20");
 });
 
-test("the theme choice is remembered", async ({ page }) => {
-  await signInAt(page, "/", "e2e-viewer");
+test("the theme choice on Account is remembered", async ({ page }) => {
+  await signInAt(page, "/account", "e2e-viewer");
+  const appearance = page.getByRole("group", { name: "Appearance" });
 
-  await page.getByRole("button", { name: "Dark theme" }).click();
+  await appearance.getByRole("button", { name: "Dark" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 
-  await page.getByRole("button", { name: "Light theme" }).click();
+  await page.goto("/account");
+  await appearance.getByRole("button", { name: "Light" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 });
