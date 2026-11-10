@@ -20,8 +20,8 @@
 
   let { children }: { children: Snippet } = $props();
 
-  /** How long the app waits before asking a second time whether someone is signed in. */
-  const SIGN_IN_RETRY_MS = 500;
+  /** While the server cannot be reached, how often the sign-in check is tried again. */
+  const RETRY_MS = 5000;
 
   // Applies the saved theme; the choice itself is on the Account page.
   theme();
@@ -30,13 +30,18 @@
   // The phone app's start screen, shown once per launch until the app is ready.
   let started = $state(false);
 
+  // True while the sign-in check runs, so nothing acts on it until its outcome is known.
+  let checking = $state(false);
+
   async function load(): Promise<void> {
-    loadError = null;
+    checking = true;
     try {
-      // In the app, check a "not signed in" answer once more (see Session.load).
-      await session.load(phone.app ? SIGN_IN_RETRY_MS : 0);
+      await session.load();
+      loadError = null;
     } catch {
       loadError = "Cannot reach the server.";
+    } finally {
+      checking = false;
     }
   }
 
@@ -84,9 +89,23 @@
     if (wantsSession && !session.loaded) void load();
   });
 
-  // Send signed-out visitors to the sign-in page, and signed-in ones away from it.
+  // Not reached (a phone waking up before its Wi-Fi is back, a server restarting): try again
+  // when the network returns and every few seconds, instead of waiting for a tap.
   $effect(() => {
-    if (phonePage) return;
+    if (!loadError) return;
+    const retry = () => void load();
+    const timer = setInterval(retry, RETRY_MS);
+    window.addEventListener("online", retry);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("online", retry);
+    };
+  });
+
+  // Send signed-out visitors to the sign-in page, and signed-in ones away from it. A check
+  // that could not reach the server says nothing about the sign-in, so it sends nobody.
+  $effect(() => {
+    if (phonePage || checking || loadError) return;
     const target = guardRedirect(
       page.url,
       session.user,

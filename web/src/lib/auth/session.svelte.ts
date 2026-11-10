@@ -30,28 +30,17 @@ export class Session {
     });
   }
 
-  /** Ask the server who is signed in. With `retryMs`, a "not signed in" answer is asked
-   * again once after that wait: the phone app's first request after an update can go out
-   * before Android has loaded its saved cookies. */
-  async load(retryMs = 0): Promise<void> {
+  async load(): Promise<void> {
     try {
-      this.user = await this.#me(retryMs);
+      this.user = await api<Me>("/auth/me");
     } catch (error) {
-      if (!signedOut(error)) throw error;
+      if (!(error instanceof ApiError) || (error.status !== 401 && error.status !== 403)) {
+        throw error;
+      }
       this.user = null;
       this.setup = await openSetup();
     } finally {
       this.loaded = true;
-    }
-  }
-
-  async #me(retryMs: number): Promise<Me> {
-    try {
-      return await api<Me>("/auth/me");
-    } catch (error) {
-      if (retryMs <= 0 || !signedOut(error)) throw error;
-      await new Promise((resolve) => setTimeout(resolve, retryMs));
-      return await api<Me>("/auth/me");
     }
   }
 
@@ -83,10 +72,6 @@ export class Session {
   can(needed: Role): boolean {
     return allows(this.user?.role, needed);
   }
-}
-
-function signedOut(error: unknown): boolean {
-  return error instanceof ApiError && (error.status === 401 || error.status === 403);
 }
 
 export const session = new Session();
