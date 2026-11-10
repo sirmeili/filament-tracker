@@ -21,6 +21,7 @@ const Layout = (await import("./+layout.svelte")).default;
 const ScanPage = (await import("./scan/+page.svelte")).default;
 const PairPage = (await import("./pair/+page.svelte")).default;
 const AccountPage = (await import("./account/+page.svelte")).default;
+const LoginPage = (await import("./login/+page.svelte")).default;
 
 const children = createRawSnippet(() => ({ render: () => "<p>page content</p>" }));
 const CODE = JSON.stringify({ v: 1, url: PAIRING.url, token: PAIRING.token, device_id: "phone-1" });
@@ -28,6 +29,7 @@ const CODE = JSON.stringify({ v: 1, url: PAIRING.url, token: PAIRING.token, devi
 let native: FakeBridge;
 let server: ReturnType<typeof fakeFetch>;
 let serverUp = true;
+let unlinkStatus = 204;
 
 function at(path: string): void {
   nav.page.url = new URL(path, "https://localhost");
@@ -71,7 +73,10 @@ beforeEach(() => {
   setBridge(native);
   nav.goto.mockReset();
   serverUp = true;
+  unlinkStatus = 204;
   server = fakeFetch({
+    "POST /api/v1/devices/unlink": () =>
+      serverUp ? { status: unlinkStatus } : new TypeError("down"),
     "GET /api/v1/devices/provisioning": () => ({ status: 200, body: { kdf_salt: "AABB" } }),
     "POST /api/v1/devices/heartbeat": () => (serverUp ? { status: 204 } : new TypeError("down")),
     "POST /api/v1/scans": (body) => {
@@ -129,6 +134,44 @@ describe("layout in the phone app", () => {
     expect(await screen.findByRole("link", { name: "Scan" })).toHaveAttribute("href", "/scan");
     expect(screen.getByText("page content")).toBeInTheDocument();
     session.user = null;
+  });
+
+  it("offers Pairing when the paired server cannot be reached", async () => {
+    await paired();
+    session.loaded = false;
+    const load = vi.spyOn(session, "load").mockRejectedValue(new TypeError("down"));
+    at("/spools");
+
+    render(Layout, { children });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Cannot reach the server.");
+    expect(screen.getByRole("link", { name: "Phone pairing" })).toHaveAttribute("href", "/pair");
+    load.mockRestore();
+  });
+
+  it("shows Pairing at /pair without the server or a sign-in", async () => {
+    await paired();
+    session.loaded = false;
+    const load = vi.spyOn(session, "load");
+    at("/pair");
+
+    render(Layout, { children });
+
+    expect(await screen.findByText("page content")).toBeInTheDocument();
+    expect(load).not.toHaveBeenCalled();
+    load.mockRestore();
+  });
+});
+
+describe("sign-in page in the phone app", () => {
+  it("links to the phone's pairing, only in the app", () => {
+    const app = render(LoginPage);
+    expect(screen.getByRole("link", { name: "Phone pairing" })).toHaveAttribute("href", "/pair");
+    app.unmount();
+
+    setBridge(browserBridge);
+    render(LoginPage);
+    expect(screen.queryByRole("link", { name: "Phone pairing" })).toBeNull();
   });
 });
 
@@ -200,7 +243,7 @@ describe("pairing page", () => {
     expect(phone.paired).toBe(false);
   });
 
-  it("forgets the pairing after confirming, warning about queued scans", async () => {
+  it("unlinks after confirming, warning about queued scans, and revokes the token", async () => {
     await paired();
     await phone.session!.queue.add({
       event_id: "e",
@@ -216,17 +259,64 @@ describe("pairing page", () => {
 
     expect(screen.getByText(/filament\.example\.com/)).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent("1 queued scans have not been sent yet");
-    await userEvent.click(screen.getByRole("button", { name: "Forget pairing" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Unlinking drops them");
+    await userEvent.click(screen.getByRole("button", { name: "Unlink this phone" }));
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    await userEvent.click(screen.getByRole("button", { name: "Forget pairing" }));
-    await userEvent.click(
-      within(screen.getByRole("group", { name: "Confirm" })).getByRole("button", {
-        name: "Forget pairing",
-      }),
-    );
+    expect(server.calls.some((call) => call.url.endsWith("/devices/unlink"))).toBe(false);
+    await userEvent.click(screen.getByRole("button", { name: "Unlink this phone" }));
+    const confirm = screen.getByRole("group", { name: "Confirm" });
+    expect(confirm).toHaveAccessibleDescription(/revokes this phone's token/);
+    await userEvent.click(within(confirm).getByRole("button", { name: "Unlink this phone" }));
 
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "This phone is unlinked, and its token was revoked on the server.",
+    );
     expect(phone.paired).toBe(false);
-    expect(await screen.findByRole("button", { name: "Scan pairing code" })).toBeInTheDocument();
+    const call = server.calls.find((c) => c.url.endsWith("/api/v1/devices/unlink"))!;
+    expect(call.url).toBe(PAIRING.url + "/api/v1/devices/unlink");
+    expect(new Headers(call.init.headers).get("Authorization")).toBe(`Bearer ${PAIRING.token}`);
+    expect(screen.getByRole("button", { name: "Scan pairing code" })).toBeInTheDocument();
+    expect(await native.secureGet("pairing")).toBeNull();
+    expect(await native.secureGet("kdf_salt")).toBeNull();
+  });
+
+  async function unlinkFromPairPage(): Promise<void> {
+    render(PairPage);
+    await userEvent.click(screen.getByRole("button", { name: "Unlink this phone" }));
+    const confirm = screen.getByRole("group", { name: "Confirm" });
+    await userEvent.click(within(confirm).getByRole("button", { name: "Unlink this phone" }));
+  }
+
+  it("unlinks a phone whose server cannot be reached, saying it is still listed", async () => {
+    await paired();
+    serverUp = false;
+
+    await unlinkFromPairPage();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "the server could not be reached, so its token still works there",
+    );
+    expect(phone.paired).toBe(false);
+    expect(await native.secureGet("pairing")).toBeNull();
+  });
+
+  it("counts a token the server already refuses as revoked", async () => {
+    await paired();
+    unlinkStatus = 401;
+
+    await unlinkFromPairPage();
+
+    expect(await screen.findByRole("status")).toHaveTextContent("its token was revoked");
+  });
+
+  it("does not count other refusals as revoked", async () => {
+    await paired();
+    unlinkStatus = 403;
+
+    await unlinkFromPairPage();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("still works there");
+    expect(phone.paired).toBe(false);
   });
 });
 
@@ -338,6 +428,7 @@ describe("scan page", () => {
     render(ScanPage);
     expect(await screen.findByText("Online")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open the full app" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Phone pairing" })).toHaveAttribute("href", "/pair");
     expect(screen.getByRole("group", { name: "Theme" })).toBeInTheDocument();
   });
 

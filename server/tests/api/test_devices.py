@@ -4,6 +4,7 @@ import pytest
 from api_helpers import (
     ADMIN_TOKEN,
     BASE_URL,
+    CSRF,
     INTERNET_CLIENT,
     LAN_CLIENT,
     admin,
@@ -194,6 +195,62 @@ def test_heartbeats_are_validated(client: TestClient, token: str) -> None:
     ):
         response = client.post("/api/v1/devices/heartbeat", json=body, headers=bearer(token))
         assert response.status_code == 422, body
+
+
+# --- Unlinking ---------------------------------------------------------------------------
+
+
+def test_a_device_can_revoke_its_own_token(
+    client: TestClient, token: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level("INFO")
+
+    response = client.post("/api/v1/devices/unlink", headers=bearer(token))
+
+    assert response.status_code == 204
+    assert _listed(client)["revoked"] is True
+    response = client.post("/api/v1/devices/heartbeat", json=HEARTBEAT, headers=bearer(token))
+    assert response.status_code == 401
+    assert client.post("/api/v1/devices/unlink", headers=bearer(token)).status_code == 401
+    assert "scanner-1 unlinked itself" in caplog.text
+    assert token not in caplog.text
+
+
+def test_unlinking_leaves_other_devices_alone(client: TestClient, token: str) -> None:
+    other = register(client, "scanner-2")
+
+    client.post("/api/v1/devices/unlink", headers=bearer(token))
+
+    assert _listed(client, "scanner-2")["revoked"] is False
+    response = client.post("/api/v1/devices/heartbeat", json=HEARTBEAT, headers=bearer(other))
+    assert response.status_code == 204
+
+
+def test_rotating_re_enables_an_unlinked_device(client: TestClient, token: str) -> None:
+    client.post("/api/v1/devices/unlink", headers=bearer(token))
+
+    new = client.post("/api/v1/devices/scanner-1/rotate", headers=admin()).json()["token"]
+
+    response = client.post("/api/v1/devices/heartbeat", json=HEARTBEAT, headers=bearer(new))
+    assert response.status_code == 204
+
+
+def test_unlinking_needs_a_device_token(client: TestClient, app: FastAPI, token: str) -> None:
+    assert client.post("/api/v1/devices/unlink").status_code == 401
+    assert client.post("/api/v1/devices/unlink", headers=admin()).status_code == 403
+    with signed_in(app, Role.ADMIN) as user:
+        response = user.post("/api/v1/devices/unlink", headers=CSRF)
+        assert response.status_code == 401
+    assert _listed(client)["revoked"] is False
+
+
+def test_unlinking_is_refused_from_outside_the_lan(
+    client: TestClient, app: FastAPI, token: str
+) -> None:
+    with browser(app, INTERNET_CLIENT) as outside:
+        assert outside.post("/api/v1/devices/unlink", headers=bearer(token)).status_code == 403
+
+    assert _listed(client)["revoked"] is False
 
 
 # --- Provisioning -------------------------------------------------------------------------

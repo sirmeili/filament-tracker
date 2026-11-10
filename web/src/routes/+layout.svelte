@@ -98,6 +98,10 @@
   <main class="centered">
     <p role="alert" class="error">{loadError}</p>
     <button class="primary" onclick={load}>Try again</button>
+    {#if phone.app}
+      <!-- The way out when the paired server is gone: Pairing works without it. -->
+      <a class="button" href="/pair">Phone pairing</a>
+    {/if}
   </main>
 {:else}
   <main class="centered"><p class="muted">Loading…</p></main>

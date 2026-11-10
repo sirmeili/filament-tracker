@@ -7,7 +7,10 @@
   let busy = $state(false);
   let error = $state<string | null>(null);
   let typing = $state(false);
-  let confirmingForget = $state(false);
+  let confirmingUnlink = $state(false);
+  let unlinking = $state(false);
+  /** What the last unlink did: the token was revoked, or the device is still listed. */
+  let unlinked = $state<"revoked" | "listed" | null>(null);
   let url = $state("");
   let deviceId = $state("");
   let token = $state("");
@@ -47,9 +50,14 @@
     else await pairWith(checked.pairing);
   }
 
-  async function forget(): Promise<void> {
-    confirmingForget = false;
-    await phone.unpair();
+  async function unlink(): Promise<void> {
+    confirmingUnlink = false;
+    unlinking = true;
+    try {
+      unlinked = (await phone.unlink()) ? "revoked" : "listed";
+    } finally {
+      unlinking = false;
+    }
   }
 </script>
 
@@ -67,21 +75,35 @@
     </p>
     {#if phone.queueSize > 0}
       <p class="warn" role="alert">
-        {phone.queueSize} queued scans have not been sent yet. Forgetting the pairing drops them.
+        {phone.queueSize} queued scans have not been sent yet. Unlinking drops them.
       </p>
     {/if}
-    {#if confirmingForget}
-      <div class="row" role="group" aria-label="Confirm">
-        <button type="button" class="primary" onclick={forget}>Forget pairing</button>
-        <button type="button" onclick={() => (confirmingForget = false)}>Cancel</button>
+    {#if unlinking}
+      <p class="muted" role="status">Unlinking…</p>
+    {:else if confirmingUnlink}
+      <p id="unlink-what">
+        Unlinking removes the server address, token and tag key constant from this phone. If the
+        server can be reached, it also revokes this phone's token there.
+      </p>
+      <div class="row" role="group" aria-label="Confirm" aria-describedby="unlink-what">
+        <button type="button" class="primary" onclick={unlink}>Unlink this phone</button>
+        <button type="button" onclick={() => (confirmingUnlink = false)}>Cancel</button>
       </div>
     {:else}
       <div class="row">
         <a class="button primary" href="/scan">Scan</a>
-        <button type="button" onclick={() => (confirmingForget = true)}>Forget pairing</button>
+        <button type="button" onclick={() => (confirmingUnlink = true)}>Unlink this phone</button>
       </div>
     {/if}
   {:else}
+    {#if unlinked === "revoked"}
+      <p role="status">This phone is unlinked, and its token was revoked on the server.</p>
+    {:else if unlinked === "listed"}
+      <p class="warn" role="alert">
+        This phone is unlinked, but the server could not be reached, so its token still works there.
+        An Admin should revoke this phone on the Devices page.
+      </p>
+    {/if}
     <p>
       On the Devices page of the web app, register this phone as a scanner and choose Show QR code.
       Then scan that code here.

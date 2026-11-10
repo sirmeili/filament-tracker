@@ -26,6 +26,21 @@
     </span>
   {/if}
   <ThemeControl {theme} />
+  <a class="icon" href="/pair" aria-label="Phone pairing" title="Phone pairing">
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      aria-hidden="true"
+    >
+      <path d="M10 14a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1 1"></path>
+      <path d="M14 10a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1-1"></path>
+    </svg>
+  </a>
   <a class="icon" href="/" aria-label="Open the full app" title="Open the full app">
     <svg
       width="20"

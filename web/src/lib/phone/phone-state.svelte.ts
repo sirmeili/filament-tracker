@@ -57,6 +57,27 @@ class PhoneState {
     this.attach(await PhoneSession.open(bridge(), fetchFn));
   }
 
+  /**
+   * Unlink this phone: revoke its token on the server if the server answers, then forget the
+   * pairing here whatever happens, so a phone whose server is gone can still be unlinked.
+   * Returns whether the token is known to be revoked.
+   */
+  async unlink(): Promise<boolean> {
+    let revoked = false;
+    if (this.session) {
+      try {
+        await this.session.api.unlink();
+        revoked = true;
+      } catch (error) {
+        // 401: the server no longer accepts the token, so it is revoked already.
+        revoked = error instanceof ApiError && error.status === 401;
+      }
+    }
+    await this.unpair();
+    return revoked;
+  }
+
+  /** Forget the pairing, the tag key constant and the queue on this phone. */
   async unpair(): Promise<void> {
     await forgetPairing();
     this.attach(null);

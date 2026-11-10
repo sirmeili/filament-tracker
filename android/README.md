@@ -72,7 +72,8 @@ Run this before a release that changes the app, and record the results in `PROGR
 
 18. Open the full app and sign in: pages work, and "Back to Scan" returns to Scan.
 19. Revoke the phone's token on Devices: the next scan says to pair the phone again.
-20. Forget pairing in the app: it returns to Pairing.
-21. With the phone on USB, `adb logcat` captured during pairing and a scan shows no device token, tag key constant, tag UID or block data. Search it for `ftd_` and for the UID's hex digits.
+20. Unlink this phone (from Scan's Pairing button): it returns to Pairing, says the token was revoked, and Devices lists the phone as revoked.
+21. Pair again, stop the server, then open the full app: "Cannot reach the server" offers Phone pairing. Unlink there: the app says the server could not be reached and the phone is still listed; Devices still shows it active until revoked there.
+22. With the phone on USB, `adb logcat` captured during pairing and a scan shows no device token, tag key constant, tag UID or block data. Search it for `ftd_` and for the UID's hex digits.
 
 A phone without MIFARE Classic support should say so on Scan. A Pixel cannot show this, so it is covered by the web tests only.
