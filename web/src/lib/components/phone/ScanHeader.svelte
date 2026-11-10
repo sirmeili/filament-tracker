@@ -1,16 +1,13 @@
 <script lang="ts">
-  import ThemeControl from "#lib/components/ThemeControl.svelte";
   import type { Reach } from "#lib/phone/device-api.ts";
-  import type { Theme } from "#lib/theme.svelte.ts";
 
   interface Props {
     /** How the last request reached the server; null until known. */
     reach: Reach | null;
     queueSize: number;
-    theme: Theme;
   }
 
-  let { reach, queueSize, theme }: Props = $props();
+  let { reach, queueSize }: Props = $props();
 
   const NAMES: Record<Reach, string> = { online: "Online", offline: "Offline", away: "Away" };
 
@@ -36,7 +33,6 @@
       <span class="dot" aria-hidden="true"></span>{label}
     </span>
   {/if}
-  <ThemeControl {theme} />
   <a class="icon" href="/pair" aria-label="Phone pairing" title="Phone pairing">
     <svg
       width="20"

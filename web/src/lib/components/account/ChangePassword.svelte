@@ -58,7 +58,7 @@
   <p class="muted hint">At least 12 characters. Changing it signs you out everywhere else.</p>
   {#if problem}<p role="alert" class="error">{problem}</p>{/if}
   {#if done}<p role="status">Password changed. Your other sessions have been signed out.</p>{/if}
-  <button type="submit" class="primary" disabled={busy}>Change password</button>
+  <button type="submit" class="primary" disabled={busy}>Save new password</button>
 </form>
 
 <style>

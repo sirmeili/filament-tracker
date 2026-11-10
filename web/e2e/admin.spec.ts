@@ -143,10 +143,11 @@ test("admins create a user who then changes their password", async ({ page, brow
   await expect(other.getByRole("heading", { name: "e2e-new" })).toBeVisible();
   await expect(other.getByText("Editor", { exact: true })).toBeVisible();
 
+  await other.getByRole("button", { name: "Change password" }).click();
   await other.getByLabel("Current password").fill("first password 1");
   await other.getByLabel("New password", { exact: true }).fill("second password 2");
   await other.getByLabel("Confirm new password").fill("second password 2");
-  await other.getByRole("button", { name: "Change password" }).click();
+  await other.getByRole("button", { name: "Save new password" }).click();
   await expect(other.getByRole("status")).toHaveText(/^Password changed\./);
 
   await other.getByRole("button", { name: "Sign out" }).click();
