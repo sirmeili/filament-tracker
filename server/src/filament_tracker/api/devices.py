@@ -1,6 +1,7 @@
 """Register scanners and issue or revoke their tokens (Admin role or the admin token), and
-receive their heartbeats."""
+receive their heartbeats. A scanner can also revoke its own token when it is unlinked."""
 
+import logging
 from datetime import datetime, timedelta
 from typing import Annotated
 
@@ -20,6 +21,7 @@ from filament_tracker.auth import Admin, ScannerDevice, hash_token, new_device_t
 from filament_tracker.db.models import Device
 from filament_tracker.db.types import utcnow
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["devices"])
 SessionDep = Annotated[Session, Depends(get_session)]
 
@@ -55,6 +57,16 @@ def heartbeat(body: Heartbeat, device: ScannerDevice, session: SessionDep) -> Re
     device.fw_version = body.fw_version
     device.queue_length = body.queue_length
     session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/devices/unlink", status_code=status.HTTP_204_NO_CONTENT)
+def unlink(device: ScannerDevice, session: SessionDep) -> Response:
+    """A scanner revokes its own token, as the phone app does when it is unlinked. The
+    device stays listed, like one an admin revoked; rotating its token re-enables it."""
+    device.revoked_at = utcnow()
+    session.commit()
+    logger.info("device %s unlinked itself", device.id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

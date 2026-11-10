@@ -196,7 +196,7 @@ An Android phone can act as one more scanner, so spools can be scanned before th
 
 - **Scan**: a screen shown only in the app that mirrors the scanner flow: tap a spool, see the spool card (name, color swatch, state with its date), choose from the same actions with the suggested one highlighted (see User workflows), and see the result. No choice within 15 seconds cancels with no event sent, and the same action confirmed twice for a spool within 30 seconds sends one event.
 - **Scan layout** (owner's choice, 2026-11-06; follows `docs/mockups/mobile-scanner/`): everything touched while scanning is in the bottom half of the screen, for one hand.
-  - Header: the connection status (Online or Offline, with the queue size when anything is queued), the theme control (the same Light / Dark / System choice as the web app's header) and a button to the full app.
+  - Header: the connection status (Online or Offline, with the queue size when anything is queued), the theme control (the same Light / Dark / System choice as the web app's header), a button to Pairing and a button to the full app.
   - Waiting: a large target, "Hold a spool to the back of your phone", and the last scan with Undo at the bottom.
   - Spool found: the spool's color ring, state chip, name and state date, a bar counting down the 15 seconds, and the action keys in a row with the suggested one marked "Suggested".
   - Result: the action in large type with the spool, and a bar counting down the 3 seconds. Undo, View spool (for a spool the server knows) and Scan next, which goes back to waiting at once.
@@ -207,7 +207,7 @@ An Android phone can act as one more scanner, so spools can be scanned before th
   - Only the newest row has Undo, matching the single Undo; while its result is on screen, the Undo is in the panel instead.
   - The bottom is one panel that changes with the step: Ready, then the spool with its keys and the 15-second bar, then what was recorded with Undo and the 3-second bar. A tag not tracked yet shows "Not tracked yet", with New suggested.
   - The toggle shows only while waiting, so the mode cannot change halfway through a choice.
-  - The list lasts until the app is closed: leaving Scan, or turning Delivery off and on, keeps it. **Clear** empties it; the recorded events stay. Forgetting the pairing also clears it.
+  - The list lasts until the app is closed: leaving Scan, or turning Delivery off and on, keeps it. **Clear** empties it; the recorded events stay. Unlinking the phone also clears it.
 - **The full web app**: every page, after a normal user sign-in. Scanning uses the device token, not the user's session. In the app, the header has a Scan button (the same phone icon as Scan's target) that goes back to Scan, and the Account page links to the phone's pairing.
 - Scan and Pairing work without a user sign-in, and Scan works without the server (offline). The app opens on Scan once paired, and on Pairing until then. In a browser these two screens only say they belong to the app.
 - Like the scanner's "Last scan", Scan keeps the last scan with an Undo: it reverts the event, or takes it out of the queue if it has not been sent yet. Info shows the AMS remaining % and links to the spool's page.
@@ -221,6 +221,8 @@ An Android phone can act as one more scanner, so spools can be scanned before th
 
 - Registering a device or rotating its token on the Devices page also shows a QR code, once, holding the server URL, the token and the device ID (scans must name their device). The URL defaults to the address the admin is using and can be changed before the code is shown. The code holds JSON, `{"v": 1, "url": "...", "token": "...", "device_id": "..."}`, so the format can change later.
 - The app scans the QR code with the camera; typing the URL and token is the fallback.
+- **Unlink this phone** (owner's request, 2026-11-10), on the Pairing page, after a confirmation: the app asks the server to revoke its own token (`POST /devices/unlink`), then forgets the server address, token, key-derivation constant and offline queue on the phone whatever the answer, so a phone whose server is gone can still be unlinked. It says whether the token was revoked; if the server could not be reached, the device is still listed on the Devices page, where an Admin revokes it. The confirmation warns when queued scans would be dropped. An unlinked device stays listed like a revoked one, and rotating its token re-enables it.
+- Pairing is reachable without signing in or reaching the server: from Scan's header, from the sign-in page in the app, and from the app's "Cannot reach the server" screen (as well as from the Account page).
 - The token and the key-derivation constant are stored encrypted with the Android Keystore. The constant comes from `GET /devices/provisioning` after pairing and is never bundled in the app. The app opts out of Android backup, because the Keystore key cannot be restored on another phone; a restored or damaged value reads as missing and the phone pairs again.
 
 **Network**
@@ -280,6 +282,7 @@ A versioned REST API under `/api/v1`, documented by FastAPI's generated OpenAPI 
 | POST | `/auth/password` | Viewer | Change own password; ends the user's other sessions |
 | POST | `/scans` | Scanner | Submit a scan event; a lookup returns spool, product, state, allowed and suggested actions; an action returns the new state and a `feedback` code for the screen |
 | POST | `/devices/heartbeat` | Scanner | Online status, firmware version, queue length |
+| POST | `/devices/unlink` | Scanner | The calling device revokes its own token (the phone app's Unlink this phone) |
 | GET | `/devices/provisioning` | Scanner | Returns the key-derivation constant to an authenticated device (scanner firmware and the phone app) |
 | GET | `/inventory` | Viewer, HA | Counts by product and state, low-stock flags, and each open spool's remaining % with a nearly-out flag |
 | GET | `/spools` | Viewer | List with filters (state, product, filament type, location) and search |
@@ -451,7 +454,7 @@ The color swatch comes from the tag's RGBA value, so new colors appear correctly
 - Sign-in attempts are throttled per username and per client address (HTTP 429), and failures give the same message whether the username exists or not.
 - State-changing requests made with a session cookie must carry the `X-Requested-With: filament-tracker` header, which other sites cannot send, in addition to SameSite cookies.
 - Responses carry a Content Security Policy, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` and a strict referrer policy.
-- Device tokens are stored hashed, revocable, and scoped to `/scans`, `/devices/heartbeat`, `/devices/provisioning` and `/events/{id}/revert` for events from that same device.
+- Device tokens are stored hashed, revocable, and scoped to `/scans`, `/devices/heartbeat`, `/devices/provisioning`, `/devices/unlink` (which revokes only the caller's own token) and `/events/{id}/revert` for events from that same device.
 - Input validation on all payloads (Pydantic); block arrays capped in size. A refused request's answer says where and what is wrong, never the value sent, which may be a password, token or access code.
 - No tag UIDs or derived keys in logs above debug level, in line with the RFID guide's request not to publish UID/key pairs.
 - Secrets saved in the app are encrypted at rest and never returned by the API (see Settings and first start). Machine tokens are stored hashed, like device tokens. The setup code is written to the log once per start while setup is open, and nowhere else.

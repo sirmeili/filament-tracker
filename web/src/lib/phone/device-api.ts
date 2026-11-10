@@ -98,6 +98,11 @@ export class DeviceApi {
     });
   }
 
+  /** Revoke this phone's own token, when it is unlinked. */
+  unlink(): Promise<unknown> {
+    return this.request("POST", "/devices/unlink");
+  }
+
   async provisioning(): Promise<string> {
     const body = await this.request<{ kdf_salt: string }>("GET", "/devices/provisioning");
     return body.kdf_salt;
