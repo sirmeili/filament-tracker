@@ -23,14 +23,20 @@ from filament_tracker.api.schemas import (
 )
 from filament_tracker.db.models import Device, Event, Product, Spool, Tag
 from filament_tracker.decoder import DecodeError, TagRecord, decode
-from filament_tracker.domain.actions import menu_for
-from filament_tracker.domain.enums import EventSource, EventType
+from filament_tracker.domain.actions import ScreenAction, menu_for
+from filament_tracker.domain.enums import EventSource, EventType, Role
 from filament_tracker.domain.state import Outcome
 from filament_tracker.services.events import AppendResult, append_event
 
 logger = logging.getLogger(__name__)
 
 UNKNOWN = "unknown"
+
+
+def may_record(device: Device) -> bool:
+    """Whether a scanner may record actions and undo: a shared scanner always, a user's
+    phone when the user's role allows editing (a Viewer's phone only looks spools up)."""
+    return device.user is None or device.user.role.allows(Role.EDITOR)
 
 
 class EventIdConflict(Exception):
@@ -70,6 +76,7 @@ def handle_scan(session: Session, device: Device, scan: ScanEvent, now: datetime
             _product_out(product, record),
             spool or placeholder,
             placeholder=spool is None and placeholder is not None,
+            view_only=not may_record(device),
         )
 
     product = _ensure_product(session, product, record)
@@ -91,6 +98,7 @@ def handle_scan(session: Session, device: Device, scan: ScanEvent, now: datetime
         EventSource.SCANNER,
         scan.scanned_at or now,
         device_id=device.id,
+        user_id=device.user_id,
         event_id=scan.event_id,
         payload={"tag_uid": scan.tag_uid.upper(), "linked_placeholder": linked},
         flag=linked,
@@ -254,12 +262,25 @@ def _response(
     *,
     event_id: UUID | None = None,
     placeholder: bool = False,
+    view_only: bool = False,
 ) -> ScanResponse:
     if feedback is Feedback.UNREADABLE:
         return ScanResponse(
             feedback=feedback, state=UNKNOWN, actions=[None, None, None], suggested=None
         )
     menu = menu_for(spool.state if spool else None)
+    if view_only:
+        # Nothing to record: Info for a spool the server knows, and Cancel.
+        info = ScreenAction.INFO if spool else None
+        return ScanResponse(
+            feedback=feedback,
+            state=spool.state.value if spool and spool.state else UNKNOWN,
+            product=product,
+            spool=spool_out(spool) if spool else None,
+            actions=[info, None, ScreenAction.CANCEL],
+            suggested=None,
+            placeholder=placeholder,
+        )
     return ScanResponse(
         feedback=feedback,
         event_id=event_id,

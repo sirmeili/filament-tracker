@@ -102,7 +102,11 @@ def test_a_salt_saved_in_the_app_is_served_to_devices_and_never_shown(
     assert SALT not in response.text.upper()
     salt = by_key(response.json())["bambu_kdf_salt"]
     assert (salt["secret"], salt["set"], salt["value"]) == (True, True, None)
-    assert client.get(url, headers=bearer(token)).json() == {"kdf_salt": SALT, "access": None}
+    assert client.get(url, headers=bearer(token)).json() == {
+        "kdf_salt": SALT,
+        "access": None,
+        "records": True,
+    }
     assert SALT not in user.get("/api/v1/settings/scanners").text.upper()
     assert SALT not in caplog.text.upper()
 

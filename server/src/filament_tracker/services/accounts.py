@@ -130,6 +130,15 @@ def start_session(session: Session, user: User, days: int, now: datetime) -> str
     return token
 
 
+def renew_session(found: UserSession, days: int, now: datetime) -> bool:
+    """Extend a session in use to `days` from now when less than half of that is left.
+    Returns whether it was renewed (the caller saves it and sends a fresh cookie)."""
+    if found.expires_at - now >= timedelta(days=days) / 2:
+        return False
+    found.expires_at = now + timedelta(days=days)
+    return True
+
+
 def find_session(session: Session, token: str, now: datetime) -> UserSession | None:
     """The live session for a cookie value; expired ones are deleted."""
     found = session.scalar(

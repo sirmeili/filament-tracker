@@ -145,7 +145,7 @@ describe("device API", () => {
 
     await api.revert("a/b");
     await api.heartbeat("1.0", 3);
-    expect(await api.provisioning()).toEqual({ salt: "AA", access: null });
+    expect(await api.provisioning()).toEqual({ salt: "AA", access: null, records: true });
     expect(fetch.calls[0].url).toMatch(/events\/a%2Fb\/revert$/);
     expect(JSON.parse(String(fetch.calls[1].init.body))).toEqual({
       fw_version: "1.0",

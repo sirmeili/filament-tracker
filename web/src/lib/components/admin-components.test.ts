@@ -68,6 +68,15 @@ describe("DeviceCard", () => {
     await rerender({ busy: true });
     expect(screen.getByRole("button", { name: "Revoke" })).toBeDisabled();
   });
+
+  it("says whose phone it is, or that it is shared", async () => {
+    const { rerender } = render(DeviceCard, {
+      props: { device: DEVICE, busy: false, onrotate: vi.fn(), onrevoke: vi.fn() },
+    });
+    expect(screen.getByText("Shared")).toBeInTheDocument();
+    await rerender({ device: { ...DEVICE, owner: "bob" } });
+    expect(screen.getByText("bob")).toBeInTheDocument();
+  });
 });
 
 describe("UserRow", () => {

@@ -7,13 +7,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from filament_tracker.api.deps import get_session
+from filament_tracker.api.scans import VIEW_ONLY
 from filament_tracker.api.schemas import RevertResponse
 from filament_tracker.auth import EditorOrScanner
 from filament_tracker.db.models import Event
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import EventSource
 from filament_tracker.services.events import RevertError, revert_event
-from filament_tracker.services.scans import spool_out
+from filament_tracker.services.scans import may_record, spool_out
 
 router = APIRouter(tags=["events"])
 
@@ -30,6 +31,8 @@ def post_revert(
     device = caller.device
     if device is not None and target.device_id != device.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "a scanner can only undo its own events")
+    if device is not None and not may_record(device):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, VIEW_ONLY)
     try:
         revert = revert_event(
             session,
@@ -37,7 +40,7 @@ def post_revert(
             EventSource.SCANNER if device else EventSource.UI,
             utcnow(),
             device_id=device.id if device else None,
-            user_id=caller.user.id if caller.user else None,
+            user_id=caller.user.id if caller.user else (device.user_id if device else None),
         )
     except RevertError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc

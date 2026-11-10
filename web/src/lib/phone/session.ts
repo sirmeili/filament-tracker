@@ -17,8 +17,10 @@ import { DeviceApi, reachOf, type Reach } from "#lib/phone/device-api.ts";
 import {
   loadAccess,
   loadPairing,
+  loadRecords,
   loadSalt,
   saveAccess,
+  saveRecords,
   saveSalt,
   type Pairing,
 } from "#lib/phone/pairing-store.ts";
@@ -41,6 +43,8 @@ export class PhoneSession {
   reach: Reach | null = null;
   /** The Access token sent with every request, when the server has one. */
   access: AccessToken | null = null;
+  /** Whether this phone records actions: false for a Viewer's phone (it only looks up). */
+  records = true;
   private reachListeners = new Set<(reach: Reach) => void>();
   private refreshDue = true;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
@@ -66,6 +70,7 @@ export class PhoneSession {
       pairing,
       appVersion: native.appVersion,
       onReach: (reach) => this.reached(reach),
+      records: () => this.records,
     });
   }
 
@@ -95,6 +100,7 @@ export class PhoneSession {
     const queue = await OfflineQueue.open(queueStore(native));
     const session = new PhoneSession(pairing, salt, new DeviceApi(pairing, fetchFn), queue, native);
     session.access = await loadAccess();
+    session.records = await loadRecords();
     return session;
   }
 
@@ -138,6 +144,8 @@ export class PhoneSession {
       const fresh = await this.api.provisioning();
       await saveSalt(fresh.salt);
       await saveAccess(fresh.access);
+      await saveRecords(fresh.records);
+      this.records = fresh.records;
       this.salt = fresh.salt;
       this.access = fresh.access;
       setAccessToken(fresh.access);

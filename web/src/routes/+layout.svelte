@@ -34,8 +34,14 @@
   }
 
   // In the phone app, Scan and Pairing work without signing in (the phone is a scanner),
-  // and until the phone is paired there is no server to sign in to.
-  const phonePage = $derived(phone.app && (isPhonePath(page.url.pathname) || !phone.paired));
+  // and until a server is chosen or the phone is paired there is no server to sign in to.
+  const phonePage = $derived(
+    phone.app && (isPhonePath(page.url.pathname) || (!phone.paired && !phone.server)),
+  );
+  // A phone being set up by signing in needs the sign-in even on Pairing.
+  const wantsSession = $derived(
+    !phonePage || (phone.app && !phone.paired && phone.server !== null),
+  );
   let openedAt = page.url.pathname;
 
   $effect(() => {
@@ -44,18 +50,22 @@
 
   $effect(() => {
     if (!phone.app || !phone.loaded) return;
-    if (!phone.paired && page.url.pathname !== "/pair") {
+    const onPair = page.url.pathname === "/pair";
+    if (!phone.paired && !phone.server && !onPair) {
+      void goto("/pair", { replaceState: true });
+    } else if (!phone.paired && phone.server && session.user && !onPair) {
+      // Signed in: finish setting the phone up.
       void goto("/pair", { replaceState: true });
     } else if (phone.paired && openedAt === "/") {
-      // The app opens on Scan; the rest of the web app is a link away.
+      // The app opens where this phone was set to: Scan (the default) or Inventory.
       openedAt = "";
-      void goto("/scan", { replaceState: true });
+      if (phone.openOn !== "stock") void goto("/scan", { replaceState: true });
     }
   });
 
   $effect(() => {
     if (phone.app && !phone.loaded) return;
-    if (!phonePage && !session.loaded) void load();
+    if (wantsSession && !session.loaded) void load();
   });
 
   // Send signed-out visitors to the sign-in page, and signed-in ones away from it.

@@ -6,6 +6,7 @@ import {
   actionLabel,
   CHOICE_TIMEOUT_MS,
   feedbackText,
+  LOOK_ONLY,
   refusalText,
   REPEAT_WINDOW_MS,
   RESULT_MS,
@@ -50,7 +51,7 @@ const memory = () => {
 let clock = 0;
 let ids = 0;
 
-async function setup(scan: (event: ScanEvent) => Promise<ScanResult>) {
+async function setup(scan: (event: ScanEvent) => Promise<ScanResult>, records = true) {
   const api = { scan: vi.fn(scan), revert: vi.fn().mockResolvedValue({}) };
   const queue = await OfflineQueue.open(memory());
   const flow = new ScanFlow({
@@ -60,6 +61,7 @@ async function setup(scan: (event: ScanEvent) => Promise<ScanResult>) {
     appVersion: "app-1",
     now: () => clock,
     newId: () => `event-${++ids}`,
+    records: () => records,
   });
   return { api, queue, flow };
 }
@@ -451,5 +453,42 @@ describe("scan flow, the last scan", () => {
     await flow.tapped(blackTag());
     await flow.choose("opened");
     expect(flow.view.last?.card.name).toBe("Black PLA Basic");
+  });
+
+  it("shows a Viewer's phone the spool, with nothing to record", async () => {
+    const { flow } = await setup(
+      async () => result({ actions: ["info", null, "cancel"], suggested: null }),
+      false,
+    );
+    await flow.tapped(blackTag());
+
+    expect(flow.view).toMatchObject({
+      phase: "choosing",
+      actions: ["info", null, "cancel"],
+      suggested: null,
+      message: LOOK_ONLY,
+      card: { name: "Black PLA Basic" },
+    });
+  });
+
+  it("offers a Viewer's phone nothing to queue when the server is down", async () => {
+    const { flow, queue } = await setup(() => Promise.reject(new ApiError(0, "down")), false);
+    await flow.tapped(blackTag());
+
+    expect(flow.view).toMatchObject({
+      phase: "choosing",
+      actions: [null, null, "cancel"],
+      message: `Can't reach the server. ${LOOK_ONLY}`,
+      card: { offline: true },
+    });
+    expect(queue.size).toBe(0);
+  });
+
+  it("explains a refusal to a phone whose user became a Viewer", () => {
+    const refused = new ApiError(
+      403,
+      "this phone's account can look spools up but not record them",
+    );
+    expect(refusalText(refused)).toBe(LOOK_ONLY);
   });
 });

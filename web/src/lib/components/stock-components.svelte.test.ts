@@ -340,7 +340,14 @@ describe("spool detail", () => {
     render(History, {
       props: {
         events: [
-          event({ id: "e3", type: "revert", reverts: "e2", username: "frank", can_undo: false }),
+          event({
+            id: "e3",
+            type: "revert",
+            reverts: "e2",
+            username: "frank",
+            device_name: null,
+            can_undo: false,
+          }),
           event({ id: "e4", type: "revert", reverts: "gone", can_undo: false }),
           opened,
           event(),

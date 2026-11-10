@@ -1,101 +1,67 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { checkPairing, parsePairing, type PairingFields } from "#lib/pairing.ts";
-  import { bridge } from "#lib/phone/bridge.ts";
-  import { pairingError, phone } from "#lib/phone/phone-state.svelte.ts";
+  import { session } from "#lib/auth/session.svelte.ts";
+  import OpensOn from "#lib/components/phone/OpensOn.svelte";
+  import PairedPhone from "#lib/components/phone/PairedPhone.svelte";
+  import PairWithCode from "#lib/components/phone/PairWithCode.svelte";
+  import ServerAddress from "#lib/components/phone/ServerAddress.svelte";
+  import SetUpPhone from "#lib/components/phone/SetUpPhone.svelte";
+  import type { OpenOn } from "#lib/phone/pairing-store.ts";
+  import { phone } from "#lib/phone/phone-state.svelte.ts";
 
-  let busy = $state(false);
-  let error = $state<string | null>(null);
-  let typing = $state(false);
-  let confirmingUnlink = $state(false);
-  let unlinking = $state(false);
   /** What the last unlink did: the token was revoked, or the device is still listed. */
   let unlinked = $state<"revoked" | "listed" | null>(null);
-  let url = $state("");
-  let deviceId = $state("");
-  let token = $state("");
+  /** First start: pair with a code instead of signing in. */
+  let byCode = $state(false);
+  /** Just set up by signing in: ask where the phone opens. */
+  let welcome = $state(false);
 
-  async function pairWith(fields: PairingFields): Promise<void> {
-    busy = true;
-    error = null;
+  async function chooseServer(url: string): Promise<void> {
+    unlinked = null;
+    await phone.chooseServer(url);
+    await goto("/login");
+  }
+
+  /** Back to the address step: sign out of the old server first. */
+  async function changeServer(): Promise<void> {
+    await session.logout().catch(() => {});
+    await phone.chooseServer(null);
+    session.loaded = false;
+  }
+
+  /** Set up by signing in. Welcome is set first, so the page goes straight from setting up
+   * to the opening-screen question, without showing the set-up phone in between. */
+  async function setUp(): Promise<void> {
+    welcome = true;
     try {
-      await phone.pair(fields);
-      await goto("/scan");
-    } catch (failure) {
-      error = pairingError(failure);
-    } finally {
-      busy = false;
+      await phone.setUp();
+    } catch (error) {
+      welcome = false;
+      throw error;
     }
   }
 
-  async function scanCode(): Promise<void> {
-    error = null;
-    let text: string | null;
-    try {
-      text = await bridge().scanQr();
-    } catch {
-      error = "The camera could not be opened. Type the details instead.";
-      return;
-    }
-    if (text === null) return;
-    const parsed = parsePairing(text);
-    if ("error" in parsed) error = parsed.error;
-    else await pairWith(parsed.pairing);
-  }
-
-  async function submit(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    const checked = checkPairing(url, token, deviceId);
-    if ("error" in checked) error = checked.error;
-    else await pairWith(checked.pairing);
-  }
-
-  async function unlink(): Promise<void> {
-    confirmingUnlink = false;
-    unlinking = true;
-    try {
-      unlinked = (await phone.unlink()) ? "revoked" : "listed";
-    } finally {
-      unlinking = false;
-    }
+  async function opensOn(value: OpenOn): Promise<void> {
+    await phone.chooseOpenOn(value);
+    await goto(value === "scan" ? "/scan" : "/");
   }
 </script>
 
 <svelte:head><title>Pairing · RollCall</title></svelte:head>
 
 <section class="pair" aria-labelledby="pair-h">
-  <h1 id="pair-h">Pairing</h1>
-
   {#if !phone.app}
+    <h1 id="pair-h">Pairing</h1>
     <p class="muted">Pairing is for the RollCall Android app.</p>
+  {:else if phone.session && welcome}
+    <h1 id="pair-h">This phone is set up</h1>
+    <p>What will you mainly use it for? You can change this later on this page.</p>
+    <OpensOn value={null} onchoose={opensOn} />
   {:else if phone.session}
-    <p>
-      Paired with <span class="mono">{phone.session.pairing.url}</span> as
-      <span class="mono">{phone.session.pairing.deviceId}</span>.
-    </p>
-    {#if phone.queueSize > 0}
-      <p class="warn" role="alert">
-        {phone.queueSize} queued scans have not been sent yet. Unlinking drops them.
-      </p>
-    {/if}
-    {#if unlinking}
-      <p class="muted" role="status">Unlinking…</p>
-    {:else if confirmingUnlink}
-      <p id="unlink-what">
-        Unlinking removes the server address, token and tag key constant from this phone. If the
-        server can be reached, it also revokes this phone's token there.
-      </p>
-      <div class="row" role="group" aria-label="Confirm" aria-describedby="unlink-what">
-        <button type="button" class="primary" onclick={unlink}>Unlink this phone</button>
-        <button type="button" onclick={() => (confirmingUnlink = false)}>Cancel</button>
-      </div>
-    {:else}
-      <div class="row">
-        <a class="button primary" href="/scan">Scan</a>
-        <button type="button" onclick={() => (confirmingUnlink = true)}>Unlink this phone</button>
-      </div>
-    {/if}
+    <h1 id="pair-h">Pairing</h1>
+    <PairedPhone onunlinked={(revoked) => (unlinked = revoked ? "revoked" : "listed")} />
   {:else}
+    <h1 id="pair-h">Set up this phone</h1>
     {#if unlinked === "revoked"}
       <p role="status">This phone is unlinked, and its token was revoked on the server.</p>
     {:else if unlinked === "listed"}
@@ -104,28 +70,24 @@
         An Admin should revoke this phone on the Devices page.
       </p>
     {/if}
-    <p>
-      On the Devices page of the web app, register this phone as a scanner and choose Show QR code.
-      Then scan that code here.
-    </p>
-    <button type="button" class="primary" disabled={busy} onclick={scanCode}
-      >Scan pairing code</button
-    >
-
-    {#if typing}
-      <form novalidate onsubmit={submit}>
-        <label>Server address<input type="url" bind:value={url} autocomplete="off" /></label>
-        <label>Device ID<input type="text" bind:value={deviceId} autocomplete="off" /></label>
-        <label>Token<input type="password" bind:value={token} autocomplete="off" /></label>
-        <button type="submit" disabled={busy}>Pair</button>
-      </form>
+    {#if phone.server}
+      <SetUpPhone
+        server={phone.server}
+        user={session.user}
+        loaded={session.loaded}
+        {setUp}
+        onchangeserver={changeServer}
+      />
+    {:else if byCode}
+      <PairWithCode />
+      <button type="button" class="small" onclick={() => (byCode = false)}>Sign in instead</button>
     {:else}
-      <button type="button" onclick={() => (typing = true)}>Type the details instead</button>
+      <ServerAddress onchoose={chooseServer} />
+      <button type="button" class="small" onclick={() => (byCode = true)}
+        >Pair with a code instead</button
+      >
     {/if}
   {/if}
-
-  {#if busy}<p class="muted" role="status">Checking with the server…</p>{/if}
-  {#if error}<p class="warn" role="alert">{error}</p>{/if}
 </section>
 
 <style>
@@ -145,21 +107,8 @@
     margin: 0;
   }
 
-  form {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  label {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .row {
-    display: flex;
-    gap: 10px;
+  .small {
+    align-self: flex-start;
   }
 
   .warn {

@@ -29,6 +29,9 @@ export const CHOICE_TIMEOUT_MS = 15_000;
 export const RESULT_MS = 3_000;
 export const REPEAT_WINDOW_MS = 30_000;
 const OFFLINE_ACTIONS: ScreenAction[] = ["received", "opened", "empty"];
+/** What a Viewer's phone offers when the server cannot look the spool up: nothing to send. */
+const LOOK_ONLY_ACTIONS: (ScreenAction | null)[] = [null, null, "cancel"];
+export const LOOK_ONLY = "Your account can look spools up but not record them.";
 
 export type Phase = "idle" | "looking_up" | "choosing" | "sending" | "result";
 export type Tone = "ok" | "warn" | "error";
@@ -89,6 +92,8 @@ export interface FlowDeps {
   newId?: () => string;
   /** Told whether the server answered, after each request (for the Online pill). */
   onReach?: (reach: Reach) => void;
+  /** Whether the phone records actions; a Viewer's phone only looks spools up. */
+  records?: () => boolean;
 }
 
 const ACTION_NAMES: Record<ScanAction, string> = {
@@ -130,7 +135,11 @@ export function refusalText(error: unknown): string | null {
   if (isAway(error)) return "You're away from home. This works on your home network.";
   if (!(error instanceof ApiError)) return null;
   if (error.status === 401) return "This phone's token is no longer valid. Pair it again.";
-  if (error.status === 403) return "The server accepts scans only from your home network.";
+  if (error.status === 403) {
+    // A Viewer's phone (or one whose user became a Viewer) is told it records nothing.
+    if (error.message.includes("look spools up")) return LOOK_ONLY;
+    return "The server accepts scans only from your home network.";
+  }
   return null;
 }
 
@@ -226,7 +235,11 @@ export class ScanFlow {
       );
       return;
     }
-    this.offer(cardFrom(result), result.actions, result.suggested);
+    this.offer(cardFrom(result), result.actions, result.suggested, this.records ? null : LOOK_ONLY);
+  }
+
+  private get records(): boolean {
+    return this.deps.records?.() ?? true;
   }
 
   /** The user chose an action from the card. */
@@ -351,6 +364,10 @@ export class ScanFlow {
       offline: true,
     };
     const why = this.away ? "You're away from home." : "Can't reach the server.";
+    if (!this.records) {
+      this.offer(card, LOOK_ONLY_ACTIONS, null, `${why} ${LOOK_ONLY}`);
+      return;
+    }
     this.offer(card, OFFLINE_ACTIONS, null, `${why} Your choice will be queued.`);
   }
 

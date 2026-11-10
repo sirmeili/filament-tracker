@@ -94,8 +94,10 @@ export function eventTitle(type: string): string {
   return EVENT_TITLES[type] ?? type;
 }
 
-/** Who recorded an event: a person in the web app, a scanner, or the admin token. */
+/** Who recorded an event: a person in the web app or with their own phone, a scanner, or
+ * the admin token. */
 export function eventBy(event: EventOut): string {
+  if (event.username && event.device_name) return `${event.username} (${event.device_name})`;
   if (event.username) return `${event.username} (web)`;
   if (event.device_name) return event.device_name;
   if (event.source === "ams") return "AMS";

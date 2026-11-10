@@ -12,10 +12,10 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from pydantic import BaseModel, StringConstraints
 
 from filament_tracker.api.account_schemas import Me, Password, Username
-from filament_tracker.api.auth import me_out, set_session_cookie
+from filament_tracker.api.auth import me_out
 from filament_tracker.api.schemas import Strict
 from filament_tracker.app_settings.store import SettingsInvalid, SettingsStore, Source
-from filament_tracker.auth import DbSession, check_csrf, settings_of
+from filament_tracker.auth import DbSession, check_csrf, set_session_cookie, settings_of
 from filament_tracker.db.types import utcnow
 from filament_tracker.domain.enums import Role
 from filament_tracker.net import client_ip, is_trusted

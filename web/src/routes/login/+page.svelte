@@ -8,7 +8,14 @@
 <LoginForm {session} expired={page.url.searchParams.get("expired") === "1"} />
 {#if phone.app}
   <!-- Pairing works without signing in, so a phone can be unlinked or paired again here. -->
-  <p class="pairing"><a href="/pair">Phone pairing</a></p>
+  <p class="pairing">
+    {#if !phone.paired && phone.server}
+      Signing in to <span class="mono">{phone.server}</span>.
+      <a href="/pair">Use a different server</a>
+    {:else}
+      <a href="/pair">Phone pairing</a>
+    {/if}
+  </p>
 {/if}
 
 <style>
