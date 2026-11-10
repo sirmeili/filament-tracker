@@ -20,21 +20,28 @@
 
   let { children }: { children: Snippet } = $props();
 
+  /** While the server cannot be reached, how often the sign-in check is tried again. */
+  const RETRY_MS = 5000;
+
   // Applies the saved theme; the choice itself is on the Account page.
   theme();
   const screen = viewport();
   let loadError = $state<string | null>(null);
   // The phone app's start screen, shown once per launch until the app is ready.
   let started = $state(false);
-  // Ready: the pairing is loaded and, for a paired phone, the server has answered or not.
-  const startReady = $derived(phone.loaded && (!phone.paired || phone.reach !== null));
+
+  // True while the sign-in check runs, so nothing acts on it until its outcome is known.
+  let checking = $state(false);
 
   async function load(): Promise<void> {
-    loadError = null;
+    checking = true;
     try {
       await session.load();
+      loadError = null;
     } catch {
       loadError = "Cannot reach the server.";
+    } finally {
+      checking = false;
     }
   }
 
@@ -47,6 +54,15 @@
   const wantsSession = $derived(
     !phonePage || (phone.app && !phone.paired && phone.server !== null),
   );
+  // Ready: the pairing is loaded, for a paired phone the server has answered or not, and
+  // the sign-in check has finished when the first page needs it (so the sign-in page never
+  // flashes up while the check is still going).
+  const startReady = $derived(
+    phone.loaded &&
+      (!phone.paired || phone.reach !== null) &&
+      (!wantsSession || session.loaded || loadError !== null),
+  );
+
   let openedAt = page.url.pathname;
 
   $effect(() => {
@@ -73,9 +89,23 @@
     if (wantsSession && !session.loaded) void load();
   });
 
-  // Send signed-out visitors to the sign-in page, and signed-in ones away from it.
+  // Not reached (a phone waking up before its Wi-Fi is back, a server restarting): try again
+  // when the network returns and every few seconds, instead of waiting for a tap.
   $effect(() => {
-    if (phonePage) return;
+    if (!loadError) return;
+    const retry = () => void load();
+    const timer = setInterval(retry, RETRY_MS);
+    window.addEventListener("online", retry);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("online", retry);
+    };
+  });
+
+  // Send signed-out visitors to the sign-in page, and signed-in ones away from it. A check
+  // that could not reach the server says nothing about the sign-in, so it sends nobody.
+  $effect(() => {
+    if (phonePage || checking || loadError) return;
     const target = guardRedirect(
       page.url,
       session.user,

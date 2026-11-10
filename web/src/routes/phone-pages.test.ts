@@ -160,6 +160,85 @@ describe("layout in the phone app", () => {
     load.mockRestore();
   });
 
+  it("keeps the start screen up until the sign-in check has finished", async () => {
+    await paired();
+    session.loaded = false;
+    let finish: () => void = () => {};
+    const load = vi.spyOn(session, "load").mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = () => {
+            session.user = { id: 1, username: "frank", role: "viewer" } as Me;
+            session.loaded = true;
+            resolve();
+          };
+        }),
+    );
+    phone.openOn = "stock";
+    at("/");
+
+    render(Layout, { children });
+
+    await waitFor(() => expect(load).toHaveBeenCalled());
+    // Longer than the animation: still on the start screen while the check runs.
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(screen.getByRole("img", { name: /^Roll Call/ })).toBeInTheDocument();
+    finish();
+    expect(await screen.findByText("page content")).toBeInTheDocument();
+    load.mockRestore();
+    session.user = null;
+  });
+
+  it("stays off the sign-in page when the server cannot be reached, and tries again", async () => {
+    await paired();
+    session.loaded = false;
+    session.user = null;
+    let up = false;
+    const load = vi.spyOn(session, "load").mockImplementation(async () => {
+      session.loaded = true;
+      if (!up) throw new TypeError("down");
+      session.user = { id: 1, username: "frank", role: "viewer" } as Me;
+    });
+    phone.openOn = "stock";
+    at("/");
+
+    render(Layout, { children });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Cannot reach the server.");
+    expect(nav.goto).not.toHaveBeenCalledWith(expect.stringMatching(/^\/login/), expect.anything());
+
+    // The Wi-Fi comes back.
+    up = true;
+    window.dispatchEvent(new Event("online"));
+    expect(await screen.findByText("page content")).toBeInTheDocument();
+    expect(nav.goto).not.toHaveBeenCalledWith(expect.stringMatching(/^\/login/), expect.anything());
+    load.mockRestore();
+    session.user = null;
+  });
+
+  it("tries the sign-in check again every few seconds while the server is away", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      await paired();
+      session.loaded = false;
+      session.user = null;
+      const load = vi.spyOn(session, "load").mockImplementation(async () => {
+        session.loaded = true;
+        throw new TypeError("down");
+      });
+      at("/spools");
+
+      render(Layout, { children });
+      await screen.findByRole("alert");
+      const calls = load.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(load.mock.calls.length).toBe(calls + 1);
+      load.mockRestore();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("shows Pairing at /pair without the server or a sign-in", async () => {
     await paired();
     session.loaded = false;
