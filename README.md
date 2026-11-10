@@ -78,6 +78,7 @@ docs/SPEC.md                  Full specification: the source of truth
 docs/deploy.md                Running RollCall with Docker Compose or Portainer: setup, proxy, Cloudflare Tunnel, backups, updates
 docs/mockups/web/             Web app page mockups and design tokens
 docs/mockups/mobile-scanner/  Phone app Scan screen mockups
+docs/mockups/mobile-web/      Phone layout mockups: bottom bar, menu, Account, Inventory
 hardware/BOM.md               Bill of materials for one scanner
 hardware/enclosure/           3D model of the scanner case
 server/                       FastAPI server: decoder, database, event log, API, scan simulator
