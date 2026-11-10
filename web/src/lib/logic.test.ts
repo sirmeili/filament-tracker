@@ -83,7 +83,8 @@ describe("format", () => {
   it("names events and who recorded them", () => {
     expect(eventTitle("empty")).toBe("Used up");
     expect(eventTitle("mystery")).toBe("mystery");
-    expect(eventBy(event({ username: "frank" }))).toBe("frank (web)");
+    expect(eventBy(event({ username: "frank", device_name: null }))).toBe("frank (web)");
+    expect(eventBy(event({ username: "bob" }))).toBe("bob (Workbench scanner)");
     expect(eventBy(event())).toBe("Workbench scanner");
     expect(eventBy(event({ device_name: null, source: "ams" }))).toBe("AMS");
     expect(eventBy(event({ device_name: null, source: "ui" }))).toBe("Admin token");

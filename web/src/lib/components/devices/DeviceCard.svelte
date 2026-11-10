@@ -34,6 +34,10 @@
   </div>
   <dl>
     <div>
+      <dt>Belongs to</dt>
+      <dd>{device.owner ?? "Shared"}</dd>
+    </div>
+    <div>
       <dt>Firmware</dt>
       <dd>{device.fw_version ?? "—"}</dd>
     </div>

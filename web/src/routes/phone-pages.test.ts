@@ -199,10 +199,16 @@ describe("account page in the phone app", () => {
   });
 });
 
+/** The pairing page on a new phone, switched to pairing with a code. */
+async function renderByCode(): Promise<void> {
+  render(PairPage);
+  await userEvent.click(screen.getByRole("button", { name: "Pair with a code instead" }));
+}
+
 describe("pairing page", () => {
   it("pairs by scanning the code from the Devices page", async () => {
     native.qr.push(CODE);
-    render(PairPage);
+    await renderByCode();
 
     await userEvent.click(screen.getByRole("button", { name: "Scan pairing code" }));
 
@@ -214,7 +220,7 @@ describe("pairing page", () => {
 
   it("says what is wrong with a scanned code, or with the camera", async () => {
     native.qr.push("hello", null, new Error("no camera"));
-    render(PairPage);
+    await renderByCode();
     const scan = screen.getByRole("button", { name: "Scan pairing code" });
 
     await userEvent.click(scan);
@@ -226,7 +232,7 @@ describe("pairing page", () => {
   });
 
   it("pairs with typed details", async () => {
-    render(PairPage);
+    await renderByCode();
     await userEvent.click(screen.getByRole("button", { name: "Type the details instead" }));
     await userEvent.type(screen.getByLabelText("Server address"), "filament");
     await userEvent.click(screen.getByRole("button", { name: "Pair" }));
@@ -247,7 +253,7 @@ describe("pairing page", () => {
       fakeFetch({ "GET /api/v1/devices/provisioning": () => ({ status: 503 }) }),
     );
     native.qr.push(CODE);
-    render(PairPage);
+    await renderByCode();
 
     await userEvent.click(screen.getByRole("button", { name: "Scan pairing code" }));
 
@@ -287,7 +293,7 @@ describe("pairing page", () => {
     const call = server.calls.find((c) => c.url.endsWith("/api/v1/devices/unlink"))!;
     expect(call.url).toBe(PAIRING.url + "/api/v1/devices/unlink");
     expect(new Headers(call.init.headers).get("Authorization")).toBe(`Bearer ${PAIRING.token}`);
-    expect(screen.getByRole("button", { name: "Scan pairing code" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Server address")).toBeInTheDocument();
     expect(await native.secureGet("pairing")).toBeNull();
     expect(await native.secureGet("kdf_salt")).toBeNull();
   });

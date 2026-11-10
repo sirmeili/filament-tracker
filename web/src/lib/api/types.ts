@@ -139,6 +139,8 @@ export interface DeviceOut {
   queue_length: number | null;
   online: boolean;
   revoked: boolean;
+  /** The user a phone belongs to; null for a shared scanner. */
+  owner?: string | null;
 }
 
 /** A device with its token, shown once. */

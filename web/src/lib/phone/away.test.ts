@@ -127,6 +127,7 @@ describe("the Access token", () => {
     expect(await new DeviceApi(PAIRING, fetch).provisioning()).toEqual({
       salt: "AA",
       access: ACCESS,
+      records: true,
     });
   });
 

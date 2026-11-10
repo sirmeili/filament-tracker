@@ -44,9 +44,9 @@ Run this before a release that changes the app, and record the results in `PROGR
 
 **Setup and pairing**
 
-1. First launch opens Pairing.
+1. First launch opens "Set up this phone", asking for the server's address, with "Pair with a code instead".
 2. With NFC turned off in Android settings, Scan says NFC is off. Turn NFC on and come back: within a few seconds it asks for a tap, without restarting the app.
-3. On the PC, register a device on Devices, set the server address and show the QR code. Scan it in the app: the app opens Scan, and within a minute Devices shows the phone Online with version `app-1.0`.
+3. Pair with a code instead: on the PC, register a device on Devices, set the server address and show the QR code. Scan it in the app: the app opens Scan, and within a minute Devices shows the phone Online with version `app-1.0`.
 4. Typed pairing: an `http://` address that is not on the LAN, such as `http://example.com`, is refused with a message about the home network.
 
 **Scanning**
@@ -77,5 +77,14 @@ Run this before a release that changes the app, and record the results in `PROGR
 22. Away from home (mobile data, with the Access service token saved in Settings and the app opened once at home): the pages load without an Access sign-in, Scan shows Away, and a scan is decoded on the phone and queued. Back home, the queue empties and Activity shows the scan.
 23. Without the service token, away from home: Scan shows Offline (not Online), a queued scan stays queued, and sign-in says it cannot reach the server instead of waiting.
 24. With the phone on USB, `adb logcat` captured during pairing and a scan shows no device token, tag key constant, tag UID or block data. Search it for `ftd_` and for the UID's hex digits.
+
+**Setting up by signing in**
+
+25. Unlink, then at home enter the server's address and sign in as an Editor: the app sets itself up without a code and asks what the phone is mainly for. Devices lists the phone under its model name, belonging to that user.
+26. Choose "Looking at stock": the app opens on Inventory, now and after closing and reopening it. Change it to "Scanning" on the Pairing page: it opens on Scan.
+27. Scan a spool and record an action: Activity shows it as "user (phone model)".
+28. Set up a phone as a Viewer: tapping a spool shows its card with Info and Cancel only and "Your account can look spools up but not record them", online and with the server stopped.
+29. Try setting up away from home (mobile data): the app says to finish setting up at home. "Use a different server" goes back to the address.
+30. Unlink a phone set up by signing in: it is signed out and back at the address step.
 
 A phone without MIFARE Classic support should say so on Scan. A Pixel cannot show this, so it is covered by the web tests only.
