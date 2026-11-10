@@ -47,3 +47,24 @@ test("the menu closes on the dimmed page and with Escape", async ({ page }) => {
   await page.mouse.click(195, 60);
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
+
+test("a phone lists Inventory as compact rows that expand", async ({ page }) => {
+  await signInAt(page, "/", "e2e-viewer");
+
+  await expect(page.getByRole("group", { name: "View" })).toHaveCount(0);
+  const row = page.getByRole("button", { name: /Black PLA Basic/ });
+  await row.click();
+  await expect(row).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByText("12%", { exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "View spools" }).click();
+  await expect(page).toHaveURL(/\/spools\?q=Black\+PLA\+Basic$/);
+  await expect(page.getByLabel("Search spools")).toHaveValue("Black PLA Basic");
+
+  await page.goBack();
+  await page.getByRole("button", { name: "Filter" }).click();
+  const sheet = page.getByRole("dialog", { name: "Filter" });
+  await sheet.getByRole("checkbox", { name: "Low stock only" }).check();
+  await sheet.getByRole("button", { name: /^Show 1 product/ }).click();
+  await expect(page.getByRole("button", { name: "Filter, 1 on" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Dark Gray PETG HF/ })).toHaveCount(0);
+});

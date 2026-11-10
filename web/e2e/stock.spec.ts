@@ -11,12 +11,25 @@ test("viewers see inventory and spools without edit controls", async ({ page }) 
   await signInAt(page, "/", "e2e-viewer");
 
   await expect(page.getByRole("heading", { name: "Black PLA Basic" })).toBeVisible();
-  await expect(page.getByText("Open, nearly out").locator("..")).toContainText("2");
+  await expect(page.getByRole("button", { name: "Nearly out 2" })).toBeVisible();
   await expect(page.getByText("LOW", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open spool, 12 percent left" })).toBeVisible();
 
   await page.getByRole("button", { name: "List" }).click();
   await expect(page.getByRole("table")).toContainText("Dark Gray PETG HF");
+
+  // Search and the filter sheet.
+  await page.getByRole("searchbox", { name: "Search name or color" }).fill("gray");
+  await expect(page.getByRole("table")).not.toContainText("Black PLA Basic");
+  await page.getByRole("searchbox", { name: "Search name or color" }).fill("");
+  await page.getByRole("button", { name: "Filter" }).click();
+  const sheet = page.getByRole("dialog", { name: "Filter" });
+  await sheet.getByRole("button", { name: /^PETG/ }).click();
+  await sheet.getByRole("button", { name: "Show 1 product" }).click();
+  await expect(page.getByRole("table")).not.toContainText("Black PLA Basic");
+  await expect(page.getByRole("button", { name: "PETG", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Clear", exact: true }).click();
+  await expect(page.getByRole("table")).toContainText("Black PLA Basic");
 
   await page
     .getByRole("navigation", { name: "Main" })

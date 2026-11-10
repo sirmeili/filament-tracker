@@ -3,9 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "#lib/api/client.ts";
 import type { Role } from "#lib/roles.ts";
+import { viewport } from "#lib/viewport.svelte.ts";
 import { event, product, spoolDetail, spoolRow, summary } from "../test/fixtures.ts";
 
-const nav = vi.hoisted(() => ({ page: { params: { id: "1" } as Record<string, string> } }));
+const nav = vi.hoisted(() => ({
+  page: { params: { id: "1" } as Record<string, string>, url: new URL("https://localhost/") },
+}));
 vi.mock("$app/state", () => ({ page: nav.page }));
 
 const stock = vi.hoisted(() => ({
@@ -47,33 +50,101 @@ beforeEach(() => {
 afterEach(() => vi.resetAllMocks());
 
 describe("Inventory page", () => {
-  it("shows totals and a card per product", async () => {
+  it("shows the totals and a card per product on hand", async () => {
+    const gone = summary({
+      product: product({ id: 3, display_name: "Red ABS", filament_type: "ABS" }),
+      counts: { sealed: 0, open: 0, empty: 2, unknown: 0 },
+    });
+    stock.getInventory.mockResolvedValue([BLACK, PETG, gone]);
     render(InventoryPage);
 
     expect(await screen.findByRole("heading", { name: "Black PLA Basic" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Gray PETG" })).toBeInTheDocument();
-    expect(screen.getByText("Low on stock").previousElementSibling).toHaveTextContent("1");
-    expect(screen.getByText("Open, nearly out").previousElementSibling).toHaveTextContent("1");
+    // Used up: not listed.
+    expect(screen.queryByRole("heading", { name: "Red ABS" })).toBeNull();
+    expect(screen.getByText("All 2")).toBeInTheDocument();
+    expect(screen.getByText("4 sealed")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Low stock 1" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Nearly out 1" })).toBeInTheDocument();
   });
 
-  it("filters by type, sorts low stock first and switches to a list", async () => {
+  it("searches, filters, sorts and switches to a list", async () => {
     stock.getInventory.mockResolvedValue([PETG, BLACK]);
     render(InventoryPage);
     await screen.findByRole("heading", { name: "Gray PETG" });
 
     const names = () => screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
-    expect(names()).toEqual(["Gray PETG", "Black PLA Basic"]);
-    await userEvent.click(screen.getByRole("button", { name: /Low stock first/ }));
     expect(names()).toEqual(["Black PLA Basic", "Gray PETG"]);
 
-    await userEvent.click(screen.getByRole("button", { name: "PETG" }));
+    await userEvent.type(screen.getByRole("searchbox"), "gray");
     expect(names()).toEqual(["Gray PETG"]);
+    expect(screen.getByText("1 of 2")).toBeInTheDocument();
+    await userEvent.clear(screen.getByRole("searchbox"));
+
+    await userEvent.click(screen.getByRole("button", { name: "Low stock 1" }));
+    expect(names()).toEqual(["Black PLA Basic"]);
+    await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+
+    // The sheet: PETG only, sorted by most stock.
+    await userEvent.click(screen.getByRole("button", { name: "Filter" }));
+    const sheet = screen.getByRole("dialog", { name: "Filter" });
+    await userEvent.click(within(sheet).getByRole("button", { name: "Most stock" }));
+    await userEvent.click(within(sheet).getByRole("button", { name: "Show 2 products" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(names()).toEqual(["Gray PETG", "Black PLA Basic"]);
+
+    await userEvent.click(screen.getByRole("button", { name: "Filter" }));
+    await userEvent.click(screen.getByRole("button", { name: "PETG 1" }));
+    await userEvent.keyboard("{Escape}");
+    expect(names()).toHaveLength(2);
+    await userEvent.click(screen.getByRole("button", { name: "Filter" }));
+    await userEvent.click(screen.getByRole("button", { name: "PETG 1" }));
+    await userEvent.click(screen.getByRole("button", { name: "Show 1 product" }));
+    expect(names()).toEqual(["Gray PETG"]);
+    expect(screen.getByRole("button", { name: "PETG" })).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "List" }));
     expect(screen.getByRole("table")).toBeInTheDocument();
+    expect(screen.getByText("1 of 2")).toBeInTheDocument();
     expect(localStorage.getItem("ft-inventory-view")).toBe("list");
     await userEvent.click(screen.getByRole("button", { name: "Cards" }));
     expect(screen.queryByRole("table")).toBeNull();
+  });
+
+  it("says when nothing matches and clears the filters", async () => {
+    render(InventoryPage);
+    await screen.findByRole("heading", { name: "Gray PETG" });
+
+    await userEvent.type(screen.getByRole("searchbox"), "nothing like it");
+    expect(screen.getByText(/No products match/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(screen.getByRole("searchbox")).toHaveValue("");
+    expect(screen.getByRole("heading", { name: "Gray PETG" })).toBeInTheDocument();
+  });
+
+  it("shows the compact list on a phone, without Cards and List", async () => {
+    viewport().phone = true;
+    try {
+      render(InventoryPage);
+      const row = await screen.findByRole("button", { name: /Gray PETG/ });
+
+      expect(screen.queryByRole("group", { name: "View" })).toBeNull();
+      expect(screen.queryByRole("heading", { name: "Gray PETG" })).toBeNull();
+      await userEvent.click(row);
+      expect(row).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByText("None open")).toBeInTheDocument();
+    } finally {
+      viewport().phone = false;
+    }
+  });
+
+  it("says when nothing is on hand", async () => {
+    stock.getInventory.mockResolvedValue([
+      summary({ counts: { sealed: 0, open: 0, empty: 3, unknown: 0 }, open_spools: [] }),
+    ]);
+    render(InventoryPage);
+
+    expect(await screen.findByText(/Nothing on hand/)).toBeInTheDocument();
   });
 
   it("says when there are no products", async () => {
@@ -99,6 +170,24 @@ describe("Spools page", () => {
     total,
     limit: 50,
     offset: 0,
+  });
+
+  it("opens searched for ?q=, from Inventory's View spools", async () => {
+    nav.page.url = new URL("https://localhost/spools?q=Gray+PETG");
+    try {
+      stock.listSpools.mockResolvedValue(page());
+      render(SpoolsPage);
+
+      expect(await screen.findByLabelText("Search spools")).toHaveValue("Gray PETG");
+      await waitFor(() =>
+        expect(stock.listSpools).toHaveBeenLastCalledWith(
+          expect.objectContaining({ q: "Gray PETG" }),
+          expect.any(AbortSignal),
+        ),
+      );
+    } finally {
+      nav.page.url = new URL("https://localhost/");
+    }
   });
 
   it("lists spools with counts, filters and search", async () => {

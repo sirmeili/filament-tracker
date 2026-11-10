@@ -2,26 +2,38 @@
   import { describeError } from "#lib/api/errors.ts";
   import { getInventory } from "#lib/api/stock.ts";
   import type { ProductSummary } from "#lib/api/types.ts";
+  import CompactList from "#lib/components/inventory/CompactList.svelte";
+  import FilterSheet from "#lib/components/inventory/FilterSheet.svelte";
   import InventoryCard from "#lib/components/inventory/InventoryCard.svelte";
+  import InventoryControls from "#lib/components/inventory/InventoryControls.svelte";
   import InventoryTable from "#lib/components/inventory/InventoryTable.svelte";
-  import SummaryTiles from "#lib/components/inventory/SummaryTiles.svelte";
+  import TotalsLine from "#lib/components/inventory/TotalsLine.svelte";
   import {
-    ALL_TYPES,
-    filamentTypes,
+    applyFilter,
+    type InventoryFilter,
     type InventoryView,
+    noFilter,
+    onHand,
     savedView,
     saveView,
+    shownText,
     totals,
-    visibleProducts,
+    typeCounts,
   } from "#lib/inventory.ts";
+  import { viewport } from "#lib/viewport.svelte.ts";
 
   let items = $state<ProductSummary[] | null>(null);
   let failure = $state<string | null>(null);
-  let type = $state(ALL_TYPES);
-  let lowFirst = $state(false);
+  let filter = $state<InventoryFilter>(noFilter());
+  let sheetOpen = $state(false);
   let view = $state<InventoryView>(savedView());
 
-  const shown = $derived(items ? visibleProducts(items, type, lowFirst) : []);
+  const screen = viewport();
+  const all = $derived(items ? onHand(items) : []);
+  const shown = $derived(items ? applyFilter(items, filter) : []);
+  const types = $derived(items ? typeCounts(items) : []);
+  const sum = $derived(totals(all));
+  const countText = $derived(shownText(shown.length, all.length));
 
   async function load(): Promise<void> {
     failure = null;
@@ -37,6 +49,11 @@
     saveView(next);
   }
 
+  function apply(next: InventoryFilter): void {
+    filter = next;
+    sheetOpen = false;
+  }
+
   $effect(() => {
     void load();
   });
@@ -50,7 +67,6 @@
       <h1>Inventory</h1>
       <p>Every product on hand, by spool state.</p>
     </div>
-    {#if items}<SummaryTiles totals={totals(items)} />{/if}
   </div>
 
   {#if failure}
@@ -61,38 +77,17 @@
     <p class="muted">Loading…</p>
   {:else if items.length === 0}
     <p class="muted">No products yet. Scan a spool's tag to add its product.</p>
+  {:else if all.length === 0}
+    <p class="muted">Nothing on hand. Used-up spools are still on the Spools page.</p>
   {:else}
     <div class="controls">
-      <div class="toolbar" role="group" aria-label="Filter by type">
-        {#each filamentTypes(items) as option (option)}
-          <button
-            type="button"
-            class="chip"
-            aria-pressed={type === option}
-            onclick={() => (type = option)}>{option}</button
-          >
-        {/each}
-      </div>
-      <div class="toolbar">
-        <button
-          type="button"
-          class="chip"
-          aria-pressed={lowFirst}
-          onclick={() => (lowFirst = !lowFirst)}
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.2"
-            aria-hidden="true"
-          >
-            <path d="M7 4v16M3 16l4 4 4-4M14 6h7M14 12h5M14 18h3"></path>
-          </svg>
-          Low stock first
-        </button>
+      <InventoryControls
+        bind:filter
+        types={types.map((entry) => entry.type)}
+        totals={sum}
+        onopen={() => (sheetOpen = true)}
+      />
+      {#if !screen.phone}
         <div class="seg" role="group" aria-label="View">
           <button type="button" aria-pressed={view === "cards"} onclick={() => show("cards")}>
             <svg
@@ -126,36 +121,50 @@
             List
           </button>
         </div>
-      </div>
+      {/if}
     </div>
 
-    {#if view === "cards"}
+    {#if shown.length === 0}
+      <p class="muted">
+        No products match.
+        <button type="button" class="small" onclick={() => (filter = noFilter())}
+          >Clear filters</button
+        >
+      </p>
+    {:else if screen.phone}
+      <CompactList items={shown} totals={sum} {countText} />
+    {:else if view === "cards"}
+      <TotalsLine totals={sum} {countText} />
       <div class="grid">
         {#each shown as item (item.product.id)}
           <InventoryCard {item} />
         {/each}
       </div>
     {:else}
-      <InventoryTable items={shown} />
+      <InventoryTable items={shown} totals={sum} {countText} />
     {/if}
   {/if}
 </div>
 
+{#if sheetOpen && items}
+  <FilterSheet {items} {types} {filter} onapply={apply} onclose={() => (sheetOpen = false)} />
+{/if}
+
 <style>
   .page {
-    gap: 28px;
+    gap: 20px;
   }
 
   .controls {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
     justify-content: space-between;
+    align-items: flex-start;
     gap: 12px;
   }
 
-  .toolbar {
-    gap: 8px 10px;
+  .controls > :global(:first-child) {
+    flex: 1;
   }
 
   .seg {

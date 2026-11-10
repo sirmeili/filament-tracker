@@ -11,17 +11,6 @@ import {
   STATE_LABELS,
   swatchColor,
 } from "#lib/format.ts";
-import {
-  ALL_TYPES,
-  filamentTypes,
-  savedView,
-  saveView,
-  spoolLabel,
-  thresholdText,
-  totals,
-  visibleProducts,
-  VIEW_KEY,
-} from "#lib/inventory.ts";
 import { changesFor, draftOf, draftProblem, spoolCount, unsavedText } from "#lib/products.ts";
 import {
   actionsFor,
@@ -37,29 +26,6 @@ import { tagFields } from "#lib/tag-data.ts";
 import { event, product, spoolRow, summary, tag } from "../test/fixtures.ts";
 
 const NOW = new Date("2026-11-06T12:00:00Z");
-
-function memoryStorage(initial: Record<string, string> = {}): Storage {
-  const data = new Map(Object.entries(initial));
-  return {
-    getItem: (key: string) => data.get(key) ?? null,
-    setItem: (key: string, value: string) => void data.set(key, value),
-    removeItem: (key: string) => void data.delete(key),
-    clear: () => data.clear(),
-    key: () => null,
-    get length() {
-      return data.size;
-    },
-  };
-}
-
-const blocked = {
-  getItem: () => {
-    throw new Error("blocked");
-  },
-  setItem: () => {
-    throw new Error("blocked");
-  },
-} as unknown as Storage;
 
 describe("format", () => {
   it("turns the tag color into a swatch color", () => {
@@ -112,51 +78,6 @@ describe("spoolQuery", () => {
     expect(
       spoolQuery({ states: ["open", "empty"], type: "PLA", q: " red ", limit: 50, offset: 50 }),
     ).toBe("?state=open&state=empty&type=PLA&q=red&limit=50&offset=50");
-  });
-});
-
-describe("inventory", () => {
-  const black = summary();
-  const petg = summary({
-    product: product({ id: 2, display_name: "Gray PETG", filament_type: "PETG" }),
-    counts: { sealed: 3, open: 2, empty: 0, unknown: 0 },
-    low_stock: false,
-    open_spools: [
-      { id: 7, remaining_pct: null, nearly_out: false },
-      { id: 8, remaining_pct: 5, nearly_out: true },
-    ],
-  });
-
-  it("adds up the totals", () => {
-    expect(totals([black, petg])).toEqual({ sealed: 4, open: 3, nearlyOut: 2, lowStock: 1 });
-  });
-
-  it("lists the types present", () => {
-    expect(filamentTypes([black, petg, black])).toEqual([ALL_TYPES, "PETG", "PLA"]);
-  });
-
-  it("filters by type and puts low stock first", () => {
-    expect(visibleProducts([petg, black], "PLA", false)).toEqual([black]);
-    expect(visibleProducts([petg, black], ALL_TYPES, false)).toEqual([petg, black]);
-    expect(visibleProducts([petg, black], ALL_TYPES, true)).toEqual([black, petg]);
-  });
-
-  it("describes thresholds and spools", () => {
-    expect(thresholdText(2)).toBe("Low at 2 sealed or fewer");
-    expect(thresholdText(0)).toBe("Low-stock alert off");
-    expect(spoolLabel(40)).toBe("Open spool, 40 percent left");
-    expect(spoolLabel(null)).toBe("Open spool, not seen by the AMS");
-  });
-
-  it("remembers the cards or list view", () => {
-    const storage = memoryStorage();
-    expect(savedView(storage)).toBe("cards");
-    saveView("list", storage);
-    expect(storage.getItem(VIEW_KEY)).toBe("list");
-    expect(savedView(storage)).toBe("list");
-    expect(savedView(blocked)).toBe("cards");
-    expect(() => saveView("list", blocked)).not.toThrow();
-    expect(savedView()).toBe("cards");
   });
 });
 

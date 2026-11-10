@@ -64,8 +64,10 @@
   - `feature/phone-shell` (part 1): the mockups, the bottom bar (Menu, Scan in the app, the user), the menu as a bottom sheet, and the theme choice moved to Account with This phone. The mockups README's four spec changes are approved (owner, 2026-11-10).
     - Done: at 600px or less (`viewport.svelte.ts`) the layout shows `PhoneTopBar` (the mark and the page title) and `PhoneNav` (the bottom bar and `MenuSheet`: role-filtered pages, the Admin row, the Review count, closed by Close, the dimmed page, Escape or a page, focus kept in the sheet). Account has Appearance (`AppearanceChoice`, saved per device), a Change password row that opens the form (its button now says Save new password), This phone in the app and Sign out. The theme control left the header and Scan (`ThemeControl` removed). Spec: Server: web UI (phone layout, Account), and the two Future enhancements items removed. Tests: `shell.test.ts`, `layout-shell.test.ts`, Account and theme tests, and `e2e/phone.spec.ts` at 390 × 844.
     - Installed on the owner's phone and accepted as it is (2026-11-10); landscape gets the desktop header, as planned.
-    - Next: PR, then part 2.
+    - Merged (PR #48).
   - `feature/inventory-filters` (part 2): search, the filter sheet and quick filters at every size, only products on hand, totals instead of the tiles, compact expanding rows on phones; Cards and List stay on desktop.
+    - Done: the filter logic in `lib/inventory.ts` (`onHand`, `typeCounts`, `chosenTypes`, `typeSummary`, `activeFilters`, `applyFilter`, `totals`, `shownText`, `statusText`, `spoolsLink`); `InventoryControls` (search, Filter with its count, Low stock and Nearly out with counts, the type chip with ✕, Clear), `FilterSheet` (types, Low stock only, sort, Clear, Show N products; a bottom sheet on phones, a centred panel wider), `CompactList` with `ProductDetail` on phones, `TotalsLine` above the cards and totals under the List headings (`SummaryTiles` removed). Spools opens searched for `?q=`. Spec: Server: web UI, Inventory row. Tests: `inventory.test.ts`, `inventory-filters.svelte.test.ts`, the page tests, and e2e at desktop and 390 × 844.
+    - Next: install on the owner's phone, then the PR.
 
 ## Next
 
