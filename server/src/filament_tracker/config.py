@@ -58,6 +58,11 @@ class Settings(BaseSettings):
     # The tag key-derivation constant (hex), served to devices at /devices/provisioning.
     # Never in the repo, never logged.
     bambu_kdf_salt: SecretStr | None = None
+    # A Cloudflare Access service token, handed to paired phones with the salt so the app
+    # can pass Access in front of the web app when away from home. The secret is never
+    # logged.
+    cf_access_client_id: str | None = None
+    cf_access_client_secret: SecretStr | None = None
     # Home Assistant's MQTT broker, for discovery entities: mqtt://host[:port] or
     # mqtts://host[:port]. Unset: no entities are published.
     mqtt_url: str | None = None

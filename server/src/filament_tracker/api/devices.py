@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from filament_tracker.api.deps import get_session
 from filament_tracker.api.schemas import (
+    AccessToken,
     DeviceCreate,
     DeviceCreated,
     DeviceOut,
@@ -72,14 +73,23 @@ def unlink(device: ScannerDevice, session: SessionDep) -> Response:
 
 @router.get("/devices/provisioning", response_model=Provisioning)
 def provisioning(_: ScannerDevice, request: Request, response: Response) -> Provisioning:
-    """The tag key-derivation constant, for a scanner or the phone app after pairing."""
-    salt = request.app.state.settings_store.secret("bambu_kdf_salt")
+    """The tag key-derivation constant, for a scanner or the phone app after pairing, and
+    the Cloudflare Access service token for the phone app, when one is set."""
+    store = request.app.state.settings_store
+    salt = store.secret("bambu_kdf_salt")
     if salt is None:
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE, "The key-derivation salt is not set on the server"
         )
     response.headers["Cache-Control"] = "no-store"
-    return Provisioning(kdf_salt=salt.get_secret_value())
+    client_id = store.text("cf_access_client_id")
+    client_secret = store.secret("cf_access_client_secret")
+    access = (
+        AccessToken(client_id=client_id, client_secret=client_secret.get_secret_value())
+        if client_id and client_secret
+        else None
+    )
+    return Provisioning(kdf_salt=salt.get_secret_value(), access=access)
 
 
 @router.get("/devices", response_model=list[DeviceOut])

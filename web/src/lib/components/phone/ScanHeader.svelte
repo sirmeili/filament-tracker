@@ -1,27 +1,38 @@
 <script lang="ts">
   import ThemeControl from "#lib/components/ThemeControl.svelte";
+  import type { Reach } from "#lib/phone/device-api.ts";
   import type { Theme } from "#lib/theme.svelte.ts";
 
   interface Props {
-    /** Whether the server answered the last request; null until known. */
-    online: boolean | null;
+    /** How the last request reached the server; null until known. */
+    reach: Reach | null;
     queueSize: number;
     theme: Theme;
   }
 
-  let { online, queueSize, theme }: Props = $props();
+  let { reach, queueSize, theme }: Props = $props();
+
+  const NAMES: Record<Reach, string> = { online: "Online", offline: "Offline", away: "Away" };
 
   const label = $derived.by(() => {
     const queued = queueSize > 0 ? ` · ${queueSize} queued` : "";
-    if (online === null) return queueSize > 0 ? `${queueSize} queued` : null;
-    return (online ? "Online" : "Offline") + queued;
+    if (reach === null) return queueSize > 0 ? `${queueSize} queued` : null;
+    return NAMES[reach] + queued;
   });
+  const hint = $derived(
+    reach === "away" ? "Away from home: scans are sent when you're back." : undefined,
+  );
 </script>
 
 <div class="head">
   <h1 id="scan-h">Scan</h1>
   {#if label}
-    <span class="pill" class:off={online === false || queueSize > 0} role="status">
+    <span
+      class="pill"
+      class:off={(reach !== null && reach !== "online") || queueSize > 0}
+      role="status"
+      title={hint}
+    >
       <span class="dot" aria-hidden="true"></span>{label}
     </span>
   {/if}

@@ -66,9 +66,17 @@ export function tagRead(blocks: string[] = Array(48).fill("00".repeat(16))): Tag
   return { tagUid: "01020304", blocks, readOk: true };
 }
 
+/** A fake server's answer: `body` is sent as JSON, `text` as it is (a sign-in page, say). */
+export interface FakeAnswer {
+  status: number;
+  body?: unknown;
+  text?: string;
+  headers?: Record<string, string>;
+}
+
 /** A fetch that answers from a route table, recording what was asked. */
 export function fakeFetch(
-  routes: Record<string, (body: unknown) => { status: number; body?: unknown } | Error>,
+  routes: Record<string, (body: unknown) => FakeAnswer | Error>,
 ): typeof fetch & { calls: { url: string; init: RequestInit }[] } {
   const calls: { url: string; init: RequestInit }[] = [];
   const fn = (async (input: RequestInfo | URL, init: RequestInit = {}) => {
@@ -76,13 +84,12 @@ export function fakeFetch(
     calls.push({ url, init });
     const key = `${init.method ?? "GET"} ${new URL(url).pathname}`;
     const handler = Object.entries(routes).find(([pattern]) => key.startsWith(pattern))?.[1];
-    const answer = handler
+    const answer: FakeAnswer | Error = handler
       ? handler(init.body ? JSON.parse(String(init.body)) : undefined)
       : { status: 404 };
     if (answer instanceof Error) throw answer;
-    return new Response(answer.body === undefined ? null : JSON.stringify(answer.body), {
-      status: answer.status,
-    });
+    const text = answer.text ?? (answer.body === undefined ? null : JSON.stringify(answer.body));
+    return new Response(text, { status: answer.status, headers: answer.headers });
   }) as typeof fetch & { calls: { url: string; init: RequestInit }[] };
   fn.calls = calls;
   return fn;

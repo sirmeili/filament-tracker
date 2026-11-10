@@ -244,6 +244,17 @@ def test_unlinking_needs_a_device_token(client: TestClient, app: FastAPI, token:
     assert _listed(client)["revoked"] is False
 
 
+def test_only_the_local_network_refusal_is_marked(client: TestClient, app: FastAPI) -> None:
+    assert "x-rollcall-refused" not in client.post("/api/v1/devices/unlink").headers
+    with signed_in(app, Role.EDITOR) as user:
+        response = user.post("/api/v1/devices/unlink", headers=CSRF)
+    assert "x-rollcall-refused" not in response.headers
+    with browser(app, INTERNET_CLIENT) as outside:
+        response = outside.post("/api/v1/devices/heartbeat", json=HEARTBEAT, headers=admin())
+    assert response.status_code == 403
+    assert response.headers["x-rollcall-refused"] == "local-network-only"
+
+
 def test_unlinking_is_refused_from_outside_the_lan(
     client: TestClient, app: FastAPI, token: str
 ) -> None:
@@ -270,7 +281,7 @@ def test_a_device_gets_the_kdf_salt(db_url: str) -> None:
         response = client.get("/api/v1/devices/provisioning", headers=bearer(register(client)))
 
     assert response.status_code == 200
-    assert response.json() == {"kdf_salt": SALT}
+    assert response.json() == {"kdf_salt": SALT, "access": None}
     assert response.headers["cache-control"] == "no-store"
 
 
@@ -283,7 +294,10 @@ def test_the_salt_is_only_for_devices(db_url: str, caplog: pytest.LogCaptureFixt
         assert client.get(url, headers=admin()).status_code == 403
         assert signed_in(app, Role.ADMIN).get(url).status_code == 401
         outside = browser(app, INTERNET_CLIENT)
-        assert outside.get(url, headers=bearer(token)).status_code == 403
+        refused = outside.get(url, headers=bearer(token))
+        assert refused.status_code == 403
+        # Marked, so the phone app keeps its scans queued while away from home.
+        assert refused.headers["x-rollcall-refused"] == "local-network-only"
         client.delete("/api/v1/devices/scanner-1", headers=admin())
         assert client.get(url, headers=bearer(token)).status_code == 401
         for path in ("/api/v1/devices", "/api/v1/health"):

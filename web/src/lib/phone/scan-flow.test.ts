@@ -399,7 +399,7 @@ describe("scan flow, for the screen", () => {
   });
 
   it("tells whether the server answered", async () => {
-    const reached: boolean[] = [];
+    const reached: string[] = [];
     let mode: "up" | "down" | "refused" = "up";
     const api = {
       scan: vi.fn(async () => {
@@ -414,7 +414,7 @@ describe("scan flow, for the screen", () => {
       queue: await OfflineQueue.open(memory()),
       pairing: PAIRING,
       appVersion: "app-1",
-      onReach: (online) => reached.push(online),
+      onReach: (reach) => reached.push(reach),
     });
 
     await flow.tapped(blackTag());
@@ -425,7 +425,7 @@ describe("scan flow, for the screen", () => {
     mode = "refused";
     await flow.tapped(blackTag());
 
-    expect(reached).toEqual([true, false, true]); // a refusal is still an answer
+    expect(reached).toEqual(["online", "offline", "online"]); // a refusal is still an answer
   });
 });
 

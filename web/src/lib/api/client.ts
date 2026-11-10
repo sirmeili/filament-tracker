@@ -38,6 +38,30 @@ export function setApiBase(url: string): void {
   apiBase = url.replace(/\/+$/, "");
 }
 
+/** A Cloudflare Access service token, which the phone app sends to pass Access in front of
+ * the server when away from home (docs/SPEC.md, Phone scanner). */
+export interface AccessToken {
+  clientId: string;
+  clientSecret: string;
+}
+
+let access: AccessToken | null = null;
+
+/** Send this service token with every request to the paired server, or stop (null). */
+export function setAccessToken(token: AccessToken | null): void {
+  access = token;
+}
+
+/** The Access headers for a request to `url`: only over HTTPS, where they cannot be read on
+ * the way, and only in the phone app, the one place a token is set. */
+export function accessHeaders(url: string): Record<string, string> {
+  if (!access || !url.toLowerCase().startsWith("https://")) return {};
+  return {
+    "CF-Access-Client-Id": access.clientId,
+    "CF-Access-Client-Secret": access.clientSecret,
+  };
+}
+
 export function apiUrl(path: string): string {
   return apiBase + API_PREFIX + path;
 }
@@ -66,14 +90,23 @@ export function errorMessage(body: unknown, fallback: string): string {
   return fallback;
 }
 
-async function readJson(response: Response): Promise<unknown> {
-  const text = await response.text();
+/** Something other than the server answered: a sign-in page of Cloudflare Access, a proxy's
+ * error page, a captive Wi-Fi portal. Not an answer, so it reads as "cannot reach". */
+export const NOT_THE_SERVER = Symbol("not the server");
+
+/** The body of an answer: its JSON, undefined when empty, or NOT_THE_SERVER when it is not
+ * JSON, which the server always sends. */
+export function parseAnswer(text: string): unknown {
   if (!text) return undefined;
   try {
     return JSON.parse(text);
   } catch {
-    return undefined;
+    return NOT_THE_SERVER;
   }
+}
+
+async function readJson(response: Response): Promise<unknown> {
+  return parseAnswer(await response.text());
 }
 
 export async function api<T>(
@@ -81,7 +114,11 @@ export async function api<T>(
   options: RequestOptions = {},
   fetchFn: typeof fetch = fetch,
 ): Promise<T> {
-  const headers: Record<string, string> = { Accept: "application/json", ...CSRF_HEADER };
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    ...CSRF_HEADER,
+    ...accessHeaders(apiUrl(path)),
+  };
   const init: RequestInit = {
     method: options.method ?? "GET",
     credentials: apiBase ? "include" : "same-origin",
@@ -119,6 +156,7 @@ export async function api<T>(
     clearTimeout(timer);
     answer.catch(() => {});
   }
+  if (body === NOT_THE_SERVER) throw new ApiError(0, "Cannot reach the server");
   if (!response.ok) {
     if (response.status === 401) unauthorizedListeners.forEach((listener) => listener());
     const detail =

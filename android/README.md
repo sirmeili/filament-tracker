@@ -74,6 +74,8 @@ Run this before a release that changes the app, and record the results in `PROGR
 19. Revoke the phone's token on Devices: the next scan says to pair the phone again.
 20. Unlink this phone (from Scan's Pairing button): it returns to Pairing, says the token was revoked, and Devices lists the phone as revoked.
 21. Pair again, stop the server, then open the full app: "Cannot reach the server" offers Phone pairing. Unlink there: the app says the server could not be reached and the phone is still listed; Devices still shows it active until revoked there.
-22. With the phone on USB, `adb logcat` captured during pairing and a scan shows no device token, tag key constant, tag UID or block data. Search it for `ftd_` and for the UID's hex digits.
+22. Away from home (mobile data, with the Access service token saved in Settings and the app opened once at home): the pages load without an Access sign-in, Scan shows Away, and a scan is decoded on the phone and queued. Back home, the queue empties and Activity shows the scan.
+23. Without the service token, away from home: Scan shows Offline (not Online), a queued scan stays queued, and sign-in says it cannot reach the server instead of waiting.
+24. With the phone on USB, `adb logcat` captured during pairing and a scan shows no device token, tag key constant, tag UID or block data. Search it for `ftd_` and for the UID's hex digits.
 
 A phone without MIFARE Classic support should say so on Scan. A Pixel cannot show this, so it is covered by the web tests only.

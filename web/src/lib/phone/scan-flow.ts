@@ -10,8 +10,11 @@
 import { ApiError } from "#lib/api/client.ts";
 import type { TagRead } from "#lib/phone/bridge.ts";
 import {
+  isAway,
   isOffline,
+  reachOf,
   scanEvent,
+  type Reach,
   type DeviceApi,
   type Feedback,
   type ScanAction,
@@ -85,7 +88,7 @@ export interface FlowDeps {
   now?: () => number;
   newId?: () => string;
   /** Told whether the server answered, after each request (for the Online pill). */
-  onReach?: (online: boolean) => void;
+  onReach?: (reach: Reach) => void;
 }
 
 const ACTION_NAMES: Record<ScanAction, string> = {
@@ -124,6 +127,7 @@ export function feedbackText(feedback: Feedback, action: ScanAction, state: stri
 
 /** Why the server refused the phone, in words; null for anything else. */
 export function refusalText(error: unknown): string | null {
+  if (isAway(error)) return "You're away from home. This works on your home network.";
   if (!(error instanceof ApiError)) return null;
   if (error.status === 401) return "This phone's token is no longer valid. Pair it again.";
   if (error.status === 403) return "The server accepts scans only from your home network.";
@@ -158,6 +162,8 @@ const IDLE: FlowView = {
 };
 
 export class ScanFlow {
+  /** Whether the last answer said the phone is away from home. */
+  private away = false;
   private current: FlowView = IDLE;
   private read: TagRead | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
@@ -276,7 +282,7 @@ export class ScanFlow {
         result.feedback === "already_in_state" ? "notice" : "recorded",
       );
     } catch (error) {
-      if (isOffline(error)) {
+      if (isOffline(error) || isAway(error)) {
         await this.enqueue(event, remember(true), card);
       } else {
         const text = refusalText(error) ?? "The server couldn't record that.";
@@ -316,8 +322,8 @@ export class ScanFlow {
   }
 
   private lookupFailed(read: TagRead, error: unknown): void {
-    const refusal = refusalText(error);
-    if (refusal || !isOffline(error)) {
+    const refusal = isAway(error) ? null : refusalText(error);
+    if (refusal || !(isOffline(error) || isAway(error))) {
       const text = refusal ?? "The server couldn't look up this spool.";
       this.showResult(text, "error", null, "notice");
       return;
@@ -344,7 +350,8 @@ export class ScanFlow {
       placeholder: false,
       offline: true,
     };
-    this.offer(card, OFFLINE_ACTIONS, null, "Can't reach the server. Your choice will be queued.");
+    const why = this.away ? "You're away from home." : "Can't reach the server.";
+    this.offer(card, OFFLINE_ACTIONS, null, `${why} Your choice will be queued.`);
   }
 
   private offer(
@@ -374,7 +381,9 @@ export class ScanFlow {
     if (await this.deps.queue.add(event, this.now())) {
       this.set({ last });
       this.showResult(
-        `Queued ${ACTION_NAMES[last.action]}. It will be sent when the server is back.`,
+        this.away
+          ? `Queued ${ACTION_NAMES[last.action]}. It will be sent when you're home.`
+          : `Queued ${ACTION_NAMES[last.action]}. It will be sent when the server is back.`,
         "warn",
         card,
         "queued",
@@ -408,10 +417,13 @@ export class ScanFlow {
   private async reach<T>(request: Promise<T>): Promise<T> {
     try {
       const result = await request;
-      this.deps.onReach?.(true);
+      this.away = false;
+      this.deps.onReach?.("online");
       return result;
     } catch (error) {
-      this.deps.onReach?.(!isOffline(error));
+      const reach = reachOf(error);
+      this.away = reach === "away";
+      this.deps.onReach?.(reach);
       throw error;
     }
   }
