@@ -189,6 +189,7 @@ describe("sign-in page in the phone app", () => {
 describe("account page in the phone app", () => {
   it("links to the phone's pairing, only in the app", () => {
     const app = render(AccountPage);
+    expect(document.title).toBe("Account · RollCall");
     expect(screen.getByRole("link", { name: "Phone pairing" })).toHaveAttribute("href", "/pair");
     app.unmount();
 

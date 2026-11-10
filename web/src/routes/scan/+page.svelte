@@ -70,7 +70,7 @@
   const delivery = phone.delivery;
 </script>
 
-<svelte:head><title>Scan · Filament Tracker</title></svelte:head>
+<svelte:head><title>Scan · RollCall</title></svelte:head>
 
 <section class="scan" aria-labelledby="scan-h">
   <ScanHeader reach={phone.reach} queueSize={phone.queueSize} theme={appTheme} />

@@ -5,7 +5,7 @@
   import ScannerSettings from "#lib/components/settings/ScannerSettings.svelte";
 </script>
 
-<svelte:head><title>Settings · Filament Tracker</title></svelte:head>
+<svelte:head><title>Settings · RollCall</title></svelte:head>
 
 <div class="page">
   <div class="pagehead">

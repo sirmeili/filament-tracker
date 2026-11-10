@@ -62,7 +62,7 @@
   }
 </script>
 
-<svelte:head><title>Add a spool by hand · Filament Tracker</title></svelte:head>
+<svelte:head><title>Add a spool by hand · RollCall</title></svelte:head>
 
 {#if !session.can("editor")}
   <Forbidden />

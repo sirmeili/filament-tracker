@@ -65,7 +65,7 @@
   }
 </script>
 
-<svelte:head><title>Products · Filament Tracker</title></svelte:head>
+<svelte:head><title>Products · RollCall</title></svelte:head>
 
 <div class="page">
   <div class="pagehead">

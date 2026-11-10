@@ -65,7 +65,7 @@
   - Done (app): a start screen with the owner's logo animation (`web/src/lib/assets/rollcall-loading.svg`, copied from `docs/mockups/logo/`) while the app loads its pairing and hears from the server: at least one full cycle, timed from the animation itself (`getAnimations`), then until ready or 4 s; still with reduce motion. Tests for the timing and the screen.
   - Done (logo): the spool mark in the web app's header and as the favicon. On Android, the launcher icon is an adaptive icon generated from the mark as vector drawables (with a themed one-colour version, and a plain vector for Android 7), the native splash is the mark on cream (dark at night), and Capacitor's default icons and splash images are gone.
   - Done (name): the app is named RollCall on the phone (Capacitor `appName`, launcher label). The app ID and the rest of the code keep Filament Tracker until the rename. Spec: Phone scanner (start screen, logo and name) and the Name and rename table.
-  - Installed on the owner's phone. The owner asked for the header and the app's name to read RollCall, one word with a capital C: done.
+  - Installed on the owner's phone. The owner asked for the header, the app's name and the page titles to read RollCall, one word with a capital C: done.
   - Next: PR.
 
 ## Next

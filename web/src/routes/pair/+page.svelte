@@ -61,7 +61,7 @@
   }
 </script>
 
-<svelte:head><title>Pairing · Filament Tracker</title></svelte:head>
+<svelte:head><title>Pairing · RollCall</title></svelte:head>
 
 <section class="pair" aria-labelledby="pair-h">
   <h1 id="pair-h">Pairing</h1>

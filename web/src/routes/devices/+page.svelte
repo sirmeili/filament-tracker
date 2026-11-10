@@ -154,7 +154,7 @@
   }
 </script>
 
-<svelte:head><title>Devices · Filament Tracker</title></svelte:head>
+<svelte:head><title>Devices · RollCall</title></svelte:head>
 
 <div class="page">
   <div class="pagehead">

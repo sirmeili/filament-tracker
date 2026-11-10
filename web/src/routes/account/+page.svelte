@@ -19,7 +19,7 @@
   }
 </script>
 
-<svelte:head><title>Account · Filament Tracker</title></svelte:head>
+<svelte:head><title>Account · RollCall</title></svelte:head>
 
 <div class="page">
   {#if session.user}
