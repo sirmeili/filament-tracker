@@ -26,13 +26,20 @@ if [[ $badging != "$want"* ]]; then
   exit 1
 fi
 
-signing=$("$apksigner" verify --verbose --print-certs "$apk")
+signing=$("$apksigner" verify --verbose --print-certs "$apk" 2>&1 | tr -d '')
 grep -q "Verified using v2 scheme (APK Signature Scheme v2): true" <<<"$signing" || {
   echo "not signed with APK Signature Scheme v2" >&2
   exit 1
 }
-cert=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' <<<"$signing")
-if [[ -n $expected_cert && ${cert,,} != "${expected_cert,,}" ]]; then
+# The signer's label differs between apksigner versions ("Signer #1", "Signer (minSdkVersion=…)").
+cert=$(grep -m 1 -ioE 'certificate SHA-256 digest: [0-9a-f]{64}' <<<"$signing" | grep -oiE '[0-9a-f]{64}$' || true)
+if [[ -z $cert ]]; then
+  echo "no signing certificate found in apksigner's output (build-tools ${tools##*/}); its lines:" >&2
+  sed -E 's/[0-9a-fA-F]{16,}/<hex>/g' <<<"$signing" >&2
+  exit 1
+fi
+cert=${cert,,}
+if [[ -n $expected_cert && $cert != "${expected_cert,,}" ]]; then
   echo "signed with an unexpected certificate: $cert" >&2
   exit 1
 fi
