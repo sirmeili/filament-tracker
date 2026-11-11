@@ -4,7 +4,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 // with requests to the paired server made through Capacitor's native HTTP, so the server
 // needs no CORS and keeps its session cookie and CSRF header rules.
 const config: CapacitorConfig = {
-  appId: "io.github.sirmeili.filamenttracker",
+  appId: "io.github.sirmeili.rollcall",
   appName: "RollCall",
   webDir: "build",
   android: {

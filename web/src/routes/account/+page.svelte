@@ -6,6 +6,7 @@
   import { session } from "#lib/auth/session.svelte.ts";
   import AppearanceChoice from "#lib/components/account/AppearanceChoice.svelte";
   import ChangePassword from "#lib/components/account/ChangePassword.svelte";
+  import { bridge } from "#lib/phone/bridge.ts";
   import { phone } from "#lib/phone/phone-state.svelte.ts";
   import { ROLE_LABELS } from "#lib/roles.ts";
   import { theme } from "#lib/theme.svelte.ts";
@@ -86,6 +87,11 @@
     <div id="change-password"><ChangePassword /></div>
   {/if}
 
+  {#if phone.app}
+    <!-- Which release this phone runs, to compare with the latest on GitHub (Obtainium). -->
+    <p class="muted version">RollCall app {bridge().appVersion.replace(/^app-/, "")}</p>
+  {/if}
+
   <button type="button" class="signout" onclick={signOut} disabled={busy}>Sign out</button>
 </div>
 
@@ -142,6 +148,11 @@
 
   .grow {
     flex: 1;
+  }
+
+  .version {
+    margin: 0;
+    font-size: 13px;
   }
 
   .state {

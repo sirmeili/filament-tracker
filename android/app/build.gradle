@@ -2,15 +2,37 @@ apply plugin: 'com.android.application'
 apply plugin: 'org.jetbrains.kotlin.android'
 apply plugin: 'jacoco'
 
+// Releases (android/README.md): the version comes from the tag, as -PappVersion=1.2.3, and
+// the version code from it (1.2.3 -> 10203), so every release counts as an update. Other
+// builds are version "dev".
+def appVersion = project.findProperty('appVersion')?.toString()
+def appVersionCode = 1
+if (appVersion != null) {
+    def parts = appVersion =~ /^(\d+)\.(\d+)\.(\d+)$/
+    if (!parts.matches()) {
+        throw new GradleException("appVersion must look like 1.2.3")
+    }
+    def (major, minor, patch) = (1..3).collect { parts.group(it).toInteger() }
+    if (minor > 99 || patch > 99 || major + minor + patch == 0) {
+        throw new GradleException("appVersion parts must be 0-99, and not all 0")
+    }
+    appVersionCode = major * 10000 + minor * 100 + patch
+}
+
+// The release key comes from the environment (the release job writes it from GitHub's
+// secrets); it is never in the repo. Without it, release builds are unsigned.
+def keystoreFile = System.getenv('ANDROID_KEYSTORE_FILE')
+
 android {
+    // The Kotlin package keeps the old name until the code rename; the app ID is RollCall's.
     namespace = "io.github.sirmeili.filamenttracker"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "io.github.sirmeili.filamenttracker"
+        applicationId "io.github.sirmeili.rollcall"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode appVersionCode
+        versionName appVersion ?: "dev"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -18,13 +40,32 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (keystoreFile) {
+            release {
+                storeFile file(keystoreFile)
+                storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
+                keyAlias 'rollcall'
+                keyPassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
+            }
+        }
+    }
     buildTypes {
         debug {
             enableUnitTestCoverage true
+            // Development builds sit next to the release app instead of replacing it.
+            applicationIdSuffix ".debug"
+            resValue "string", "app_name", "RollCall (dev)"
+            resValue "string", "title_activity_main", "RollCall (dev)"
         }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            resValue "string", "app_name", "RollCall"
+            resValue "string", "title_activity_main", "RollCall"
+            if (keystoreFile) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

@@ -1,7 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">RollCall</string>
-    <string name="title_activity_main">RollCall</string>
-    <string name="package_name">io.github.sirmeili.filamenttracker</string>
-    <string name="custom_url_scheme">io.github.sirmeili.filamenttracker</string>
+    <!-- app_name and title_activity_main are set per build type in app/build.gradle. -->
+    <string name="package_name">io.github.sirmeili.rollcall</string>
+    <string name="custom_url_scheme">io.github.sirmeili.rollcall</string>
 </resources>

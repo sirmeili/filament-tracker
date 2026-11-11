@@ -1,0 +1,91 @@
+# Publishes the Android app (android/README.md, Releases). Pushing a tag such as app-v1.2.0
+# on a commit in main builds the app at that version, signs it with the release key from the
+# repository's secrets, checks it and attaches it to a GitHub Release, where Obtainium on the
+# phones finds it.
+name: App release
+
+on:
+  push:
+    tags: ["app-v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Read the version from the tag, and check the commit is in main
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#app-v}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "The tag must look like app-v1.2.3" >&2
+            exit 1
+          fi
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || {
+            echo "The tagged commit is not in main" >&2
+            exit 1
+          }
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Build the web app and copy it into the Android project
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+          npx cap sync android
+      - name: Build the signed release
+        working-directory: android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [[ -z "$KEYSTORE_BASE64" || -z "$ANDROID_KEYSTORE_PASSWORD" ]]; then
+            echo "The release key secrets are not set (android/README.md, Releases)" >&2
+            exit 1
+          fi
+          export ANDROID_KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
+          base64 -d <<<"$KEYSTORE_BASE64" > "$ANDROID_KEYSTORE_FILE"
+          ./gradlew --no-daemon coverageCheck assembleRelease -PappVersion="$VERSION"
+          rm "$ANDROID_KEYSTORE_FILE"
+      - name: Check the APK
+        working-directory: android
+        env:
+          RELEASE_CERT_SHA256: ${{ vars.RELEASE_CERT_SHA256 }}
+        run: |
+          apk="$RUNNER_TEMP/rollcall-$VERSION.apk"
+          cp app/build/outputs/apk/release/app-release.apk "$apk"
+          scripts/verify-release.sh "$apk" "$VERSION" "$RELEASE_CERT_SHA256" | tee "$RUNNER_TEMP/verify.txt"
+          echo "APK=$apk" >> "$GITHUB_ENV"
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          cert=$(sed -n 's/.*certificate SHA-256 //p' "$RUNNER_TEMP/verify.txt")
+          sum=$(sha256sum "$APK" | cut -d' ' -f1)
+          {
+            echo "RollCall Android app $VERSION."
+            echo
+            echo "Install or update it with Obtainium (android/README.md, Installing on a phone)."
+            echo
+            echo "- APK SHA-256: \`$sum\`"
+            echo "- Signing certificate SHA-256: \`$cert\`"
+          } > "$RUNNER_TEMP/notes.md"
+          gh release create "$TAG" "$APK" --title "RollCall app $VERSION" \
+            --notes-file "$RUNNER_TEMP/notes.md" --generate-notes --verify-tag
