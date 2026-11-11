@@ -71,6 +71,7 @@
 ## Next
 
 - Android Back button: go back a page in the app, and close it only from the opening screen (see In progress).
+- Hide revoked devices on the Devices page behind a "Show revoked" toggle (SPEC Future enhancements, owner 2026-11-11).
 - The code rename to RollCall (decisions in SPEC Name and rename, owner 2026-11-10): its own branch, `feature/rename-rollcall`, when the owner asks for it.
 - M10 and M11, print requests Phase 2 and Phase 3 (see SPEC Future enhancements: print requests), before the firmware milestones.
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.
