@@ -31,3 +31,8 @@ requirements-audit.txt
 
 # Redacted printer captures (ft-printer check --save)
 server/captures/
+
+# Android signing keys: kept by the owner and in GitHub secrets, never in the repo.
+*.jks
+*.keystore
+*.p12

@@ -18,12 +18,78 @@ npx cap sync android
 
 Run `npm run build` and `npx cap sync android` again after any web change.
 
-## Install on a phone
+Debug builds are **RollCall (dev)** (`io.github.sirmeili.rollcall.debug`, version `dev`). They install next to the release app instead of replacing it, each with its own pairing.
 
-Either:
+## Install a development build
 
 - **USB:** turn on Developer options and USB debugging on the phone, connect it, then run `adb install -r app/build/outputs/apk/debug/app-debug.apk`. `adb` is in the SDK's `platform-tools`.
 - **File:** copy `app-debug.apk` to the phone and open it. Allow installs from that app when Android asks.
+
+## Installing on a phone (releases, with Obtainium)
+
+Everyday phones run the release app, **RollCall** (`io.github.sirmeili.rollcall`), from this repository's GitHub Releases. [Obtainium](https://github.com/ImranR98/Obtainium) watches the releases and offers each new version.
+
+1. Install Obtainium from its [GitHub releases](https://github.com/ImranR98/Obtainium/releases) (the `app-release.apk` for most phones) or from F-Droid. Allow installs from the browser (or F-Droid) when Android asks.
+2. In Obtainium, tap **Add app** and enter `https://github.com/sirmeili/rollcall`. Before adding, set:
+   - **Filter release titles by regular expression:** `^RollCall app ` (the repository may hold other releases later).
+   - **Version string extraction RegEx:** `(\d+\.\d+\.\d+)`, so the tag `app-v1.2.0` reads as `1.2.0`, the version the app reports.
+   - **Filter APKs by regular expression:** `^rollcall-.*\.apk$`.
+3. Tap **Add**, then **Install**. Allow installs from Obtainium when Android asks.
+4. Open RollCall **at home** and set it up by signing in (below). The server hands out the tag key and the Cloudflare Access token only on the home network.
+5. Account shows the app's version (**RollCall app 1.2.0**); Devices shows each phone's version too.
+
+Updates: Obtainium checks in the background and notifies when a release is out; tap **Update**. Android keeps the app's data, so the phone stays set up. An update must be signed with the same key as the installed app, so a phone with an app signed by another key (an old debug build) must uninstall it first.
+
+## Releases
+
+A release is published by pushing a tag `app-v<major>.<minor>.<patch>` (each part 0 to 99) on a commit in `main`. The **App release** workflow (`.github/workflows/app-release.yml`) then builds the web app and the Android app at that version (version code `major·10000 + minor·100 + patch`), runs the Kotlin tests, signs it with the release key, checks it with `scripts/verify-release.sh` (app ID, version, a v2 signature and, when set, the expected certificate) and attaches `rollcall-<version>.apk` to a GitHub Release named **RollCall app <version>**, with its SHA-256, the certificate's SHA-256 and the merged pull requests.
+
+```sh
+git switch main && git pull
+git tag app-v1.2.0
+git push origin app-v1.2.0
+```
+
+A dry run (**Run workflow** on the Actions page, see step 5 below) does the same with any version and publishes nothing.
+
+Make a release when a merged change affects the phone: the app holds its own copy of the web app, so a web change reaches the phones only in a new release. CI also builds a test release on every pull request, signed with a key made for that run, so a broken release setup shows up before a tag.
+
+### The release key (once)
+
+Every release must be signed with the same key: Android refuses an update signed by another, and the phones would have to uninstall and set up again. The owner keeps the key; it is never in the repository (`*.jks` is ignored).
+
+1. Make it with JDK 21's `keytool`, in a folder outside the repository, choosing a long password when asked:
+
+   ```sh
+   keytool -genkeypair -keystore rollcall-release.jks -storetype PKCS12 -alias rollcall -keyalg RSA -keysize 4096 -validity 36500 -dname "CN=RollCall"
+   ```
+
+2. Keep the key and its password in a password manager, plus a second copy elsewhere (the `.jks` on a USB stick, say). Losing them means every phone reinstalls. A password manager that stores no files takes the key as text in a secure note (PowerShell, from the key's folder; `$PWD\` is needed because `[IO.File]` reads names from the folder PowerShell started in):
+
+   ```powershell
+   # Copy the key as text, to paste into the note
+   [Convert]::ToBase64String([IO.File]::ReadAllBytes("$PWD\rollcall-release.jks")) | Set-Clipboard
+   # Turn the note's text (copied) back into the file
+   [IO.File]::WriteAllBytes("$PWD\rollcall-release.jks", [Convert]::FromBase64String((Get-Clipboard -Raw).Trim()))
+   ```
+
+   Check a restored copy with `keytool -list -keystore rollcall-release.jks -alias rollcall`: the same password and SHA-256 mean the backup is good.
+
+3. Store them as repository secrets (PowerShell, from the key's folder):
+
+   ```powershell
+   [Convert]::ToBase64String([IO.File]::ReadAllBytes("$PWD\rollcall-release.jks")) | gh secret set ANDROID_KEYSTORE_BASE64 -R sirmeili/rollcall
+   gh secret set ANDROID_KEYSTORE_PASSWORD -R sirmeili/rollcall   # paste the password when asked
+   ```
+
+4. Record the certificate's SHA-256, so the workflow refuses a release signed with any other key:
+
+   ```powershell
+   keytool -list -keystore rollcall-release.jks -alias rollcall   # asks for the password
+   gh variable set RELEASE_CERT_SHA256 -R sirmeili/rollcall --body "<the SHA-256 without colons>"
+   ```
+
+5. Check the secrets with a dry run. GitHub never shows a secret again, so `gh secret list -R sirmeili/rollcall` only shows that they exist. On the Actions page, open **App release**, choose **Run workflow** on `main` and keep the version: it builds, signs and checks the app exactly as a release does, and publishes nothing. A green run, with the certificate's SHA-256 in its summary, means a tag will work. The secrets' values are never printed.
 
 ## Server for a phone test
 

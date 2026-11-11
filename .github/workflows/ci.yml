@@ -119,3 +119,13 @@ jobs:
       - name: Run Kotlin tests with the 90% coverage gate and build the APK
         working-directory: android
         run: ./gradlew --no-daemon coverageCheck assembleDebug
+      # The release build as the release job makes it, signed with a key made for this run,
+      # so a broken release setup shows up before a tag is pushed.
+      - name: Build and check a test release
+        working-directory: android
+        run: |
+          export ANDROID_KEYSTORE_FILE="$RUNNER_TEMP/test-release.jks"
+          export ANDROID_KEYSTORE_PASSWORD="$(openssl rand -hex 16)"
+          keytool -genkeypair -keystore "$ANDROID_KEYSTORE_FILE" -storetype PKCS12             -alias rollcall -keyalg RSA -keysize 2048 -validity 1 -dname "CN=CI test"             -storepass "$ANDROID_KEYSTORE_PASSWORD"
+          ./gradlew --no-daemon assembleRelease -PappVersion=1.2.3
+          scripts/verify-release.sh app/build/outputs/apk/release/app-release.apk 1.2.3

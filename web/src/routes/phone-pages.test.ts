@@ -272,11 +272,14 @@ describe("account page in the phone app", () => {
     const row = screen.getByRole("link", { name: /This phone/ });
     expect(row).toHaveAttribute("href", "/pair");
     expect(row).toHaveTextContent("Not set up");
+    // The app's own version, to compare with the latest release.
+    expect(screen.getByText("RollCall app test")).toBeInTheDocument();
     app.unmount();
 
     setBridge(browserBridge);
     render(AccountPage);
     expect(screen.queryByRole("link", { name: /This phone/ })).toBeNull();
+    expect(screen.queryByText(/RollCall app/)).toBeNull();
   });
 });
 
