@@ -2,11 +2,20 @@
 # on a commit in main builds the app at that version, signs it with the release key from the
 # repository's secrets, checks it and attaches it to a GitHub Release, where Obtainium on the
 # phones finds it.
+#
+# Run by hand from the Actions page ("Run workflow"), it is a dry run: the same build, signing
+# and checks with the release key, publishing nothing, to check the secrets before a tag.
 name: App release
 
 on:
   push:
     tags: ["app-v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to build for the dry run (nothing is published)
+        default: "0.0.1"
+        required: true
 
 permissions:
   contents: read
@@ -20,19 +29,27 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - name: Read the version from the tag, and check the commit is in main
+      - name: Read the version from the tag (or the dry run's input), and check the commit is in main
         env:
           TAG: ${{ github.ref_name }}
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          version="${TAG#app-v}"
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            version="$INPUT_VERSION"
+            echo "Dry run: nothing will be published."
+          else
+            version="${TAG#app-v}"
+          fi
           if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "The tag must look like app-v1.2.3" >&2
+            echo "The version must look like 1.2.3 (the tag like app-v1.2.3)" >&2
             exit 1
           fi
-          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || {
-            echo "The tagged commit is not in main" >&2
-            exit 1
-          }
+          if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]]; then
+            git merge-base --is-ancestor "$GITHUB_SHA" origin/main || {
+              echo "The tagged commit is not in main" >&2
+              exit 1
+            }
+          fi
           echo "VERSION=$version" >> "$GITHUB_ENV"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -72,7 +89,26 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk "$apk"
           scripts/verify-release.sh "$apk" "$VERSION" "$RELEASE_CERT_SHA256" | tee "$RUNNER_TEMP/verify.txt"
           echo "APK=$apk" >> "$GITHUB_ENV"
+      - name: Report the dry run
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          RELEASE_CERT_SHA256: ${{ vars.RELEASE_CERT_SHA256 }}
+        run: |
+          cert=$(sed -n 's/.*certificate SHA-256 //p' "$RUNNER_TEMP/verify.txt")
+          {
+            echo "### Dry run passed: nothing was published"
+            echo
+            echo "The release key secrets decode, unlock and sign a build of version $VERSION."
+            echo
+            echo "- Signing certificate SHA-256: \`$cert\`"
+            if [[ -n "$RELEASE_CERT_SHA256" ]]; then
+              echo "- It matches RELEASE_CERT_SHA256."
+            else
+              echo "- RELEASE_CERT_SHA256 is not set: compare the certificate with keytool -list by hand."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Publish the release
+        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}

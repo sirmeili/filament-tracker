@@ -50,6 +50,8 @@ git tag app-v1.2.0
 git push origin app-v1.2.0
 ```
 
+A dry run (**Run workflow** on the Actions page, see step 5 below) does the same with any version and publishes nothing.
+
 Make a release when a merged change affects the phone: the app holds its own copy of the web app, so a web change reaches the phones only in a new release. CI also builds a test release on every pull request, signed with a key made for that run, so a broken release setup shows up before a tag.
 
 ### The release key (once)
@@ -59,14 +61,24 @@ Every release must be signed with the same key: Android refuses an update signed
 1. Make it with JDK 21's `keytool`, in a folder outside the repository, choosing a long password when asked:
 
    ```sh
-   keytool -genkeypair -keystore rollcall-release.jks -storetype PKCS12 -alias rollcall      -keyalg RSA -keysize 4096 -validity 36500 -dname "CN=RollCall"
+   keytool -genkeypair -keystore rollcall-release.jks -storetype PKCS12 -alias rollcall -keyalg RSA -keysize 4096 -validity 36500 -dname "CN=RollCall"
    ```
 
-2. Keep `rollcall-release.jks` and the password in a password manager (or two safe places). Losing them means every phone reinstalls.
+2. Keep the key and its password in a password manager, plus a second copy elsewhere (the `.jks` on a USB stick, say). Losing them means every phone reinstalls. A password manager that stores no files takes the key as text in a secure note (PowerShell, from the key's folder; `$PWD\` is needed because `[IO.File]` reads names from the folder PowerShell started in):
+
+   ```powershell
+   # Copy the key as text, to paste into the note
+   [Convert]::ToBase64String([IO.File]::ReadAllBytes("$PWD\rollcall-release.jks")) | Set-Clipboard
+   # Turn the note's text (copied) back into the file
+   [IO.File]::WriteAllBytes("$PWD\rollcall-release.jks", [Convert]::FromBase64String((Get-Clipboard -Raw).Trim()))
+   ```
+
+   Check a restored copy with `keytool -list -keystore rollcall-release.jks -alias rollcall`: the same password and SHA-256 mean the backup is good.
+
 3. Store them as repository secrets (PowerShell, from the key's folder):
 
    ```powershell
-   [Convert]::ToBase64String([IO.File]::ReadAllBytes("rollcall-release.jks")) | gh secret set ANDROID_KEYSTORE_BASE64 -R sirmeili/rollcall
+   [Convert]::ToBase64String([IO.File]::ReadAllBytes("$PWD\rollcall-release.jks")) | gh secret set ANDROID_KEYSTORE_BASE64 -R sirmeili/rollcall
    gh secret set ANDROID_KEYSTORE_PASSWORD -R sirmeili/rollcall   # paste the password when asked
    ```
 
@@ -76,6 +88,8 @@ Every release must be signed with the same key: Android refuses an update signed
    keytool -list -keystore rollcall-release.jks -alias rollcall   # asks for the password
    gh variable set RELEASE_CERT_SHA256 -R sirmeili/rollcall --body "<the SHA-256 without colons>"
    ```
+
+5. Check the secrets with a dry run. GitHub never shows a secret again, so `gh secret list -R sirmeili/rollcall` only shows that they exist. On the Actions page, open **App release**, choose **Run workflow** on `main` and keep the version: it builds, signs and checks the app exactly as a release does, and publishes nothing. A green run, with the certificate's SHA-256 in its summary, means a tag will work. The secrets' values are never printed.
 
 ## Server for a phone test
 
