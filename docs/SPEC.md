@@ -238,6 +238,14 @@ An Android phone can act as one more scanner, so spools can be scanned before th
 - The session cookie is `Secure`, so signing in over a plain `http://` address works only with `COOKIE_SECURE=false`. Pairing with the HTTPS address is recommended.
 - **Same address at home and away** (owner's setup, 2026-11-10): the web app's hostname reaches a reverse proxy on the LAN at home (the home DNS answers it with the server's LAN address, "split DNS"), and Cloudflare's tunnel away from home. The phone keeps one address and one sign-in. At home, scans reach the server through the LAN proxy with the phone's LAN address (the proxy is in `FORWARDED_ALLOW_IPS`); through a tunnel, the server sees a public address, so scanning works only at home. See `docs/deploy.md`.
 
+**Releases and updates** (owner's choice, 2026-11-11)
+
+- Everyday phones run the **release app**, RollCall, with the app ID `io.github.sirmeili.rollcall`. Development builds are **RollCall (dev)**, `io.github.sirmeili.rollcall.debug`, version `dev`, and install next to it, each with its own pairing.
+- A release is published by pushing a tag `app-v<major>.<minor>.<patch>` (each part 0 to 99) on a commit in `main`. A workflow builds the app at that version (version code `major·10000 + minor·100 + patch`, so each release is higher than the last), runs the Kotlin tests, signs it with the release key, checks the app ID, version and signature (and the certificate, when its SHA-256 is set as the repository variable `RELEASE_CERT_SHA256`), and attaches `rollcall-<version>.apk` to a GitHub Release named "RollCall app <version>" with the APK's and the certificate's SHA-256.
+- The release key is the owner's: it is kept outside the repository and reaches the workflow only as the secrets `ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PASSWORD`. Every release uses the same key, since Android refuses an update signed by another. CI builds a test release on every pull request with a key made for that run.
+- Phones get releases with **Obtainium**, which watches the repository's releases and offers each new version; Android keeps the app's data across updates, so the phone stays set up. The steps are in `android/README.md`.
+- The Account page shows the app's version in the app ("RollCall app 1.2.0"); the heartbeat reports it, as on the Devices page.
+
 **Away from home** (owner's request, 2026-11-10)
 
 - The pages work away from home: browsing the inventory is what the app is for there. Scanning stays on the home network: away from home a scan is decoded on the phone and queued, as when the server is down, and the queue is sent when the phone is home again. The Scan header shows Away.
