@@ -63,12 +63,15 @@
 
 - App releases on `feature/app-releases` (plan approved 2026-11-11, for the owner's brother's phone on 2026-11-14):
   - Done: the app ID is now `io.github.sirmeili.rollcall`; debug builds are RollCall (dev) with a `.debug` ID, so they install next to the release app. `-PappVersion=X.Y.Z` sets the version name and code (`X·10000 + Y·100 + Z`), and the release build is signed from `ANDROID_KEYSTORE_FILE` and `ANDROID_KEYSTORE_PASSWORD`. `scripts/verify-release.sh` checks the app ID, version, v2 signature and certificate. CI builds and checks a test release with a key made for the run; the App release workflow publishes `rollcall-<version>.apk` to a GitHub Release on an `app-v*` tag in `main`. Run by hand, it is a dry run that signs and checks with the release key and publishes nothing (owner's request, 2026-11-11, to check the secrets). Account shows the app's version. Docs: `android/README.md` (releases, the release key, installing with Obtainium), Spec: Phone scanner, Releases and updates. Tests: `phone-pages.test.ts`, the verify script against a good build and a wrong version and certificate.
-  - Next, by the owner: make the release key, save it as text in the password manager and set the secrets (`android/README.md`), run the dry run once this is merged, then tag `app-v1.0.0`, install it with Obtainium, set the phone up at home and uninstall the debug build.
+  - Merged (PR #53). The owner made the release key and set the secrets, and the dry run passed; `app-v1.0.0` is published (2026-11-11).
+  - Found in the 1.0.0 run, on `fix/release-cert-check`: the certificate check read no certificate on Linux, and its failure was hidden because the output went through `tee` without `pipefail`, so the release notes show an empty certificate. The APK itself is signed with the release key (checked by hand). The script now finds the certificate whatever apksigner calls the signer, fails when there is none, and the workflow runs bash with `pipefail`.
+  - Next: the owner installs 1.0.0 with Obtainium, sets the phone up at home and uninstalls the debug build.
 - To fix (owner, 2026-11-10): in the Android app, the phone's Back button always closes the app instead of going back a page. Branch `feature/android-back-button`; not started.
 
 ## Next
 
 - Android Back button: go back a page in the app, and close it only from the opening screen (see In progress).
+- Hide revoked devices on the Devices page behind a "Show revoked" toggle (SPEC Future enhancements, owner 2026-11-11).
 - The code rename to RollCall (decisions in SPEC Name and rename, owner 2026-11-10): its own branch, `feature/rename-rollcall`, when the owner asks for it.
 - M10 and M11, print requests Phase 2 and Phase 3 (see SPEC Future enhancements: print requests), before the firmware milestones.
 - M0b hardware ordered (2026-11-05): CYD, two PN532 V3 modules, JST 1.25 mm 4-pin pigtails, breadboard and jumpers, 12 × 12 × 7.3 mm tactile switches, resistors, and cavity speakers. M0b starts when it arrives.

@@ -547,6 +547,7 @@ Each milestone ends with something usable. Reading is proved first with a phone,
 - **Spoolman sync**: one-way export, as described under Integrations.
 - **Non-Bambu filament**: NTAG stickers in an open format, or QR labels printed by the server.
 - **Second scanner by the printer**: same firmware, its own device token.
+- **Hide revoked devices** (owner, 2026-11-11): the Devices page hides revoked and unlinked devices behind a "Show revoked" toggle. They stay in the database, so their events keep their source; a phone moved from a development build to the release app otherwise leaves its old entry listed.
 
 ## Future enhancements: print requests
 

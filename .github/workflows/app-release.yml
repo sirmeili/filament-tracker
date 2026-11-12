@@ -20,6 +20,11 @@ on:
 permissions:
   contents: read
 
+# An explicit bash runs with pipefail, so a failed check piped through tee fails its step.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   release:
     runs-on: ubuntu-latest
