@@ -58,6 +58,7 @@
 - Deploy guide for Portainer, a Cloudflare Tunnel and HTTPS at home with Traefik and split DNS, and the owner's logo mockups, merged (PR #42).
 - The phone app at home and away, four branches (plan approved 2026-11-10): unlink this phone (PR #43), away from home through Cloudflare Access with scans queued (PR #44), the start screen, logo and RollCall name (PR #45), and setting a phone up by signing in, with a user's phone following their role, the opening-screen choice and sessions in use renewed (PR #46). Checks 25 to 30 in `android/README.md` run once the server is updated.
 - Phone layout and Inventory filters from the owner's mockups (PRs #48 and #49), two phone fixes (sign-in after an update and pages wider than the screen, PR #50), the `cfast_` Cloudflare secret format (PR #51) and renamed AMS products kept when their tags are scanned (PR #52), all merged 2026-11-10. The owner then started over with a fresh database (the old one is in `/data/before-reset/` on the server).
+- Agent skills setup (2026-11-13): `docs/agents/` records GitHub Issues as the tracker, the five default triage labels (created on GitHub) and a single-context glossary and ADR layout; AGENTS.md links them in a new Agent skills section.
 
 ## In progress
 
