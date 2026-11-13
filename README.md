@@ -79,6 +79,7 @@ docs/deploy.md                Running RollCall with Docker Compose or Portainer:
 docs/mockups/web/             Web app page mockups and design tokens
 docs/mockups/mobile-scanner/  Phone app Scan screen mockups
 docs/mockups/mobile-web/      Phone layout mockups: bottom bar, menu, Account, Inventory
+docs/agents/                  Issue tracker, triage labels and domain docs settings for the agent skills
 hardware/BOM.md               Bill of materials for one scanner
 hardware/enclosure/           3D model of the scanner case
 server/                       FastAPI server: decoder, database, event log, API, scan simulator

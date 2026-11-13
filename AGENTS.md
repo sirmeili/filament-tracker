@@ -152,3 +152,17 @@ Upon user acceptance of a completed feature or step, you must commit your code, 
   * Build the debug APK: `./gradlew assembleDebug`, which writes `app/build/outputs/apk/debug/app-debug.apk`.
 
   * New Android dependencies follow the same rules as npm ones: a release at least 7 days old, checked for advisories (OSV, GitHub Advisories) first.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues for `sirmeili/rollcall`, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Uses the five default triage labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root, both created when first needed. See `docs/agents/domain.md`.
